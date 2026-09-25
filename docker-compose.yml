@@ -1,0 +1,160 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: signalview_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-signalview}
+      POSTGRES_USER: ${POSTGRES_USER:-signalview}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-signalview_secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-signalview}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - signalview_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: signalview_redis
+    networks:
+      - signalview_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: signalview_backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-signalview}:${POSTGRES_PASSWORD:-signalview_secret}@postgres:5432/${POSTGRES_DB:-signalview}
+      DATABASE_POOL_MODE: queue
+      DATABASE_POOL_SIZE: ${API_DATABASE_POOL_SIZE:-5}
+      DATABASE_MAX_OVERFLOW: ${API_DATABASE_MAX_OVERFLOW:-5}
+      DATABASE_POOL_TIMEOUT: ${DATABASE_POOL_TIMEOUT:-30}
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - ./backend:/app
+      - recordings_data:/recordings
+    ports:
+      - "8001:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - signalview_net
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  billing_celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file: .env
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-signalview}:${POSTGRES_PASSWORD:-signalview_secret}@postgres:5432/${POSTGRES_DB:-signalview}
+      DATABASE_POOL_MODE: null
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - ./backend:/app
+      - recordings_data:/recordings
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - signalview_net
+    command: celery -A app.core.celery_app.celery_app worker --loglevel=INFO --queues=billing --concurrency=${BILLING_WORKER_CONCURRENCY:-4} --max-tasks-per-child=1000
+
+  notification_celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file: .env
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-signalview}:${POSTGRES_PASSWORD:-signalview_secret}@postgres:5432/${POSTGRES_DB:-signalview}
+      DATABASE_POOL_MODE: null
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - ./backend:/app
+      - recordings_data:/recordings
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - signalview_net
+    command: celery -A app.core.celery_app.celery_app worker --loglevel=INFO --queues=notifications --concurrency=${NOTIFICATION_WORKER_CONCURRENCY:-4} --max-tasks-per-child=1000
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL
+        - NEXT_PUBLIC_RTMP_SERVER_HOST
+    container_name: signalview_frontend
+    env_file: .env
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_RTMP_SERVER_HOST: ${NEXT_PUBLIC_RTMP_SERVER_HOST}
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+    networks:
+      - signalview_net
+
+  rtmp:
+    build:
+      context: ./rtmp
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    container_name: signalview_rtmp
+    restart: unless-stopped
+    ports:
+      - "1935:1935"    # RTMP ingest — OBS connects here
+    volumes:
+      - hls_data:/var/hls
+      - ./logs:/logs
+    depends_on:
+      - backend
+    networks:
+      - signalview_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nginx:
+    image: nginx:alpine
+    container_name: signalview_nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./logs:/logs
+    depends_on:
+      - backend
+      - frontend
+      - rtmp
+    networks:
+      - signalview_net
+
+volumes:
+  postgres_data:
+  hls_data:   # Shared between rtmp (writer) and nginx (future direct serve)
+  recordings_data:
+
+networks:
+  signalview_net:
+    driver: bridge

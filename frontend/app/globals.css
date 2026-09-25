@@ -1,0 +1,722 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Blue Dark (default) ─────────────────────────────────────────── */
+@layer base {
+
+    :root,
+    [data-theme="blue"] {
+        --background: 220 20% 6%;
+        --foreground: 210 10% 92%;
+
+        --card: 220 18% 10%;
+        --card-foreground: 210 10% 92%;
+
+        --popover: 220 18% 10%;
+        --popover-foreground: 210 10% 92%;
+
+        --primary: 215 100% 50%;
+        --primary-foreground: 220 20% 6%;
+
+        --secondary: 220 15% 16%;
+        --secondary-foreground: 210 10% 85%;
+
+        --muted: 220 15% 14%;
+        --muted-foreground: 220 10% 55%;
+
+        --accent: 215 100% 50%;
+        --accent-foreground: 220 20% 6%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 220 15% 18%;
+        --input: 220 15% 18%;
+        --ring: 215 100% 50%;
+        --radius: 0.5rem;
+        --scroll: 220 6.5% 25%;
+
+        --sidebar-background: 220 18% 8%;
+        --sidebar-foreground: 210 10% 85%;
+        --sidebar-primary: 215 100% 50%;
+        --sidebar-primary-foreground: 220 20% 6%;
+        --sidebar-accent: 220 15% 14%;
+        --sidebar-accent-foreground: 210 10% 85%;
+        --sidebar-border: 220 15% 18%;
+        --sidebar-ring: 215 100% 50%;
+
+        --gold: 215 100% 50%;
+        --gold-dim: 215 100% 40%;
+        --surface-hover: 220 15% 18%;
+
+        --gradient-primary-1: hsl(215 100% 50%);
+        --gradient-primary-2: hsl(210 100% 60%);
+        --gradient-primary-3: hsl(220 100% 45%);
+        --banner-bg: hsl(220 20% 6%);
+        --banner-bg-overlay: hsl(220 20% 6% / 0.8);
+    }
+}
+
+/* ─── Midnight (deep navy + cyan) ────────────────────────────────── */
+@layer base {
+    [data-theme="midnight"] {
+        --background: 230 30% 5%;
+        --foreground: 190 15% 90%;
+
+        --card: 230 25% 9%;
+        --card-foreground: 190 15% 90%;
+
+        --popover: 230 25% 9%;
+        --popover-foreground: 190 15% 90%;
+
+        --primary: 190 90% 50%;
+        --primary-foreground: 230 30% 5%;
+
+        --secondary: 230 20% 14%;
+        --secondary-foreground: 190 10% 82%;
+
+        --muted: 230 20% 12%;
+        --muted-foreground: 220 10% 52%;
+
+        --accent: 190 90% 50%;
+        --accent-foreground: 230 30% 5%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 230 20% 16%;
+        --input: 230 20% 16%;
+        --ring: 190 90% 50%;
+
+        --sidebar-background: 230 25% 7%;
+        --sidebar-foreground: 190 10% 82%;
+        --sidebar-primary: 190 90% 50%;
+        --sidebar-primary-foreground: 230 30% 5%;
+        --sidebar-accent: 230 20% 12%;
+        --sidebar-accent-foreground: 190 10% 82%;
+        --sidebar-border: 230 20% 16%;
+        --sidebar-ring: 190 90% 50%;
+
+        --gold: 190 90% 50%;
+        --gold-dim: 190 60% 35%;
+        --surface-hover: 230 20% 16%;
+
+        --gradient-primary-1: hsl(190 90% 50%);
+        --gradient-primary-2: hsl(195 100% 65%);
+        --gradient-primary-3: hsl(185 80% 42%);
+        --banner-bg: hsl(230 30% 5%);
+        --banner-bg-overlay: hsl(230 30% 5% / 0.8);
+    }
+}
+
+/* ─── Sunset (dark charcoal + orange) ────────────────────────────── */
+@layer base {
+    [data-theme="sunset"] {
+        --background: 15 18% 6%;
+        --foreground: 30 10% 92%;
+
+        --card: 15 15% 10%;
+        --card-foreground: 30 10% 92%;
+
+        --popover: 15 15% 10%;
+        --popover-foreground: 30 10% 92%;
+
+        --primary: 20 100% 55%;
+        --primary-foreground: 15 18% 6%;
+
+        --secondary: 15 12% 15%;
+        --secondary-foreground: 30 10% 82%;
+
+        --muted: 15 12% 13%;
+        --muted-foreground: 15 8% 52%;
+
+        --accent: 20 100% 55%;
+        --accent-foreground: 15 18% 6%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 15 12% 17%;
+        --input: 15 12% 17%;
+        --ring: 20 100% 55%;
+
+        --sidebar-background: 15 15% 8%;
+        --sidebar-foreground: 30 10% 82%;
+        --sidebar-primary: 20 100% 55%;
+        --sidebar-primary-foreground: 15 18% 6%;
+        --sidebar-accent: 15 12% 13%;
+        --sidebar-accent-foreground: 30 10% 82%;
+        --sidebar-border: 15 12% 17%;
+        --sidebar-ring: 20 100% 55%;
+
+        --gold: 20 100% 55%;
+        --gold-dim: 20 70% 38%;
+        --surface-hover: 15 12% 17%;
+
+        --gradient-primary-1: hsl(20 100% 55%);
+        --gradient-primary-2: hsl(35 100% 65%);
+        --gradient-primary-3: hsl(10 90% 48%);
+        --banner-bg: hsl(15 18% 6%);
+        --banner-bg-overlay: hsl(15 18% 6% / 0.8);
+    }
+}
+
+/* ─── Emerald (dark forest + green) ──────────────────────────────── */
+@layer base {
+    [data-theme="emerald"] {
+        --background: 150 22% 5%;
+        --foreground: 140 10% 90%;
+
+        --card: 150 18% 9%;
+        --card-foreground: 140 10% 90%;
+
+        --popover: 150 18% 9%;
+        --popover-foreground: 140 10% 90%;
+
+        --primary: 152 60% 45%;
+        --primary-foreground: 150 22% 5%;
+
+        --secondary: 150 14% 13%;
+        --secondary-foreground: 140 8% 80%;
+
+        --muted: 150 14% 11%;
+        --muted-foreground: 140 8% 50%;
+
+        --accent: 152 60% 45%;
+        --accent-foreground: 150 22% 5%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 150 14% 15%;
+        --input: 150 14% 15%;
+        --ring: 152 60% 45%;
+
+        --sidebar-background: 150 18% 7%;
+        --sidebar-foreground: 140 8% 80%;
+        --sidebar-primary: 152 60% 45%;
+        --sidebar-primary-foreground: 150 22% 5%;
+        --sidebar-accent: 150 14% 11%;
+        --sidebar-accent-foreground: 140 8% 80%;
+        --sidebar-border: 150 14% 15%;
+        --sidebar-ring: 152 60% 45%;
+
+        --gold: 152 60% 45%;
+        --gold-dim: 152 40% 30%;
+        --surface-hover: 150 14% 15%;
+
+        --gradient-primary-1: hsl(152 60% 45%);
+        --gradient-primary-2: hsl(160 70% 60%);
+        --gradient-primary-3: hsl(145 55% 38%);
+        --banner-bg: hsl(150 22% 5%);
+        --banner-bg-overlay: hsl(150 22% 5% / 0.8);
+    }
+}
+
+/* ─── Neon City (ultra-dark purple + electric violet) ─────────────── */
+@layer base {
+    [data-theme="neon-city"] {
+        --background: 270 25% 4%;
+        --foreground: 280 10% 92%;
+
+        --card: 270 20% 8%;
+        --card-foreground: 280 10% 92%;
+
+        --popover: 270 20% 8%;
+        --popover-foreground: 280 10% 92%;
+
+        --primary: 270 70% 60%;
+        --primary-foreground: 270 25% 4%;
+
+        --secondary: 270 15% 13%;
+        --secondary-foreground: 280 8% 82%;
+
+        --muted: 270 15% 11%;
+        --muted-foreground: 270 8% 52%;
+
+        --accent: 270 70% 60%;
+        --accent-foreground: 270 25% 4%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 270 15% 16%;
+        --input: 270 15% 16%;
+        --ring: 270 70% 60%;
+
+        --sidebar-background: 270 20% 6%;
+        --sidebar-foreground: 280 8% 82%;
+        --sidebar-primary: 270 70% 60%;
+        --sidebar-primary-foreground: 270 25% 4%;
+        --sidebar-accent: 270 15% 11%;
+        --sidebar-accent-foreground: 280 8% 82%;
+        --sidebar-border: 270 15% 16%;
+        --sidebar-ring: 270 70% 60%;
+
+        --gold: 270 70% 60%;
+        --gold-dim: 270 50% 42%;
+        --surface-hover: 270 15% 16%;
+
+        --gradient-primary-1: hsl(270 70% 60%);
+        --gradient-primary-2: hsl(280 80% 72%);
+        --gradient-primary-3: hsl(260 65% 52%);
+        --banner-bg: hsl(270 25% 4%);
+        --banner-bg-overlay: hsl(270 25% 4% / 0.8);
+    }
+}
+
+/* ─── Apple TV (pure black + clean cyan-blue) ─────────────────────── */
+@layer base {
+    [data-theme="apple-tv"] {
+        --background: 0 0% 3%;
+        --foreground: 0 0% 94%;
+
+        --card: 0 0% 8%;
+        --card-foreground: 0 0% 94%;
+
+        --popover: 0 0% 8%;
+        --popover-foreground: 0 0% 94%;
+
+        --primary: 190 90% 50%;
+        --primary-foreground: 0 0% 3%;
+
+        --secondary: 0 0% 13%;
+        --secondary-foreground: 0 0% 82%;
+
+        --muted: 0 0% 11%;
+        --muted-foreground: 0 0% 48%;
+
+        --accent: 190 90% 50%;
+        --accent-foreground: 0 0% 3%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 0 0% 15%;
+        --input: 0 0% 15%;
+        --ring: 190 90% 50%;
+
+        --sidebar-background: 0 0% 5%;
+        --sidebar-foreground: 0 0% 82%;
+        --sidebar-primary: 190 90% 50%;
+        --sidebar-primary-foreground: 0 0% 3%;
+        --sidebar-accent: 0 0% 11%;
+        --sidebar-accent-foreground: 0 0% 82%;
+        --sidebar-border: 0 0% 15%;
+        --sidebar-ring: 190 90% 50%;
+
+        --gold: 190 90% 50%;
+        --gold-dim: 190 60% 35%;
+        --surface-hover: 0 0% 15%;
+
+        --gradient-primary-1: hsl(190 90% 50%);
+        --gradient-primary-2: hsl(195 100% 65%);
+        --gradient-primary-3: hsl(185 80% 42%);
+        --banner-bg: hsl(0 0% 3%);
+        --banner-bg-overlay: hsl(0 0% 3% / 0.75);
+    }
+}
+
+/* ─── Cinema Red (near-black + deep crimson spotlight) ────────────── */
+@layer base {
+    [data-theme="cinema-red"] {
+        --background: 0 20% 5%;
+        --foreground: 10 10% 92%;
+
+        --card: 0 15% 9%;
+        --card-foreground: 10 10% 92%;
+
+        --popover: 0 15% 9%;
+        --popover-foreground: 10 10% 92%;
+
+        --primary: 340 80% 55%;
+        --primary-foreground: 0 20% 5%;
+
+        --secondary: 0 12% 14%;
+        --secondary-foreground: 10 8% 82%;
+
+        --muted: 0 12% 12%;
+        --muted-foreground: 0 8% 52%;
+
+        --accent: 340 80% 55%;
+        --accent-foreground: 0 20% 5%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 0 12% 16%;
+        --input: 0 12% 16%;
+        --ring: 340 80% 55%;
+
+        --sidebar-background: 0 15% 7%;
+        --sidebar-foreground: 10 8% 82%;
+        --sidebar-primary: 340 80% 55%;
+        --sidebar-primary-foreground: 0 20% 5%;
+        --sidebar-accent: 0 12% 12%;
+        --sidebar-accent-foreground: 10 8% 82%;
+        --sidebar-border: 0 12% 16%;
+        --sidebar-ring: 340 80% 55%;
+
+        --gold: 340 80% 55%;
+        --gold-dim: 340 55% 38%;
+        --surface-hover: 0 12% 16%;
+
+        --gradient-primary-1: hsl(340 80% 55%);
+        --gradient-primary-2: hsl(350 90% 68%);
+        --gradient-primary-3: hsl(330 75% 48%);
+        --banner-bg: hsl(0 20% 5%);
+        --banner-bg-overlay: hsl(0 20% 5% / 0.8);
+    }
+}
+
+/* ─── Gold Light (light mode) ─────────────────────────────────────── */
+@layer base {
+    [data-theme="gold-light"],
+    [data-theme="blue-light"] {
+        --background: 220 15% 97%;
+        --foreground: 220 20% 12%;
+
+        --card: 0 0% 100%;
+        --card-foreground: 220 20% 12%;
+
+        --popover: 0 0% 100%;
+        --popover-foreground: 220 20% 12%;
+
+        --primary: 38 88% 38%;
+        --primary-foreground: 0 0% 100%;
+
+        --secondary: 220 14% 92%;
+        --secondary-foreground: 220 15% 22%;
+
+        --muted: 220 14% 94%;
+        --muted-foreground: 220 10% 44%;
+
+        --accent: 38 88% 38%;
+        --accent-foreground: 0 0% 100%;
+
+        --destructive: 0 80% 50%;
+        --destructive-foreground: 0 0% 100%;
+
+        --border: 220 14% 86%;
+        --input: 220 14% 86%;
+        --ring: 38 88% 38%;
+        --radius: 0.5rem;
+
+        --sidebar-background: 220 15% 94%;
+        --sidebar-foreground: 220 15% 22%;
+        --sidebar-primary: 38 88% 38%;
+        --sidebar-primary-foreground: 0 0% 100%;
+        --sidebar-accent: 220 14% 89%;
+        --sidebar-accent-foreground: 220 15% 22%;
+        --sidebar-border: 220 14% 86%;
+        --sidebar-ring: 38 88% 38%;
+
+        --gold: 38 88% 38%;
+        --gold-dim: 38 60% 30%;
+        --surface-hover: 220 14% 90%;
+
+        --gradient-primary-1: hsl(38 88% 38%);
+        --gradient-primary-2: hsl(45 100% 48%);
+        --gradient-primary-3: hsl(32 80% 36%);
+        --banner-bg: hsl(220 15% 97%);
+        --banner-bg-overlay: hsl(220 15% 97% / 0.8);
+    }
+
+    [data-theme="blue-light"] {
+        --primary: 215 100% 45%;
+        --primary-foreground: 0 0% 100%;
+        --accent: 215 100% 45%;
+        --accent-foreground: 0 0% 100%;
+        --ring: 215 100% 45%;
+        --sidebar-primary: 215 100% 45%;
+        --sidebar-primary-foreground: 0 0% 100%;
+        --sidebar-ring: 215 100% 45%;
+        --gold: 215 100% 45%;
+        --gold-dim: 215 75% 35%;
+        --gradient-primary-1: hsl(215 100% 45%);
+        --gradient-primary-2: hsl(205 100% 55%);
+        --gradient-primary-3: hsl(225 90% 42%);
+    }
+}
+
+/* ─── Billing Notice Banner — Theme-aware styling ─────────────────── */
+@layer components {
+    /* Light mode themes */
+    [data-theme*="light"] .billing-banner-urgent {
+        @apply border-red-300 bg-red-100 text-red-900;
+    }
+
+    [data-theme*="light"] .billing-banner-urgent .billing-banner-btn {
+        @apply bg-red-600 text-white hover:bg-red-700;
+    }
+
+    [data-theme*="light"] .billing-banner-warning {
+        @apply border-amber-300 bg-amber-100 text-amber-900;
+    }
+
+    [data-theme*="light"] .billing-banner-warning .billing-banner-btn {
+        @apply bg-amber-500/30 text-amber-800 hover:bg-amber-500/50;
+    }
+
+    [data-theme*="light"] .billing-banner-warning .billing-icon {
+        @apply text-amber-600;
+    }
+
+    [data-theme*="light"] .billing-banner-urgent .billing-icon {
+        @apply text-red-600;
+    }
+
+    /* Dark mode themes: gold, midnight, sunset, emerald, neon-city, cinema-red, apple-tv */
+    [data-theme="gold"],
+    [data-theme="midnight"],
+    [data-theme="sunset"],
+    [data-theme="emerald"],
+    [data-theme="neon-city"],
+    [data-theme="cinema-red"],
+    [data-theme="apple-tv"] {
+        & .billing-banner-urgent {
+            @apply border-red-700/60 bg-red-900/40 text-red-100;
+        }
+
+        & .billing-banner-urgent .billing-banner-btn {
+            @apply bg-red-700 text-red-50 hover:bg-red-600;
+        }
+
+        & .billing-banner-urgent .billing-icon {
+            @apply text-red-400;
+        }
+
+        & .billing-banner-warning {
+            @apply border-amber-700/20 bg-amber-500/20 text-amber-100;
+        }
+
+        & .billing-banner-warning .billing-banner-btn {
+            @apply bg-amber-500/30 text-amber-50 hover:bg-amber-500/50;
+        }
+
+        & .billing-banner-warning .billing-icon {
+            @apply text-amber-400;
+        }
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background text-foreground font-body antialiased;
+        font-size: var(--font-size-base, 16px);
+    }
+}
+
+/* ─── Content card density ────────────────────────────────────────── */
+.content-card {
+    width: 10rem;
+}
+
+@media (min-width: 768px) {
+    .content-card {
+        width: 12rem;
+    }
+}
+
+[data-density="compact"] .content-card {
+    width: 7.5rem;
+}
+
+@media (min-width: 768px) {
+    [data-density="compact"] .content-card {
+        width: 9rem;
+    }
+}
+
+[data-density="spacious"] .content-card {
+    width: 13rem;
+}
+
+@media (min-width: 768px) {
+    [data-density="spacious"] .content-card {
+        width: 15rem;
+    }
+}
+
+@layer utilities {
+    .text-gradient-gold {
+        background: linear-gradient(135deg, var(--gradient-primary-1), var(--gradient-primary-2), var(--gradient-primary-3));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .banner-overlay {
+        /* Dark scrim only under the content zone (bottom ~40%).
+           Uses black rgba so it provides text contrast in both dark
+           and light themes without whitewashing the image. */
+        background: linear-gradient(to top,
+                rgba(0, 0, 0, 0.78) 0%,
+                rgba(0, 0, 0, 0.48) 22%,
+                rgba(0, 0, 0, 0.12) 35%,
+                transparent 45%);
+    }
+
+    .banner-bottom-fade {
+        /* Blends the bottom of the banner image into the page background.
+           In dark themes, --background is near-black so the fade is invisible.
+           In light themes (e.g. gold-light), --background is near-white,
+           creating a soft transition from the image to the page. */
+        background: linear-gradient(to bottom,
+                transparent 55%,
+                hsl(var(--background)) 100%);
+    }
+
+    .card-shine {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card-shine::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, transparent 40%, hsl(var(--primary) / 0.08) 50%, transparent 60%);
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .card-shine:hover::after {
+        opacity: 1;
+    }
+
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    /* Theme-aware thin scrollbar — picks up CSS vars for light/dark/theme */
+    .scrollbar-themed {
+        scrollbar-width: thin;
+        scrollbar-color: hsl(var(--scroll)) transparent;
+    }
+
+    .scrollbar-themed::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+    }
+
+    .scrollbar-themed::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .scrollbar-themed::-webkit-scrollbar-thumb {
+        background-color: hsl(var(--border));
+        border-radius: 9999px;
+    }
+
+    .scrollbar-themed::-webkit-scrollbar-thumb:hover {
+        background-color: hsl(var(--muted-foreground) / 0.4);
+    }
+
+    /* ── Corner-style UserPrefs — targets card/thumbnail wrappers ─── */
+    html[data-radius="sharp"] [class*="aspect-"].overflow-hidden,
+    html[data-radius="sharp"] .aspect-video.overflow-hidden,
+    html[data-radius="sharp"] .aspect-square.overflow-hidden {
+        border-radius: 2px !important;
+    }
+
+    html[data-radius="rounded"] [class*="aspect-"].overflow-hidden,
+    html[data-radius="rounded"] .aspect-video.overflow-hidden,
+    html[data-radius="rounded"] .aspect-square.overflow-hidden {
+        border-radius: 1rem !important;
+    }
+}
+
+/* ─── TipTap rich-text editor ────────────────────────────────────── */
+.ProseMirror {
+    outline: none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+    float: left;
+    height: 0;
+}
+
+/* Prose typography inside the editor */
+.ProseMirror h1 {
+    @apply text-2xl font-bold mt-4 mb-2;
+}
+
+.ProseMirror h2 {
+    @apply text-xl font-bold mt-3 mb-2;
+}
+
+.ProseMirror h3 {
+    @apply text-lg font-semibold mt-3 mb-1.5;
+}
+
+.ProseMirror h4 {
+    @apply text-base font-semibold mt-2 mb-1;
+}
+
+.ProseMirror p {
+    @apply my-1.5 leading-relaxed;
+}
+
+.ProseMirror ul {
+    @apply list-disc pl-5 my-2 space-y-0.5;
+}
+
+.ProseMirror ol {
+    @apply list-decimal pl-5 my-2 space-y-0.5;
+}
+
+.ProseMirror li {
+    @apply leading-relaxed;
+}
+
+.ProseMirror blockquote {
+    @apply border-l-4 border-primary/40 pl-4 italic text-muted-foreground my-3;
+}
+
+.ProseMirror code {
+    @apply bg-secondary rounded px-1 py-0.5 text-xs font-mono text-primary;
+}
+
+.ProseMirror pre {
+    @apply bg-secondary rounded-lg p-4 my-3 overflow-x-auto;
+}
+
+.ProseMirror pre code {
+    @apply bg-transparent p-0 text-sm;
+}
+
+.ProseMirror hr {
+    @apply border-border my-4;
+}
+
+.ProseMirror a {
+    @apply text-primary underline underline-offset-2 hover:text-primary/80 transition-colors;
+}
+
+.ProseMirror img {
+    @apply rounded-lg max-w-full my-3;
+}
+
+.ProseMirror strong {
+    @apply font-semibold;
+}
+
+.ProseMirror em {
+    @apply italic;
+}
