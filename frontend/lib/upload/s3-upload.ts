@@ -6,7 +6,7 @@ import { refreshAccessToken } from "@/lib/api/services/auth";
 const S3_SINGLE_PUT_LIMIT = 5 * 1024 * 1024 * 1024;
 const MULTIPART_CONCURRENCY = 4;
 const PART_MAX_RETRIES = 3;
-const SESSION_PREFIX = "signalview:multipart-upload";
+const SESSION_PREFIX = "streamtvdepot:multipart-upload";
 const SESSION_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
 export interface UploadProgress {

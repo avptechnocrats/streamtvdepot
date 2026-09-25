@@ -43,7 +43,7 @@ export default function Footer() {
 
             {/* Copyright */}
             <p className="text-[10px] text-muted-foreground/25 tracking-wider">
-                © {new Date().getFullYear()} SignalView. Films for those who care about film.
+                © {new Date().getFullYear()} StreamTVDepot. Films for those who care about film.
             </p>
         </footer>
     );

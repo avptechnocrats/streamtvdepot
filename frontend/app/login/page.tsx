@@ -151,7 +151,7 @@ export default function AdminLoginPage() {
                             ← Back to home
                         </Link>
                         <span className="text-[10px]">
-                            © {new Date().getFullYear()} SignalView. All rights reserved.
+                            © {new Date().getFullYear()} StreamTVDepot. All rights reserved.
                         </span>
                     </div>
                     

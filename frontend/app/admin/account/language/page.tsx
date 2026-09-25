@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
-const STORAGE_KEY = "signalview-admin-language";
+const STORAGE_KEY = "streamtvdepot-admin-language";
 
 const languages = [
     { value: "en", label: "English" },

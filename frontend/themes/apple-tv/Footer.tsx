@@ -4,7 +4,7 @@
  * Apple TV+ inspired footer — ultra-minimal.
  * Design language:
  *  - Pure black, no top border (or extremely faint)
- *  - Small play icon + "SignalView" wordmark
+ *  - Small play icon + "StreamTVDepot" wordmark
  *  - Minimal links in small muted text
  *  - Copyright + tiny legal note
  */
@@ -24,7 +24,7 @@ export default function Footer() {
                     </svg>
                 </span>
                 <span className="text-[12px] font-semibold text-white/60 tracking-tight">
-                    SignalView
+                    StreamTVDepot
                 </span>
             </div>
 
@@ -43,8 +43,8 @@ export default function Footer() {
 
             {/* Copyright */}
             <p className="text-[10px] text-white/20 leading-relaxed max-w-lg">
-                © {new Date().getFullYear()} SignalView. All rights reserved.
-                SignalView and related marks are trademarks of SignalView Inc.
+                © {new Date().getFullYear()} StreamTVDepot. All rights reserved.
+                StreamTVDepot and related marks are trademarks of StreamTVDepot Inc.
             </p>
         </footer>
     );

@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 
-const STORAGE_KEY = "signalview-admin-notification-settings";
+const STORAGE_KEY = "streamtvdepot-admin-notification-settings";
 
 type NotificationSettings = {
     email: boolean;

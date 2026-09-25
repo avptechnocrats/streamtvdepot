@@ -9,7 +9,7 @@ import { unifiedLogin, setTokens } from "@/lib/api";
 import type { AxiosError } from "axios";
 
 // ─── Session shape ─────────────────────────────────────────────────────────────
-export const ADMIN_SESSION_KEY = "signalview-admin-session";
+export const ADMIN_SESSION_KEY = "streamtvdepot-admin-session";
 
 /** How long a UI session remains active (default: 8 hours) */
 export const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
@@ -113,7 +113,7 @@ export async function validateCredentials(
         setTokens(tokens.access_token, tokens.refresh_token);
         const role: AdminRole = tokens.role === "superadmin" ? "superadmin" : "clientAdmin";
         const fullName = getFullNameFromAccessToken(tokens.access_token);
-        localStorage.setItem("sv_role", role === "superadmin" ? "superadmin" : "clientAdmin");
+        localStorage.setItem("std_role", role === "superadmin" ? "superadmin" : "clientAdmin");
         return { ok: true, role, fullName };
     } catch (err) {
         const axiosErr = err as AxiosError<{ detail?: string }>;

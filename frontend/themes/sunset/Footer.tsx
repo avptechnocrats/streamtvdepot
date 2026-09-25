@@ -19,7 +19,7 @@ export default function Footer() {
 
                 {/* Brand + tagline */}
                 <div className="mb-8">
-                    <p className="text-xl font-black tracking-tight text-gradient-gold mb-1.5">SignalView</p>
+                    <p className="text-xl font-black tracking-tight text-gradient-gold mb-1.5">StreamTVDepot</p>
                     <p className="text-[12px] text-muted-foreground">Stream what you love, when you want it.</p>
                 </div>
 
@@ -46,7 +46,7 @@ export default function Footer() {
                     ))}
                 </div>
 
-                <p className="text-[11px] text-muted-foreground/40">© {new Date().getFullYear()} SignalView. All rights reserved.</p>
+                <p className="text-[11px] text-muted-foreground/40">© {new Date().getFullYear()} StreamTVDepot. All rights reserved.</p>
             </div>
         </footer>
     );

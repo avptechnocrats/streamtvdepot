@@ -95,7 +95,7 @@ function ClientAdminDashboard() {
         const token = localStorage.getItem(TOKEN_KEYS.access);
         if (!token) return;
         const slug = getClientSlugFromAccessToken(token);
-        if (slug) setPreviewUrl(`https://${slug}.preview.signalview.tech`);
+        if (slug) setPreviewUrl(`https://${slug}.preview.streamtvdepot.com`);
     }, []);
 
     useEffect(() => {
@@ -383,7 +383,7 @@ export default function AdminDashboard() {
                         Welcome back, <span className="text-gradient-gold">{firstName}</span> 👋
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Manage your SignalView platform from here.
+                        Manage your StreamTVDepot platform from here.
                     </p>
                 </div>
             </div>
@@ -513,7 +513,7 @@ export default function AdminDashboard() {
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-foreground">Preview Site</p>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                                Open SignalView in a new tab
+                                Open StreamTVDepot in a new tab
                             </p>
                         </div>
                         <ArrowRight size={16} className="text-muted-foreground group-hover:text-primary transition-colors shrink-0" />

@@ -3,14 +3,14 @@ import PricingClient from "./_components/PricingClient";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 
 export const metadata: Metadata = {
-    title: "Pricing — SignalView",
+    title: "Pricing — StreamTVDepot",
     description:
-        "Simple, transparent pricing for every stage. Launch your own OTT streaming platform with SignalView — Starter, Growth, and Scale plans available monthly or yearly.",
+        "Simple, transparent pricing for every stage. Launch your own OTT streaming platform with StreamTVDepot — Starter, Growth, and Scale plans available monthly or yearly.",
     openGraph: {
-        title: "Pricing — SignalView",
+        title: "Pricing — StreamTVDepot",
         description:
-            "Simple, transparent pricing for every stage. Launch your own OTT streaming platform with SignalView.",
-        url: "https://signalview.io/pricing",
+            "Simple, transparent pricing for every stage. Launch your own OTT streaming platform with StreamTVDepot.",
+        url: "https://streamtvdepot.com/pricing",
     },
 };
 

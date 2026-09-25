@@ -7,7 +7,7 @@ import type { ContentRowProps } from "@/types/content";
  * Every theme folder must export a ThemeComponents object that satisfies this
  * interface. This is the equivalent of WordPress's template hierarchy:
  *
- *   WordPress theme files          →   SignalView ThemeComponents
+ *   WordPress theme files          →   StreamTVDepot ThemeComponents
  *   ─────────────────────────────────────────────────────────────
  *   header.php                     →   Navbar
  *   front-page.php / hero section  →   Banner
@@ -36,7 +36,7 @@ export interface ThemeComponents {
 
 // ─── Theme definition ──────────────────────────────────────────────────────────
 /**
- * Defines a self-contained visual theme for SignalView.
+ * Defines a self-contained visual theme for StreamTVDepot.
  *
  * Architecture:
  *  - Each theme maps to a `data-theme` CSS attribute selector in globals.css

@@ -32,7 +32,7 @@ export default function Navbar() {
                 {/* Logo */}
                 <div className="flex items-center gap-7">
                     <a href="/" className="text-[17px] font-black tracking-tight text-gradient-gold">
-                        SignalView
+                        StreamTVDepot
                     </a>
 
                     {/* Desktop nav */}

@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # CORS
     # In production add all client domains here, or use ALLOWED_ORIGINS_REGEX.
     # e.g. ["https://signalview.com","https://admin.signalview.com","https://kalingo.tv","https://admin.kalingo.tv"]
-    ALLOWED_ORIGINS: List[str] = ["http://localhost","http://localhost:3000","http://localhost:3001","http://localhost:8000","http://localhost:8001","https://signalview.mitiztechnologies.in","https://www.signalview.tech","https://signalview.tech","https://preview.signalview.tech","https://console.signalview.tech","https://kalingotv.mitiztechnologies.in","https://splixtv.mitiztechnologies.in"]
+    ALLOWED_ORIGINS: List[str] = ["http://localhost","http://localhost:3000","http://localhost:3001","http://localhost:8000","http://localhost:8001","https://www.streamtvdepot.com","https://streamtvdepot.com","https://preview.streamtvdepot.com","https://console.streamtvdepot.com","https://splixtv.mitiztechnologies.in"]
 
     ALLOWED_ORIGINS_REGEX: str = ""
     """Optional regex that matches any origin — useful for wildcard client domains in production.
@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     PREVIEW_BASE_DOMAIN: str = ""
 
     # SuperAdmin seed
-    SUPERADMIN_EMAIL: str = "superadmin@signalview.com"
+    SUPERADMIN_EMAIL: str = "superadmin@streamtvdepot.com"
     SUPERADMIN_PASSWORD: str = "SuperAdmin@123"
 
     # Storage

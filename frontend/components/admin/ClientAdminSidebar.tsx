@@ -118,7 +118,7 @@ const NAV_GROUPS = [
     },
 ];
 
-const SIDEBAR_GROUPS_STORAGE_KEY = "signalview:client-admin-sidebar-groups";
+const SIDEBAR_GROUPS_STORAGE_KEY = "streamtvdepot:client-admin-sidebar-groups";
 
 function NavLink({ href, label, icon: Icon, exact }: { href: string; label: string; icon: React.ElementType; exact: boolean }) {
     const pathname = usePathname();

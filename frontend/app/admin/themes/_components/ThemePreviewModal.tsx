@@ -97,7 +97,7 @@ export function ThemePreviewModal({
                         <span className="w-3 h-3 rounded-full bg-green-400/80" />
                         <div className="flex-1 mx-2 h-5 rounded bg-[hsl(220_15%_20%)] flex items-center px-2.5 gap-1.5">
                             <span className="w-2 h-2 rounded-full opacity-30" style={{ background: theme.previewAccent }} />
-                            <span className="text-[9px] text-white/25 font-mono">signalview.app</span>
+                            <span className="text-[9px] text-white/25 font-mono">streamtvdepot.app</span>
                         </div>
                     </div>
 

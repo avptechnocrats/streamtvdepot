@@ -68,7 +68,7 @@ export default function PaymentHistoryPage() {
             setRows(data.items ?? []);
             setTotal(data.total ?? 0);
 
-            // Fetch platform (SignalView) issuer info for invoice footer
+            // Fetch platform (StreamTVDepot) issuer info for invoice footer
             // and site settings for the BILL TO section
             try {
                 const [issuer, settings] = await Promise.all([
@@ -304,13 +304,13 @@ export default function PaymentHistoryPage() {
                             <div className="flex items-center justify-between gap-3">
                                 <div>
                                     <p className="text-xs text-muted-foreground uppercase tracking-wider">Billed By</p>
-                                    <p className="text-lg font-bold text-foreground">{issuerInfo.company_name || "SignalView"}</p>
+                                    <p className="text-lg font-bold text-foreground">{issuerInfo.company_name || "StreamTVDepot"}</p>
                                 </div>
                                 {issuerInfo.logo_url && (
                                     <img
                                         // src={issuerInfo.logo_url}
                                         src="/logo_light.png"
-                                        alt={`${issuerInfo.company_name || "Platform"} logo`}
+                                        alt={`${issuerInfo.company_name || "StreamTVDepot"} logo`}
                                         className="h-10 max-w-[160px] object-contain"
                                     />
                                 )}

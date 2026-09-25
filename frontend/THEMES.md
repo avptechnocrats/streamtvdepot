@@ -1,4 +1,4 @@
-# SignalView — Theme System
+# StreamTVDepot — Theme System
 
 > A WordPress-inspired file-based theme architecture for Next.js.  
 > Each theme can own its own React component files **and** its own CSS colour palette — independently or together.
@@ -24,9 +24,9 @@
 
 ## 1. Architecture Overview
 
-SignalView's theme system works on the same principle as WordPress themes:
+StreamTVDepot's theme system works on the same principle as WordPress themes:
 
-| WordPress                         | SignalView                         |
+| WordPress                         | StreamTVDepot                         |
 |-----------------------------------|-------------------------------------|
 | `wp-content/themes/<name>/`       | `themes/<name>/`                    |
 | `header.php`                      | `themes/<name>/Navbar.tsx`          |
@@ -92,13 +92,13 @@ types/
 ## 3. How a Theme is Loaded
 
 ```
-Admin sets site default  ──► localStorage "signalview-site-theme"
+Admin sets site default  ──► localStorage "streamtvdepot-site-theme"
                                           │
                                           ▼
                               ThemeProvider (hooks/use-theme.tsx)
                               reads priority:
-                               1. user personal override  ("signalview-theme")
-                               2. admin site default      ("signalview-site-theme")
+                               1. user personal override  ("streamtvdepot-theme")
+                               2. admin site default      ("streamtvdepot-site-theme")
                                3. hardcoded DEFAULT_THEME_ID ("dark-gold")
                                           │
                         ┌─────────────────┴──────────────────┐
@@ -175,7 +175,7 @@ The `data-density` attribute (written by `applyPrefs()` in `use-user-prefs.tsx`)
 
 ## 5. UserPrefs — Appearance Settings
 
-Stored in `localStorage` under `signalview-prefs`. Managed via `useUserPrefs()`.
+Stored in `localStorage` under `streamtvdepot-prefs`. Managed via `useUserPrefs()`.
 
 | Pref | Type | Effect |
 |---|---|---|
@@ -205,7 +205,7 @@ Access at **`/admin`** — login with `admin` / `admin123` (credentials are in `
 ### Theme Manager page (`/admin/themes`)
 
 **Section 1 — Select Theme**  
-Click any theme card to set it as the site-wide default. The selected theme is saved to `localStorage "signalview-site-theme"` and applied immediately for everyone.
+Click any theme card to set it as the site-wide default. The selected theme is saved to `localStorage "streamtvdepot-site-theme"` and applied immediately for everyone.
 
 **Section 2 — Settings (Active Theme)**  
 All six appearance preferences are editable here. Changes take effect instantly and persist across sessions.

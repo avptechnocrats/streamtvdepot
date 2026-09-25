@@ -153,7 +153,7 @@ export function VideoCard({ video, onDelete, onStatusChange }: VideoCardProps) {
             return;
         }
 
-        setPreviewUrl(`https://${clientSlug}.preview.signalview.tech/movies/${video.id}`);
+        setPreviewUrl(`https://${clientSlug}.preview.streamtvdepot.com/movies/${video.id}`);
     }, [video.id]);
 
     const handleTranscode = async () => {

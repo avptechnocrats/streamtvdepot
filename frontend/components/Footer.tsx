@@ -38,8 +38,8 @@ const Footer = () => {
         </div>
       </div>
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t border-border/30">
-        <img src="/logo-new.png" alt="SignalView" className="h-8 w-auto" />
-        <p className="text-xs text-muted-foreground">© 2024 SignalView. All rights reserved.</p>
+        <img src="/logo-new.png" alt="StreamTVDepot" className="h-8 w-auto" />
+        <p className="text-xs text-muted-foreground">© 2024 StreamTVDepot. All rights reserved.</p>
       </div>
     </footer>
   );
