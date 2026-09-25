@@ -159,7 +159,7 @@ function PlatformWebhookUrl({ provider }: { provider: "stripe" | "paypal" | "raz
                 <p className="text-xs font-semibold text-foreground uppercase tracking-wide">Platform Webhook Endpoint</p>
                 <a href={dashboardUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline shrink-0">Open {providerName} Dashboard <ExternalLink size={11} /></a>
             </div>
-            <p className="text-[11px] text-muted-foreground">Add this URL to receive SignalView SaaS subscription payment events.</p>
+            <p className="text-[11px] text-muted-foreground">Add this URL to receive StreamTVDepot SaaS subscription payment events.</p>
             <div className="flex items-center gap-2 bg-background border border-border rounded-md px-3 py-2">
                 <code className="flex-1 min-w-0 text-xs font-mono text-foreground truncate select-all">{webhookUrl}</code>
                 <button type="button" onClick={copy} title="Copy URL" className="shrink-0 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors">{copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}</button>
@@ -378,7 +378,7 @@ function SuperadminPaymentGatewayPage() {
             <div className="p-6 md:p-8 space-y-6 max-w-6xl">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0"><CreditCard size={18} className="text-primary" /></div>
-                    <div><h1 className="text-xl font-display font-bold text-foreground">Payment Gateways</h1><p className="text-sm text-muted-foreground mt-0.5">Configure payment providers used for SignalView platform billing.</p></div>
+                    <div><h1 className="text-xl font-display font-bold text-foreground">Payment Gateways</h1><p className="text-sm text-muted-foreground mt-0.5">Configure payment providers used for StreamTVDepot platform billing.</p></div>
                 </div>
                 {loading || !settings ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground py-8"><Loader2 size={16} className="animate-spin" /> Loading payment gateway settings…</div>

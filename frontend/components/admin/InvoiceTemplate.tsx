@@ -8,7 +8,7 @@ interface InvoiceTemplateProps {
     platformName?: string;
 }
 
-export default function InvoiceTemplate({ invoice, platformName = "SignalView" }: InvoiceTemplateProps) {
+export default function InvoiceTemplate({ invoice, platformName = "StreamTVDepot" }: InvoiceTemplateProps) {
     const formatDate = (value: string | null | undefined): string => {
         if (!value) return "-";
         const d = new Date(value);
@@ -191,7 +191,7 @@ export default function InvoiceTemplate({ invoice, platformName = "SignalView" }
 
             {/* Footer */}
             <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "24px", fontSize: "12px", color: "#6b7280" }}>
-                <div style={{ fontWeight: "600", marginBottom: "8px", color: "#1f2937" }}>SignalView</div>
+                <div style={{ fontWeight: "600", marginBottom: "8px", color: "#1f2937" }}>StreamTVDepot</div>
                 <p style={{ margin: "0 0 4px 0" }}>White-Label OTT Platform</p>
                 <p style={{ margin: "0" }}>Thank you for your business!</p>
             </div>

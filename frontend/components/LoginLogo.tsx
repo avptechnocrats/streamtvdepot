@@ -14,7 +14,7 @@ export default function LoginLogo({
     style
 }: LoginLogoProps) {
     const content = (
-        <img src="/logo.png" alt="SignalView" className="h-14 w-auto" />
+        <img src="/logo.png" alt="StreamTVDepot" className="h-14 w-auto" />
     );
 
     if (href) {

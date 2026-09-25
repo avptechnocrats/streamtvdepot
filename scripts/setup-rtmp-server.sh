@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-#  SignalView – EC2 / VPS Nginx-RTMP Setup Script
+#  StreamTVDepot – EC2 / VPS Nginx-RTMP Setup Script
 #  Tested on: Ubuntu 22.04 LTS
 #
 #  What this installs:
@@ -9,7 +9,7 @@
 #    • Nginx serves HLS segments over HTTP on port 80
 #    • Nginx accepts RTMP streams on port 1935
 #    • on_publish / on_publish_done callbacks validate stream keys via your
-#      SignalView backend before allowing the stream
+#      StreamTVDepot backend before allowing the stream
 #
 #  Usage:
 #    chmod +x setup-rtmp-server.sh
@@ -33,7 +33,7 @@ NGINX_VERSION="1.25.3"
 RTMP_MODULE_VERSION="1.2.2"
 BUILD_DIR="/tmp/nginx-rtmp-build"
 
-echo "─── SignalView RTMP Server Setup ───────────────────────────────────────"
+echo "─── StreamTVDepot RTMP Server Setup ───────────────────────────────────────"
 echo "Backend callback URL : $BACKEND_URL"
 echo "HLS output directory : $HLS_DIR"
 echo "────────────────────────────────────────────────────────────────────────"
@@ -109,7 +109,7 @@ rtmp {
             live on;
             record off;
 
-            # Validate stream key via SignalView backend before allowing stream
+            # Validate stream key via StreamTVDepot backend before allowing stream
             on_publish       ${BACKEND_URL}/rtmp/on-publish;
             on_publish_done  ${BACKEND_URL}/rtmp/on-publish-done;
 

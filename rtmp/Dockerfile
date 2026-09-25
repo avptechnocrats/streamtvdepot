@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  SignalView – Nginx RTMP container
+#  StreamTVDepot – Nginx RTMP container
 #
 #  Uses the pre-built alfg/nginx-rtmp (Alpine) image — no compilation needed.
 #  Adds FFmpeg for ABR transcoding (3 quality levels via exec ffmpeg).

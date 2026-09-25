@@ -33,7 +33,7 @@ export default function Navbar() {
 
                 {/* Center — brand */}
                 <a href="/" className="absolute left-1/2 -translate-x-1/2 text-[13px] font-black text-foreground tracking-[0.12em] uppercase">
-                    SignalView
+                    StreamTVDepot
                 </a>
 
                 {/* Right — search */}

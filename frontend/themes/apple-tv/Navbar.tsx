@@ -4,7 +4,7 @@
  * Apple TV+ inspired navbar — pure black, ultra-minimal, zero glow.
  * Design language:
  *  - Pure black bg that fades out at the bottom (no hard border)
- *  - Logo is a small ▶ play mark + "SignalView" in clean medium weight
+ *  - Logo is a small ▶ play mark + "StreamTVDepot" in clean medium weight
  *  - Nav items are title-case, normal weight — active is white, rest are muted
  *  - Hover: smooth colour transition only (no pill, no underline, no glow)
  *  - Right: search + user avatar circle
@@ -37,7 +37,7 @@ export default function Navbar() {
                                 </svg>
                             </span>
                             <span className="text-[13px] font-semibold text-white tracking-tight hidden sm:block">
-                                SignalView
+                                StreamTVDepot
                             </span>
                         </a>
 

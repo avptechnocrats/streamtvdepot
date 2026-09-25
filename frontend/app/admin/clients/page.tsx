@@ -185,7 +185,7 @@ function AddClientModal({ onClose, onCreated }: { onClose: () => void; onCreated
                             <label className={LABEL}>Platform Slug *</label>
                             <div className="flex items-center gap-0">
                                 <span className="px-3 py-2 rounded-l-lg border border-r-0 border-border bg-secondary text-xs text-muted-foreground">
-                                    {typeof window !== "undefined" ? window.location.hostname.replace("console.", "") : "preview.signalview.tech"}/
+                                    {typeof window !== "undefined" ? window.location.hostname.replace("console.", "") : "preview.streamtvdepot.com"}/
                                 </span>
                                 <input className="flex-1 px-3 py-2 rounded-r-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                                     value={slug} placeholder="acme-tv"

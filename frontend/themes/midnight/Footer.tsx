@@ -49,7 +49,7 @@ export default function Footer() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-border/20">
-                <p className="text-[11px] text-muted-foreground/50">© {new Date().getFullYear()} SignalView, Inc. All rights reserved.</p>
+                <p className="text-[11px] text-muted-foreground/50">© {new Date().getFullYear()} StreamTVDepot, Inc. All rights reserved.</p>
                 <div className="flex gap-4">
                     {["Privacy", "Terms", "Cookies"].map((l) => (
                         <a key={l} href="#" className="text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors">{l}</a>

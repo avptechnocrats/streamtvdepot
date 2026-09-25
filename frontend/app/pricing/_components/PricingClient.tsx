@@ -137,7 +137,7 @@ export default function PricingClient({ plans }: { plans: PublicPlanOut[] }) {
             <header className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-[#0b0e17cc] backdrop-blur-md">
                 <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
                     <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
-                        <img src="/logo-new.png" alt="SignalView" className="h-8 w-auto" />
+                        <img src="/logo-new.png" alt="StreamTVDepot" className="h-8 w-auto" />
                     </Link>
                     <nav className="hidden md:flex items-center gap-7 text-sm" style={{ color: DIM }}>
                         <Link href="/#solutions" className="hover:text-white transition-colors">Solutions</Link>
@@ -150,7 +150,7 @@ export default function PricingClient({ plans }: { plans: PublicPlanOut[] }) {
                         <Link href="/admin" className="hidden sm:inline-flex px-4 py-2 text-sm rounded-lg border border-white/10 hover:border-white/25 hover:text-white transition-colors" style={{ color: DIM }}>
                             Sign In
                         </Link>
-                        <a href="mailto:sales@signalview.io" className="px-4 py-2 text-sm rounded-lg font-semibold hover:brightness-110 transition-all" style={{ backgroundColor: GOLD, color: "#0b0e17" }}>
+                        <a href="mailto:sales@streamtvdepot.com" className="px-4 py-2 text-sm rounded-lg font-semibold hover:brightness-110 transition-all" style={{ backgroundColor: GOLD, color: "#0b0e17" }}>
                             Free Trial
                         </a>
                     </div>
@@ -262,7 +262,7 @@ export default function PricingClient({ plans }: { plans: PublicPlanOut[] }) {
 
                                     {/* CTA */}
                                     <a
-                                        href="mailto:sales@signalview.io"
+                                        href="mailto:sales@streamtvdepot.com"
                                         className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold text-sm transition-all hover:brightness-110"
                                         style={isHighlight
                                             ? { backgroundColor: GOLD, color: "#0b0e17" }
@@ -325,7 +325,7 @@ export default function PricingClient({ plans }: { plans: PublicPlanOut[] }) {
                             </p>
                         </div>
                         <a
-                            href="mailto:sales@signalview.io"
+                            href="mailto:sales@streamtvdepot.com"
                             className="shrink-0 flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm hover:brightness-110 transition-all"
                             style={{ backgroundColor: GOLD, color: "#0b0e17" }}
                         >
@@ -341,7 +341,7 @@ export default function PricingClient({ plans }: { plans: PublicPlanOut[] }) {
                     <p className="text-xs uppercase tracking-widest font-semibold" style={{ color: GOLD }}>Every Plan</p>
                     <h2 className="text-3xl md:text-4xl font-extrabold">What&apos;s always included</h2>
                     <p className="text-base" style={{ color: DIM }}>
-                        No hidden fees. Every SignalView plan ships with the fundamentals.
+                        No hidden fees. Every StreamTVDepot plan ships with the fundamentals.
                     </p>
                 </div>
                 <div className="max-w-5xl mx-auto grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -439,7 +439,7 @@ export default function PricingClient({ plans }: { plans: PublicPlanOut[] }) {
                     </ul>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
                         <a
-                            href="mailto:sales@signalview.io"
+                            href="mailto:sales@streamtvdepot.com"
                             className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-bold text-base hover:brightness-110 transition-all"
                             style={{ backgroundColor: GOLD, color: "#0b0e17" }}
                         >
@@ -455,7 +455,7 @@ export default function PricingClient({ plans }: { plans: PublicPlanOut[] }) {
                 <div className="max-w-7xl mx-auto">
                     <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-10 mb-14">
                         <div className="lg:col-span-1 space-y-4">
-                            <span className="text-base font-extrabold tracking-widest" style={{ color: GOLD }}>SIGNALVIEW</span>
+                            <span className="text-base font-extrabold tracking-widest" style={{ color: GOLD }}>STREAMTVDEPOT</span>
                             <p className="text-sm leading-relaxed" style={{ color: DIM }}>
                                 Leading the streaming revolution. Build, launch and grow your own OTT service.
                             </p>
@@ -477,7 +477,7 @@ export default function PricingClient({ plans }: { plans: PublicPlanOut[] }) {
                         ))}
                     </div>
                     <div className="border-t border-white/5 pt-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs" style={{ color: "hsl(220 10% 35%)" }}>
-                        <span>© {new Date().getFullYear()} SignalView. All rights reserved.</span>
+                        <span>© {new Date().getFullYear()} StreamTVDepot. All rights reserved.</span>
                         <div className="flex gap-5">
                             <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
                             <a href="#" className="hover:text-white transition-colors">Terms of Service</a>

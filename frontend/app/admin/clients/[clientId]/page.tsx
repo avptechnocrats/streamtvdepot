@@ -161,7 +161,7 @@ export default function ClientDetailPage() {
         } finally { setBusy(null); }
     }
 
-    const previewUrl = client ? `https://${client.slug}.preview.signalview.tech` : "";
+    const previewUrl = client ? `https://${client.slug}.preview.streamtvdepot.com` : "";
 
     // ── Tab panes ─────────────────────────────────────────────────────────────
 

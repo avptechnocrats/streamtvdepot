@@ -3,8 +3,8 @@
  *
  * Routing rules (in order):
  *
- *  1. signalview.com                  → SAAS platform (marketing + /admin panel)
- *  2. admin.signalview.com            → admin panel (same app, /admin/* routes)
+ *  1. streamtvdepot.com                  → SAAS platform (marketing + /admin panel)
+ *  2. console.streamtvdepot.com            → admin panel (same app, /admin/* routes)
  *  3. admin.<anything>                → client admin panel, rewrites to /admin/*
  *                                       and injects X-Client-Domain header
  *  4. <anything else> (e.g. kalingo.tv) → client storefront, rewrites to /site/*
@@ -19,16 +19,14 @@ import { NextRequest, NextResponse } from "next/server";
 // Domains that belong to the SAAS platform itself
 const PLATFORM_HOSTS = new Set([
     "localhost",
-    "signalview.tech",
-    "www.signalview.tech",
-    "console.signalview.tech",
-    "signalview.mitiztechnologies.in",
+    "streamtvdepot.com",
+    "www.streamtvdepot.com",
+    "console.streamtvdepot.com",
 ]);
 
 const PLATFORM_ADMIN_HOSTS = new Set([
-    "console.signalview.tech",
-    "admin.signalview.tech",
-    "admin.signalview.mitiztechnologies.in",
+    "console.streamtvdepot.com",
+    "admin.streamtvdepot.com",
 ]);
 
 export function middleware(request: NextRequest) {
@@ -43,7 +41,7 @@ export function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // ── 2. admin.signalview.com → serve admin panel as-is ─────────────────────
+    // ── 2. admin.streamtvdepot.com → serve admin panel as-is ─────────────────────
     if (PLATFORM_ADMIN_HOSTS.has(hostname)) {
         // Ensure all traffic lands under /admin/
         if (!pathname.startsWith("/admin")) {
@@ -56,7 +54,7 @@ export function middleware(request: NextRequest) {
     if (hostname.startsWith("admin.")) {
         // Extract the client slug hint from the subdomain:
         //   admin.kalingo.tv  → base = "kalingo.tv"
-        //   admin.kalingo-tv.signalview.com → base = "kalingo-tv.signalview.com"
+        //   admin.kalingo-tv.streamtvdepot.com → base = "kalingo-tv.streamtvdepot.com"
         const base = hostname.slice("admin.".length);
 
         // If the path is already under /admin just let it through with the header

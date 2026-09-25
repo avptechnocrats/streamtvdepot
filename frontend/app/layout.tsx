@@ -4,7 +4,7 @@ import "./globals.css";
 import Providers from "@/components/Providers";
 
 export const metadata: Metadata = {
-    title: "SignalView",
+    title: "StreamTVDepot",
     description: "Your premium streaming destination",
 };
 

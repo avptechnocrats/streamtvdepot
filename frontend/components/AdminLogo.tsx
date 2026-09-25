@@ -24,10 +24,10 @@ export default function AdminLogo({
 
     const content = (
         <>
-            <img src={logoSrc} alt="SignalView" className={`${logoSize} w-auto`} />
+            <img src={logoSrc} alt="StreamTVDepot" className={`${logoSize} w-auto`} />
             {showText && (
                 <span className="text-gradient-gold font-display tracking-tight" style={style}>
-                    <span className="font-black">SIGNAL</span><span className="font-light">VIEW</span>
+                    <span className="font-black">STREAMTV</span><span className="font-light">DEPOT</span>
                 </span>
             )}
         </>

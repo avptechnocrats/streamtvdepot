@@ -15,7 +15,7 @@ const Navbar = () => {
       <div className="flex items-center justify-between px-6 lg:px-12 h-16">
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
-            <img src="/logo-new.png" alt="SignalView" className="h-10 w-auto" />
+            <img src="/logo-new.png" alt="StreamTVDepot" className="h-10 w-auto" />
           </Link>
           <div className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {

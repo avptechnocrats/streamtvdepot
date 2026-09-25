@@ -113,7 +113,7 @@ export default function SignupPage() {
                             today.
                         </h2>
                         <p className="text-sm text-white/35 mt-4 leading-relaxed">
-                            Join thousands of creators and businesses using SignalView to build,
+                            Join thousands of creators and businesses using StreamTVDepot to build,
                             brand, and grow their streaming platform.
                         </p>
                     </div>
@@ -129,7 +129,7 @@ export default function SignupPage() {
                 </div>
 
                 <p className="text-[11px] text-white/15 relative z-10">
-                    © {new Date().getFullYear()} SignalView. All rights reserved.
+                    © {new Date().getFullYear()} StreamTVDepot. All rights reserved.
                 </p>
             </div>
 
@@ -271,9 +271,9 @@ export default function SignupPage() {
 
                                     <p className="text-[11px] text-white/40 text-center pt-1">
                                         By signing up you agree to our{" "}
-                                        <a href="https://signalview.tech/terms" className="underline underline-offset-2 hover:text-white/45 transition-colors">Terms</a>
+                                        <a href="https://streamtvdepot.com/terms" className="underline underline-offset-2 hover:text-white/45 transition-colors">Terms</a>
                                         {" "}and{" "}
-                                        <a href="https://signalview.tech/privacy" className="underline underline-offset-2 hover:text-white/45 transition-colors">Privacy Policy</a>.
+                                        <a href="https://streamtvdepot.com/privacy" className="underline underline-offset-2 hover:text-white/45 transition-colors">Privacy Policy</a>.
                                     </p>
 
                                 </form>

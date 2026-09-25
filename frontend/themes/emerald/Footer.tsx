@@ -51,7 +51,7 @@ export default function Footer() {
                     </div>
 
                     <p className="text-[10px] text-muted-foreground/35">
-                        © 1996–{new Date().getFullYear()} SignalView, Inc.
+                        © 1996–{new Date().getFullYear()} StreamTVDepot, Inc.
                     </p>
                 </div>
             </div>

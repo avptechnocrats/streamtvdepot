@@ -560,7 +560,7 @@ export default function BillingLicensingPage() {
                     key: res.razorpay_key_id,
                     amount: Math.round(res.prorated_charge * 100),
                     currency: res.currency,
-                    name: "SignalView",
+                    name: "StreamTVDepot",
                     description: `Subscription ${plan.name}`,
                     order_id: res.razorpay_order_id,
                     handler: async () => {

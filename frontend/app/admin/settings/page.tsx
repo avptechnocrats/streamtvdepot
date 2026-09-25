@@ -492,7 +492,7 @@ function ClientEmailTab({ data, onSaved, pushToast }: { data: SiteSettingsOut["e
     const [saving, setSaving] = useState(false);
     const [testToEmail, setTestToEmail] = useState("");
     const [testSubject, setTestSubject] = useState("SMTP configuration test");
-    const [testMessage, setTestMessage] = useState("This is a test email from SignalView SMTP settings.");
+    const [testMessage, setTestMessage] = useState("This is a test email from StreamTVDepot SMTP settings.");
     const [testing, setTesting] = useState(false);
     const [lastTestDebug, setLastTestDebug] = useState<SmtpDebug | null>(null);
 
@@ -616,7 +616,7 @@ function ClientEmailTab({ data, onSaved, pushToast }: { data: SiteSettingsOut["e
                             </FormField>
                             <div className="md:col-span-2">
                                 <FormField label="Message" hint="Write any text to verify outgoing mail works.">
-                                    <textarea value={testMessage} onChange={(e) => setTestMessage(e.target.value)} rows={4} className="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-colors resize-y" placeholder="This is a test email from SignalView SMTP settings." />
+                                    <textarea value={testMessage} onChange={(e) => setTestMessage(e.target.value)} rows={4} className="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-colors resize-y" placeholder="This is a test email from StreamTVDepot SMTP settings." />
                                     {testMessageError && <p className="text-xs text-destructive">{testMessageError}</p>}
                                 </FormField>
                             </div>
@@ -876,7 +876,7 @@ function SAEmailTab({ data, onSaved, pushToast }: { data: SuperadminSettingsOut[
     const [saving, setSaving] = useState(false);
     const [testToEmail, setTestToEmail] = useState("");
     const [testSubject, setTestSubject] = useState("SMTP configuration test");
-    const [testMessage, setTestMessage] = useState("This is a test email from SignalView SMTP settings.");
+    const [testMessage, setTestMessage] = useState("This is a test email from StreamTVDepot SMTP settings.");
     const [testing, setTesting] = useState(false);
     const [lastTestDebug, setLastTestDebug] = useState<SmtpDebug | null>(null);
 
@@ -990,7 +990,7 @@ function SAEmailTab({ data, onSaved, pushToast }: { data: SuperadminSettingsOut[
                             </Field>
                             <div className="md:col-span-2 space-y-1">
                                 <label className="block text-xs font-semibold text-muted-foreground">Message</label>
-                                <textarea value={testMessage} onChange={(e) => setTestMessage(e.target.value)} rows={4} className="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-colors resize-y" placeholder="This is a test email from SignalView SMTP settings." />
+                                <textarea value={testMessage} onChange={(e) => setTestMessage(e.target.value)} rows={4} className="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-colors resize-y" placeholder="This is a test email from StreamTVDepot SMTP settings." />
                                 {testMessageError && <p className="text-xs text-destructive">{testMessageError}</p>}
                                 <p className="text-[11px] text-muted-foreground">Write any text to verify outgoing mail works.</p>
                             </div>
