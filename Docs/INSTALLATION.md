@@ -1,4 +1,4 @@
-# Installation & Setup Guide - SignalView V2
+# Installation & Setup Guide - StreamTVDepot V2
 
 ## Prerequisites
 
@@ -39,8 +39,8 @@ python3 --version
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/your-org/signalview.git
-cd signalview/V2
+git clone https://github.com/your-org/streamtvdepot.git
+cd streamtvdepot
 ```
 
 ### 2. Environment Configuration
@@ -53,13 +53,13 @@ cp .env.example .env
 #### Edit `.env` with your configuration
 ```bash
 # Database Configuration
-POSTGRES_DB=signalview
-POSTGRES_USER=signalview
+POSTGRES_DB=streamtvdepot
+POSTGRES_USER=streamtvdepot
 POSTGRES_PASSWORD=your_secure_password_here
 
 # Backend Configuration
 API_V1_PREFIX=/api/v1
-APP_NAME=SignalView
+APP_NAME=StreamTVDepot
 DEBUG=true  # Set to false in production
 
 # Frontend Configuration
@@ -137,7 +137,7 @@ docker-compose exec frontend bash
 #### Database Service
 ```bash
 # Access PostgreSQL CLI
-docker-compose exec postgres psql -U signalview -d signalview
+docker-compose exec postgres psql -U streamtvdepot -d streamtvdepot
 
 # Common PostgreSQL commands:
 # \dt                  - List tables
@@ -186,12 +186,12 @@ pip install -r requirements.txt
 #### 3. Database Setup
 ```bash
 # Ensure PostgreSQL is running on localhost:5432
-# Create database: createdb signalview
+# Create database: createdb streamtvdepot
 
 # Run migrations
 alembic upgrade head
 
-# Verify: psql -U signalview -d signalview -c "SELECT version();"
+# Verify: psql -U streamtvdepot -d streamtvdepot -c "SELECT version();"
 ```
 
 #### 4. Run Backend Server
@@ -255,13 +255,13 @@ brew install postgresql
 brew services start postgresql
 
 # Create database and user
-createdb signalview
-createuser signalview
-psql -d postgres -c "ALTER USER signalview WITH PASSWORD 'signalview_secret';"
-psql -d postgres -c "ALTER USER signalview WITH SUPERUSER;"
+createdb streamtvdepot
+createuser streamtvdepot
+psql -d postgres -c "ALTER USER streamtvdepot WITH PASSWORD 'streamtvdepot_secret';"
+psql -d postgres -c "ALTER USER streamtvdepot WITH SUPERUSER;"
 
 # Verify
-psql -U signalview -d signalview -c "SELECT 1;"
+psql -U streamtvdepot -d streamtvdepot -c "SELECT 1;"
 ```
 
 #### Linux (Ubuntu/Debian)
@@ -274,13 +274,13 @@ sudo apt-get install postgresql postgresql-contrib
 sudo -u postgres psql
 
 # Inside psql:
-CREATE DATABASE signalview;
-CREATE USER signalview WITH PASSWORD 'signalview_secret';
-ALTER ROLE signalview SET client_encoding TO 'utf8';
-ALTER ROLE signalview SET default_transaction_isolation TO 'read committed';
-ALTER ROLE signalview SET default_transaction_deferrable TO on;
-ALTER ROLE signalview SET default_transaction_read_only TO off;
-GRANT ALL PRIVILEGES ON DATABASE signalview TO signalview;
+CREATE DATABASE streamtvdepot;
+CREATE USER streamtvdepot WITH PASSWORD 'streamtvdepot_secret';
+ALTER ROLE streamtvdepot SET client_encoding TO 'utf8';
+ALTER ROLE streamtvdepot SET default_transaction_isolation TO 'read committed';
+ALTER ROLE streamtvdepot SET default_transaction_deferrable TO on;
+ALTER ROLE streamtvdepot SET default_transaction_read_only TO off;
+GRANT ALL PRIVILEGES ON DATABASE streamtvdepot TO streamtvdepot;
 \q
 ```
 
@@ -387,7 +387,7 @@ docker-compose logs postgres
 grep POSTGRES .env
 
 # Test connection manually
-psql -h localhost -p 5433 -U signalview -d signalview
+psql -h localhost -p 5433 -U streamtvdepot -d streamtvdepot
 ```
 
 #### Migrations failed
@@ -551,7 +551,7 @@ alembic upgrade head          # Apply migrations
 alembic downgrade -1          # Rollback last migration
 
 # Database Commands
-psql -U signalview -d signalview  # Access database
+psql -U streamtvdepot -d streamtvdepot  # Access database
 redis-cli                     # Access Redis
 ```
 

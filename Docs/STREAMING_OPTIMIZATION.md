@@ -1,5 +1,5 @@
 The current media streaming in the file 
-/Volumes/Emperical/Devel/SignalView/V2/backend/app/api/v1/media/stream.py
+/backend/app/api/v1/media/stream.py
 
 This is a workaround, not industry standard. It has a real performance cost.
 
@@ -24,4 +24,4 @@ IAM → Users → imagdent-s3 → Permissions → Add inline policy:
 
 Step 2 — Revert .ts segments back to presigned S3 URLs (removing the proxy overhead) and force-recreate the backend so configure_s3_cors() re-runs with the new permission:
 
-That's it. The backend already generates the correct S3 CORS JSON with https://*.preview.signalview.tech — it just can't apply it without the permission.
+That's it. The backend already generates the correct S3 CORS JSON with https://*.preview.streamtvdepot.com — it just can't apply it without the permission.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Seed demo categories and content for the SignalView platform.
+Seed demo categories and content for the StreamTVDepot platform.
 
 Categories are modelled after KalingoTV (regional Indian OTT), providing a
 realistic starting library for every new client.

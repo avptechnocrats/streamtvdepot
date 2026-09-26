@@ -1,4 +1,4 @@
-# SignalView – Live Streaming
+# StreamTVDepot – Live Streaming
 
 > Last updated: April 2026
 
@@ -23,12 +23,12 @@
 
 ## 1. Feature Overview
 
-SignalView supports two types of live channels:
+StreamTVDepot supports two types of live channels:
 
 | Source type | How it works |
 |---|---|
 | `external` | Admin pastes an existing M3U8 HLS URL (from a CDN, encoder cloud, etc.) |
-| `rtmp` | The platform generates a unique stream key. Broadcaster pushes RTMP from OBS → SignalView RTMP server → FFmpeg transcodes → HLS segments served to viewers |
+| `rtmp` | The platform generates a unique stream key. Broadcaster pushes RTMP from OBS → StreamTVDepot RTMP server → FFmpeg transcodes → HLS segments served to viewers |
 
 For `rtmp` channels the full pipeline is:
 
@@ -153,14 +153,14 @@ Internet
     │
     ▼ :8080
 ┌─────────────────────────────────────────────────────┐
-│  signalview_nginx  (nginx:alpine, reverse proxy)    │
+│  streamtvdepot_nginx  (nginx:alpine, reverse proxy)    │
 │   /api/    → backend:8000                           │
 │   /hls/    → rtmp:80   ← NEW                        │
 │   /        → frontend:3000                          │
 └─────────────────────────────────────────────────────┘
          │              │              │
          ▼              ▼              ▼
-   signalview_    signalview_    signalview_
+   streamtvdepot_    streamtvdepot_    streamtvdepot_
    backend:8000   frontend:3000  rtmp:80 / :1935
                                  │
                                  ├─ Nginx-RTMP (port 1935)
@@ -169,7 +169,7 @@ Internet
                                     /var/hls/ ← hls_data volume
 ```
 
-All containers share the `signalview_net` Docker bridge network so they resolve each other by service name (`backend`, `rtmp`, `frontend`, etc.)
+All containers share the `streamtvdepot_net` Docker bridge network so they resolve each other by service name (`backend`, `rtmp`, `frontend`, etc.)
 
 ### Why a separate `rtmp` container?
 
@@ -237,7 +237,7 @@ Use `V2/scripts/setup-rtmp-server.sh` on a **dedicated Ubuntu 22.04 EC2** when y
 
 ```bash
 chmod +x scripts/setup-rtmp-server.sh
-sudo BACKEND_URL=https://signalview.mitiztechnologies.in/api/v1 \
+sudo BACKEND_URL=https://streamtvdepot.mitiztechnologies.in/api/v1 \
     ./scripts/setup-rtmp-server.sh
 ```
 
@@ -357,7 +357,7 @@ OBS → MediaLive input (RTMP push endpoint, per channel)
    Viewer
 ```
 
-Changes needed in SignalView:
+Changes needed in StreamTVDepot:
 - `rtmp_key` becomes the MediaLive input password
 - `stream_url` becomes the MediaPackage CloudFront HLS URL
 - `on_publish` / `on_publish_done` replaced by MediaLive CloudWatch events → SNS → Lambda → FastAPI webhook
@@ -370,7 +370,7 @@ Options:
 - **Mux** — managed video infrastructure. Simple REST API. Per-minute billing.
 - **Wowza Streaming Cloud** — enterprise, RTMP in, HLS out, global CDN.
 
-For any of these, the SignalView backend only needs to:
+For any of these, the StreamTVDepot backend only needs to:
 1. Create a channel via the provider API on channel creation
 2. Store the resulting stream key + HLS URL
 3. Webhook receives start/stop events instead of Nginx callbacks

@@ -354,7 +354,7 @@ async def test_site_smtp_connection(
     
     logo_url = await get_client_logo_url(db, admin._client_id)
     
-    company_name = cfg.get("site_title") or client.slug or "SignalView"
+    company_name = cfg.get("site_title") or client.slug or "StreamTVDepot"
     footer_parts = []
     if cfg.get("address1"):
         footer_parts.append(cfg.get("address1"))
@@ -404,7 +404,7 @@ async def get_platform_issuer(
     db: AsyncSession = Depends(get_db),
     admin=Depends(get_current_client_admin),
 ):
-    """Return the platform's (SignalView's) company information for invoices and letterhead.
+    """Return the platform's (StreamTVDepot's) company information for invoices and letterhead.
     
     This is fetched from superadmin settings and is accessible to all client admins.
     Used to display company address, phone, and contact info in invoices.

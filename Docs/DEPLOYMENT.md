@@ -1,4 +1,4 @@
-# Deployment Guide - SignalView V2
+# Deployment Guide - StreamTVDepot V2
 
 ## Deployment Overview
 
@@ -69,16 +69,16 @@
 cd backend
 
 # Build image
-docker build -t signalview/backend:latest .
+docker build -t streamtvdepot/backend:latest .
 
 # Test locally
 docker run -p 8000:8000 \
-  -e DATABASE_URL=postgresql+asyncpg://user:pass@db:5432/signalview \
+  -e DATABASE_URL=postgresql+asyncpg://user:pass@db:5432/streamtvdepot \
   -e REDIS_URL=redis://redis:6379 \
-  signalview/backend:latest
+  streamtvdepot/backend:latest
 
 # Tag for registry
-docker tag signalview/backend:latest your-registry.azurecr.io/signalview/backend:1.0.0
+docker tag streamtvdepot/backend:latest your-registry.azurecr.io/streamtvdepot/backend:1.0.0
 ```
 
 #### Frontend Image
@@ -86,15 +86,15 @@ docker tag signalview/backend:latest your-registry.azurecr.io/signalview/backend
 cd ../frontend
 
 # Build image
-docker build -t signalview/frontend:latest .
+docker build -t streamtvdepot/frontend:latest .
 
 # Test locally
 docker run -p 3000:3000 \
   -e NEXT_PUBLIC_API_BASE_URL=http://localhost:8001/api/v1 \
-  signalview/frontend:latest
+  streamtvdepot/frontend:latest
 
 # Tag for registry
-docker tag signalview/frontend:latest your-registry.azurecr.io/signalview/frontend:1.0.0
+docker tag streamtvdepot/frontend:latest your-registry.azurecr.io/streamtvdepot/frontend:1.0.0
 ```
 
 ### Dockerfile Best Practices
@@ -183,10 +183,10 @@ CMD ["npm", "start"]
 az acr login --name your-registry
 
 # Push backend image
-docker push your-registry.azurecr.io/signalview/backend:1.0.0
+docker push your-registry.azurecr.io/streamtvdepot/backend:1.0.0
 
 # Push frontend image
-docker push your-registry.azurecr.io/signalview/frontend:1.0.0
+docker push your-registry.azurecr.io/streamtvdepot/frontend:1.0.0
 
 # List images
 az acr repository list --name your-registry
@@ -200,12 +200,12 @@ aws ecr get-login-password --region us-east-1 | \
   docker login --username AWS --password-stdin your-registry.dkr.ecr.us-east-1.amazonaws.com
 
 # Create repositories
-aws ecr create-repository --repository-name signalview/backend --region us-east-1
-aws ecr create-repository --repository-name signalview/frontend --region us-east-1
+aws ecr create-repository --repository-name streamtvdepot/backend --region us-east-1
+aws ecr create-repository --repository-name streamtvdepot/frontend --region us-east-1
 
 # Push images
-docker push your-registry.dkr.ecr.us-east-1.amazonaws.com/signalview/backend:1.0.0
-docker push your-registry.dkr.ecr.us-east-1.amazonaws.com/signalview/frontend:1.0.0
+docker push your-registry.dkr.ecr.us-east-1.amazonaws.com/streamtvdepot/backend:1.0.0
+docker push your-registry.dkr.ecr.us-east-1.amazonaws.com/streamtvdepot/frontend:1.0.0
 ```
 
 ### Docker Hub
@@ -215,8 +215,8 @@ docker push your-registry.dkr.ecr.us-east-1.amazonaws.com/signalview/frontend:1.
 docker login
 
 # Push images
-docker push yourusername/signalview-backend:1.0.0
-docker push yourusername/signalview-frontend:1.0.0
+docker push yourusername/streamtvdepot-backend:1.0.0
+docker push yourusername/streamtvdepot-frontend:1.0.0
 ```
 
 ---
@@ -231,28 +231,28 @@ docker push yourusername/signalview-frontend:1.0.0
 ### Namespace Setup
 ```bash
 # Create namespace
-kubectl create namespace signalview
+kubectl create namespace streamtvdepot
 
 # Set default namespace
-kubectl config set-context --current --namespace=signalview
+kubectl config set-context --current --namespace=streamtvdepot
 ```
 
 ### Secrets Configuration
 ```bash
 # Create database secret
 kubectl create secret generic db-credentials \
-  --from-literal=DATABASE_URL=postgresql+asyncpg://user:pass@postgres:5432/signalview \
-  -n signalview
+  --from-literal=DATABASE_URL=postgresql+asyncpg://user:pass@postgres:5432/streamtvdepot \
+  -n streamtvdepot
 
 # Create Redis secret
 kubectl create secret generic redis-credentials \
   --from-literal=REDIS_URL=redis://redis:6379 \
-  -n signalview
+  -n streamtvdepot
 
 # Create JWT secret
 kubectl create secret generic jwt-secret \
   --from-literal=SECRET_KEY=$(openssl rand -hex 32) \
-  -n signalview
+  -n streamtvdepot
 ```
 
 ### ConfigMap Setup
@@ -263,9 +263,9 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: app-config
-  namespace: signalview
+  namespace: streamtvdepot
 data:
-  APP_NAME: "SignalView"
+  APP_NAME: "StreamTVDepot"
   API_V1_PREFIX: "/api/v1"
   ENVIRONMENT: "production"
   DEBUG: "false"
@@ -285,7 +285,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres
-  namespace: signalview
+  namespace: streamtvdepot
 spec:
   replicas: 1
   selector:
@@ -303,9 +303,9 @@ spec:
         - containerPort: 5432
         env:
         - name: POSTGRES_DB
-          value: signalview
+          value: streamtvdepot
         - name: POSTGRES_USER
-          value: signalview
+          value: streamtvdepot
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -319,7 +319,7 @@ spec:
             command:
             - /bin/sh
             - -c
-            - pg_isready -U signalview
+            - pg_isready -U streamtvdepot
           initialDelaySeconds: 30
           periodSeconds: 10
       volumes:
@@ -332,7 +332,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgres-pvc
-  namespace: signalview
+  namespace: streamtvdepot
 spec:
   accessModes:
     - ReadWriteOnce
@@ -345,7 +345,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres
-  namespace: signalview
+  namespace: streamtvdepot
 spec:
   selector:
     app: postgres
@@ -363,7 +363,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
-  namespace: signalview
+  namespace: streamtvdepot
 spec:
   replicas: 3  # Scale horizontally
   strategy:
@@ -381,7 +381,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: your-registry.azurecr.io/signalview/backend:1.0.0
+        image: your-registry.azurecr.io/streamtvdepot/backend:1.0.0
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
@@ -426,7 +426,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: backend
-  namespace: signalview
+  namespace: streamtvdepot
 spec:
   selector:
     app: backend
@@ -440,7 +440,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: backend-hpa
-  namespace: signalview
+  namespace: streamtvdepot
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -471,7 +471,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
-  namespace: signalview
+  namespace: streamtvdepot
 spec:
   replicas: 2
   strategy:
@@ -489,13 +489,13 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: your-registry.azurecr.io/signalview/frontend:1.0.0
+        image: your-registry.azurecr.io/streamtvdepot/frontend:1.0.0
         imagePullPolicy: Always
         ports:
         - containerPort: 3000
         env:
         - name: NEXT_PUBLIC_API_BASE_URL
-          value: "https://api.signalview.com/api/v1"
+          value: "https://api.streamtvdepot.com/api/v1"
         resources:
           requests:
             cpu: 200m
@@ -521,7 +521,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: frontend
-  namespace: signalview
+  namespace: streamtvdepot
 spec:
   selector:
     app: frontend
@@ -538,19 +538,19 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: signalview-ingress
-  namespace: signalview
+  name: streamtvdepot-ingress
+  namespace: streamtvdepot
   annotations:
     kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   tls:
   - hosts:
-    - signalview.com
-    - api.signalview.com
-    secretName: signalview-tls
+    - streamtvdepot.com
+    - api.streamtvdepot.com
+    secretName: streamtvdepot-tls
   rules:
-  - host: signalview.com
+  - host: streamtvdepot.com
     http:
       paths:
       - path: /
@@ -560,7 +560,7 @@ spec:
             name: frontend
             port:
               number: 3000
-  - host: api.signalview.com
+  - host: api.streamtvdepot.com
     http:
       paths:
       - path: /
@@ -578,24 +578,24 @@ spec:
 kubectl apply -f k8s/
 
 # Check deployment status
-kubectl get deployments -n signalview
-kubectl get pods -n signalview
-kubectl get services -n signalview
+kubectl get deployments -n streamtvdepot
+kubectl get pods -n streamtvdepot
+kubectl get services -n streamtvdepot
 
 # View logs
-kubectl logs -f deployment/backend -n signalview
-kubectl logs -f deployment/frontend -n signalview
+kubectl logs -f deployment/backend -n streamtvdepot
+kubectl logs -f deployment/frontend -n streamtvdepot
 
 # Scale deployment
-kubectl scale deployment backend --replicas=5 -n signalview
+kubectl scale deployment backend --replicas=5 -n streamtvdepot
 
 # Update image
 kubectl set image deployment/backend \
-  backend=your-registry.azurecr.io/signalview/backend:1.1.0 \
-  -n signalview
+  backend=your-registry.azurecr.io/streamtvdepot/backend:1.1.0 \
+  -n streamtvdepot
 
 # Check rollout status
-kubectl rollout status deployment/backend -n signalview
+kubectl rollout status deployment/backend -n streamtvdepot
 ```
 
 ---
@@ -606,7 +606,7 @@ kubectl rollout status deployment/backend -n signalview
 ```bash
 # Run migrations before deployment
 kubectl run migration-job \
-  --image=your-registry.azurecr.io/signalview/backend:1.0.0 \
+  --image=your-registry.azurecr.io/streamtvdepot/backend:1.0.0 \
   --env="DATABASE_URL=postgresql+asyncpg://..." \
   -- alembic upgrade head
 
@@ -622,13 +622,13 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: db-migration
-  namespace: signalview
+  namespace: streamtvdepot
 spec:
   template:
     spec:
       containers:
       - name: migration
-        image: your-registry.azurecr.io/signalview/backend:1.0.0
+        image: your-registry.azurecr.io/streamtvdepot/backend:1.0.0
         command: ["alembic", "upgrade", "head"]
         env:
         - name: DATABASE_URL
@@ -652,7 +652,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: prometheus-config
-  namespace: signalview
+  namespace: streamtvdepot
 data:
   prometheus.yml: |
     global:
@@ -663,7 +663,7 @@ data:
       - role: pod
         namespaces:
           names:
-          - signalview
+          - streamtvdepot
       relabel_configs:
       - source_labels: [__meta_kubernetes_pod_label_app]
         action: keep
@@ -674,7 +674,7 @@ data:
 ```bash
 # Install ELK
 helm repo add elastic https://helm.elastic.co
-helm install elastic-stack elastic/elasticsearch -n signalview
+helm install elastic-stack elastic/elasticsearch -n streamtvdepot
 
 # Configure log shipping
 # Add logging sidecar to deployments
@@ -687,8 +687,8 @@ helm install elastic-stack elastic/elasticsearch -n signalview
 from prometheus_client import Counter, Histogram
 import time
 
-request_count = Counter('signalview_requests_total', 'Total requests')
-request_duration = Histogram('signalview_request_duration_seconds', 'Request duration')
+request_count = Counter('streamtvdepot_requests_total', 'Total requests')
+request_duration = Histogram('streamtvdepot_request_duration_seconds', 'Request duration')
 
 @app.middleware("http")
 async def add_metrics(request: Request, call_next):
@@ -721,10 +721,10 @@ curl http://localhost:8000/ready
 ### Recovery Procedures
 ```bash
 # Pod restart
-kubectl delete pod backend-xyz -n signalview
+kubectl delete pod backend-xyz -n streamtvdepot
 
 # Service restart
-kubectl rollout restart deployment/backend -n signalview
+kubectl rollout restart deployment/backend -n streamtvdepot
 
 # Manual failover
 kubectl cordon node-1
@@ -738,16 +738,16 @@ kubectl drain node-1 --ignore-daemonsets
 ### PostgreSQL Backup
 ```bash
 # Backup to file
-kubectl exec -it postgres-pod -n signalview -- \
-  pg_dump -U signalview signalview > backup.sql
+kubectl exec -it postgres-pod -n streamtvdepot -- \
+  pg_dump -U streamtvdepot streamtvdepot > backup.sql
 
 # Backup to S3
 kubectl run backup-job \
-  --image=your-registry.azurecr.io/signalview/backend:1.0.0 \
-  -- bash -c "pg_dump -U signalview signalview | aws s3 cp - s3://backups/db-$(date +%s).sql"
+  --image=your-registry.azurecr.io/streamtvdepot/backend:1.0.0 \
+  -- bash -c "pg_dump -U streamtvdepot streamtvdepot | aws s3 cp - s3://backups/db-$(date +%s).sql"
 
 # Restore from backup
-psql -U signalview signalview < backup.sql
+psql -U streamtvdepot streamtvdepot < backup.sql
 ```
 
 ### Automated Daily Backups
@@ -758,7 +758,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: daily-db-backup
-  namespace: signalview
+  namespace: streamtvdepot
 spec:
   schedule: "0 2 * * *"  # 2 AM UTC daily
   jobTemplate:
@@ -772,8 +772,8 @@ spec:
             - /bin/sh
             - -c
             - |
-              pg_dump -U signalview signalview | \
-              aws s3 cp - s3://signalview-backups/db-$(date +%Y%m%d-%H%M%S).sql.gz --sse AES256
+              pg_dump -U streamtvdepot streamtvdepot | \
+              aws s3 cp - s3://streamtvdepot-backups/db-$(date +%Y%m%d-%H%M%S).sql.gz --sse AES256
             env:
             - name: PGHOST
               value: postgres
@@ -827,7 +827,7 @@ redis = aioredis.from_url(
 # CloudFront Distribution
 
 Distribution:
-  DomainName: signalview.com
+  DomainName: streamtvdepot.com
   Origins:
     - DomainName: d123.cloudfront.net
       S3Origin:
@@ -858,7 +858,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: backend-policy
-  namespace: signalview
+  namespace: streamtvdepot
 spec:
   podSelector:
     matchLabels:
@@ -923,16 +923,16 @@ spec:
 ### Quick Rollback
 ```bash
 # Show rollout history
-kubectl rollout history deployment/backend -n signalview
+kubectl rollout history deployment/backend -n streamtvdepot
 
 # Rollback to previous version
-kubectl rollout undo deployment/backend -n signalview
+kubectl rollout undo deployment/backend -n streamtvdepot
 
 # Rollback to specific revision
-kubectl rollout undo deployment/backend --to-revision=2 -n signalview
+kubectl rollout undo deployment/backend --to-revision=2 -n streamtvdepot
 
 # Check rollout status
-kubectl rollout status deployment/backend -n signalview
+kubectl rollout status deployment/backend -n streamtvdepot
 ```
 
 ---
@@ -941,23 +941,23 @@ kubectl rollout status deployment/backend -n signalview
 
 ```bash
 # Check all pods are running
-kubectl get pods -n signalview
+kubectl get pods -n streamtvdepot
 
 # Verify services
-kubectl get services -n signalview
+kubectl get services -n streamtvdepot
 
 # Check ingress
-kubectl get ingress -n signalview
+kubectl get ingress -n streamtvdepot
 
 # View recent events
-kubectl get events -n signalview --sort-by='.lastTimestamp'
+kubectl get events -n streamtvdepot --sort-by='.lastTimestamp'
 
 # Test API endpoint
-curl https://api.signalview.com/health
+curl https://api.streamtvdepot.com/health
 
 # View application logs
-kubectl logs -f deployment/backend -n signalview
-kubectl logs -f deployment/frontend -n signalview
+kubectl logs -f deployment/backend -n streamtvdepot
+kubectl logs -f deployment/frontend -n streamtvdepot
 ```
 
 ---

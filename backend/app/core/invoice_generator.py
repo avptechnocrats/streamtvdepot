@@ -48,7 +48,7 @@ def generate_invoice_csv(
     output = io.BytesIO()
     writer = csv.writer(io.TextIOWrapper(output, encoding="utf-8", newline=""))
 
-    writer.writerow(["SignalView Invoice"])
+    writer.writerow(["StreamTVDepot Invoice"])
     writer.writerow([])
     writer.writerow(["Invoice Date:", f"{billing_year}-{billing_month:02d}-01"])
     writer.writerow(["Client:", client_name])
@@ -231,7 +231,7 @@ def generate_billing_invoice_pdf(
     # Header
     logo_cell = (Image(str(_LOGO_PATH), width=_LOGO_W, height=_LOGO_H)
                  if _LOGO_PATH.exists() else
-                 P("SignalView", fontSize=18, fontName="Helvetica-Bold", textColor=C_DARK))
+                 P("StreamTVDepot", fontSize=18, fontName="Helvetica-Bold", textColor=C_DARK))
     ht = Table([[logo_cell,
                  P("INVOICE", fontSize=18, fontName="Helvetica-Bold", textColor=C_DARK, alignment=2)]],
                colWidths=[col_half, col_half])
@@ -496,7 +496,7 @@ def generate_billing_receipt_pdf(
         logo_cell = Image(str(_LOGO_PATH), width=_LOGO_W, height=_LOGO_H)
 
     if logo_cell is None:
-        logo_cell = P("SignalView", fontSize=18, fontName="Helvetica-Bold", textColor=C_DARK)
+        logo_cell = P("StreamTVDepot", fontSize=18, fontName="Helvetica-Bold", textColor=C_DARK)
     ht = Table([[logo_cell,
                  P("RECEIPT", fontSize=18, fontName="Helvetica-Bold", textColor=C_DARK, alignment=2)]],
                colWidths=[col_half, col_half])

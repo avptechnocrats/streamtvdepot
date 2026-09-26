@@ -1,13 +1,13 @@
-# API Documentation - SignalView V2
+# API Documentation - StreamTvDepot V2
 
 ## API Overview
 
-The SignalView API is built with FastAPI and follows RESTful conventions. All responses are JSON formatted and include appropriate HTTP status codes.
+The StreamTvDepot API is built with FastAPI and follows RESTful conventions. All responses are JSON formatted and include appropriate HTTP status codes.
 
 ### Base URL
 ```
 Development: http://localhost:8001/api/v1
-Production: https://api.signalview.com/api/v1
+Production: https://api.streamtvdepot.com/api/v1
 ```
 
 ### Authentication
@@ -40,7 +40,7 @@ GET /health
 ```json
 {
   "status": "healthy",
-  "app": "SignalView",
+  "app": "StreamTvDepot",
   "version": "1.0.0"
 }
 ```

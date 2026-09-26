@@ -82,18 +82,18 @@ async def superadmin_change_password(
     from app.core.config import settings
     
     logo_url = await get_platform_logo_url()
-    company_name = settings.APP_NAME or "SignalView"
+    company_name = settings.APP_NAME or "StreamTVDepot"
     footer_text = await get_platform_footer_text(db)
     
     body_text = (
         f"Hi {current_user.full_name},\n\n"
-        "This is to confirm that your SignalView account password was successfully changed.\n\n"
+        "This is to confirm that your StreamTVDepot account password was successfully changed.\n\n"
         "If you did not make this change, please contact support immediately.\n\n"
-        "Regards,\nSignalView Team"
+        "Regards,\nStreamTVDepot Team"
     )
     
     html_content = generate_professional_email_html(
-        subject="Your SignalView password has been changed",
+        subject="Your StreamTVDepot password has been changed",
         body_text=body_text,
         logo_url=logo_url,
         company_name=company_name,
@@ -105,7 +105,7 @@ async def superadmin_change_password(
         event_key="superadmin_change_password",
         to_email=current_user.email,
         to_name=current_user.full_name,
-        subject="Your SignalView password has been changed",
+        subject="Your StreamTVDepot password has been changed",
         body_text=body_text,
         body_html=html_content,
     )
@@ -134,18 +134,18 @@ async def superadmin_forgot_password(
     from app.core.config import settings
     
     logo_url = await get_platform_logo_url()
-    company_name = settings.APP_NAME or "SignalView"
+    company_name = settings.APP_NAME or "StreamTVDepot"
     footer_text = await get_platform_footer_text(db)
     
     body_text = (
         f"Hi {user.full_name},\n\n"
-        "We received a password reset request for your SignalView account.\n"
+        "We received a password reset request for your StreamTVDepot account.\n"
         f"Reset token: {reset.token}\n\n"
         "If you did not request this, please ignore this email."
     )
     
     html_content = generate_professional_email_html(
-        subject="SignalView password reset",
+        subject="StreamTVDepot password reset",
         body_text=body_text,
         logo_url=logo_url,
         company_name=company_name,
@@ -157,7 +157,7 @@ async def superadmin_forgot_password(
         event_key="superadmin_forgot_password",
         to_email=user.email,
         to_name=user.full_name,
-        subject="SignalView password reset",
+        subject="StreamTVDepot password reset",
         body_text=body_text,
         body_html=html_content,
     )

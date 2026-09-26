@@ -146,10 +146,10 @@ async def unified_forgot_password(
             event_key="superadmin_forgot_password",
             to_email=superadmin.email,
             to_name=superadmin.full_name,
-            subject="SignalView password reset",
+            subject="StreamTVDepot password reset",
             body_text=(
                 f"Hi {superadmin.full_name},\\n\\n"
-                "We received a password reset request for your SignalView account.\\n"
+                "We received a password reset request for your StreamTVDepot account.\\n"
                 f"Reset token: {reset.token}\\n\\n"
                 "If you did not request this, please ignore this email."
             ),
@@ -174,10 +174,10 @@ async def unified_forgot_password(
             event_key="client_admin_forgot_password",
             to_email=client_admin.email,
             to_name=client_admin.full_name,
-            subject="SignalView password reset",
+            subject="StreamTVDepot password reset",
             body_text=(
                 f"Hi {client_admin.full_name},\\n\\n"
-                "We received a password reset request for your SignalView client-admin account.\\n"
+                "We received a password reset request for your StreamTVDepot client-admin account.\\n"
                 f"Reset token: {reset.token}\\n\\n"
                 "If you did not request this, please ignore this email."
             ),

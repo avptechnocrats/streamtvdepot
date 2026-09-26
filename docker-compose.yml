@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-streamtvdepot}
       POSTGRES_USER: ${POSTGRES_USER:-streamtvdepot}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-streamtvdepot_2026#!}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stvdepot_20_26}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -16,13 +16,13 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - signalview_net
+      - streamtvdepot_net
 
   redis:
     image: redis:7-alpine
     container_name: streamtvdepot_redis
     networks:
-      - signalview_net
+      - streamtvdepot_net
 
   backend:
     build:
@@ -31,7 +31,7 @@ services:
     container_name: streamtvdepot_backend
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-streamtvdepot_2026#!}@postgres:5432/${POSTGRES_DB:-streamtvdepot}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-stvdepot_20_26}@postgres:5432/${POSTGRES_DB:-streamtvdepot}
       DATABASE_POOL_MODE: queue
       DATABASE_POOL_SIZE: ${API_DATABASE_POOL_SIZE:-5}
       DATABASE_MAX_OVERFLOW: ${API_DATABASE_MAX_OVERFLOW:-5}
@@ -46,7 +46,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - signalview_net
+      - streamtvdepot_net
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   billing_celery_worker:
@@ -56,7 +56,7 @@ services:
     env_file: .env
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-streamtvdepot_2026#!}@postgres:5432/${POSTGRES_DB:-streamtvdepot}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-stvdepot_20_26}@postgres:5432/${POSTGRES_DB:-streamtvdepot}
       DATABASE_POOL_MODE: null
       REDIS_URL: redis://redis:6379
     volumes:
@@ -68,7 +68,7 @@ services:
       redis:
         condition: service_started
     networks:
-      - signalview_net
+      - streamtvdepot_net
     command: celery -A app.core.celery_app.celery_app worker --loglevel=INFO --queues=billing --concurrency=${BILLING_WORKER_CONCURRENCY:-4} --max-tasks-per-child=1000
 
   notification_celery_worker:
@@ -78,7 +78,7 @@ services:
     env_file: .env
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-streamtvdepot_2026#!}@postgres:5432/${POSTGRES_DB:-streamtvdepot}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-stvdepot_20_26}@postgres:5432/${POSTGRES_DB:-streamtvdepot}
       DATABASE_POOL_MODE: null
       REDIS_URL: redis://redis:6379
     volumes:
@@ -90,7 +90,7 @@ services:
       redis:
         condition: service_started
     networks:
-      - signalview_net
+      - streamtvdepot_net
     command: celery -A app.core.celery_app.celery_app worker --loglevel=INFO --queues=notifications --concurrency=${NOTIFICATION_WORKER_CONCURRENCY:-4} --max-tasks-per-child=1000
 
   frontend:
@@ -110,7 +110,7 @@ services:
     depends_on:
       - backend
     networks:
-      - signalview_net
+      - streamtvdepot_net
 
   rtmp:
     build:
@@ -127,7 +127,7 @@ services:
     depends_on:
       - backend
     networks:
-      - signalview_net
+      - streamtvdepot_net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 30s
@@ -148,7 +148,7 @@ services:
       - frontend
       - rtmp
     networks:
-      - signalview_net
+      - streamtvdepot_net
 
 volumes:
   postgres_data:
@@ -156,5 +156,5 @@ volumes:
   recordings_data:
 
 networks:
-  signalview_net:
+  streamtvdepot_net:
     driver: bridge

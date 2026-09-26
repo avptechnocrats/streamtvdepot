@@ -25,7 +25,7 @@
 
 ### Executive Summary
 
-SignalView now supports **country-specific pricing** for subscription plans. When end-users from different countries subscribe to a plan, they are automatically charged the price appropriate for their country (if configured), rather than always paying the base price in USD.
+StreamTVDepot now supports **country-specific pricing** for subscription plans. When end-users from different countries subscribe to a plan, they are automatically charged the price appropriate for their country (if configured), rather than always paying the base price in USD.
 
 **Business Impact**:
 - ✅ Higher conversion in emerging markets
@@ -547,21 +547,21 @@ Authorization: Bearer {admin_token}
 git pull origin main
 
 # Deploy backend with country pricing changes
-docker build -t signalview/backend:v2.1 backend/
-docker push signalview/backend:v2.1
+docker build -t streamtvdepot/backend:v2.1 backend/
+docker push streamtvdepot/backend:v2.1
 
 # Update production
-docker pull signalview/backend:v2.1
+docker pull streamtvdepot/backend:v2.1
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
 #### 2. Verification
 ```bash
 # Check API is running
-curl http://api.signalview.com/health
+curl http://api.streamtvdepot.com/health
 
 # Verify endpoint exists
-curl http://api.signalview.com/api/v1/admin/subscriptions/plans \
+curl http://api.streamtvdepot.com/api/v1/admin/subscriptions/plans \
   -H "Authorization: Bearer {token}"
 ```
 
@@ -580,14 +580,14 @@ If issues occur:
 git checkout previous-version
 
 # 2. Rebuild backend
-docker build -t signalview/backend:previous backend/
+docker build -t streamtvdepot/backend:previous backend/
 
 # 3. Restart services
 docker-compose -f docker-compose.prod.yml down
 docker-compose -f docker-compose.prod.yml up -d
 
 # 4. Verify
-curl http://api.signalview.com/health
+curl http://api.streamtvdepot.com/health
 ```
 
 **Note**: No database migration rollback needed (uses existing columns)
@@ -836,7 +836,7 @@ WHERE user_id = 'user-id' ORDER BY created_at DESC;
 **Diagnosis**:
 ```bash
 # Check payment error logs
-docker logs signalview-backend | grep -i currency
+docker logs streamtvdepot-backend | grep -i currency
 
 # Test Stripe API directly
 curl -X GET https://api.stripe.com/v1/supported_countries \

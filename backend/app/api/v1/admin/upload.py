@@ -176,7 +176,7 @@ async def configure_s3_cors(db_session: AsyncSession | None = None) -> None:
 
     PUT (upload) — only allowed from admin origins:
       • localhost / 127.0.0.1 variants (dev)
-      • Any domain/subdomain containing "signalview" (admin panels)
+      • Any domain/subdomain containing "streamtvdepot" (admin panels)
 
     GET / HEAD (read) — allowed from admin origins PLUS every client's
     own domain/subdomain so their storefronts can display uploaded assets.
@@ -199,33 +199,33 @@ async def configure_s3_cors(db_session: AsyncSession | None = None) -> None:
         "http://127.0.0.1:8001",
     }
 
-    # ── signalview origins: admin panels — allowed for PUT and GET ───────────
-    signalview_origins: set[str] = set()
-    signalview_bases: set[str] = set()
+    # ── streamtvdepot origins: admin panels — allowed for PUT and GET ───────────
+    streamtvdepot_origins: set[str] = set()
+    streamtvdepot_bases: set[str] = set()
 
     env_origins: list[str] = list(settings.ALLOWED_ORIGINS) if settings.ALLOWED_ORIGINS else []
     for o in env_origins:
         try:
             host = urlparse(o).hostname or ""
-            if "signalview" in host:
-                signalview_bases.add(host)
-                signalview_origins.add(f"https://{host}")
-                signalview_origins.add(f"https://*.{host}")
+            if "streamtvdepot" in host:
+                streamtvdepot_bases.add(host)
+                streamtvdepot_origins.add(f"https://{host}")
+                streamtvdepot_origins.add(f"https://*.{host}")
         except Exception:
             pass
 
     # Hard-coded production bases (future-proof)
-    for base in ["signalview.tech", "signalview.io", "signalview.app"]:
-        signalview_bases.add(base)
-        signalview_origins.add(f"https://{base}")
-        signalview_origins.add(f"https://*.{base}")
+    for base in ["streamtvdepot.com", "streamtvdepot.io", "streamtvdepot.app"]:
+        streamtvdepot_bases.add(base)
+        streamtvdepot_origins.add(f"https://{base}")
+        streamtvdepot_origins.add(f"https://*.{base}")
 
     # ── Preview base domain: all <slug>.<preview-domain> origins ─────────────
     # S3 wildcard matches exactly one subdomain level, so
-    # https://*.preview.signalview.tech covers kalingo-tv.preview.signalview.tech.
+    # https://*.preview.streamtvdepot.com covers kalingo-tv.preview.streamtvdepot.com.
     if settings.PREVIEW_BASE_DOMAIN:
         preview_base = settings.PREVIEW_BASE_DOMAIN.lower().strip()
-        signalview_origins.add(f"https://*.{preview_base}")
+        streamtvdepot_origins.add(f"https://*.{preview_base}")
 
     # ── Client origins: storefronts — allowed for GET only ───────────────────
     client_origins: set[str] = set()
@@ -239,9 +239,9 @@ async def configure_s3_cors(db_session: AsyncSession | None = None) -> None:
             for slug, domain in result.all():
                 if slug:
                     client_slugs.append(slug)
-                    # slug.{every-signalview-base} — e.g. kalingo-tv.signalview.com
-                    for base in signalview_bases:
-                        signalview_origins.add(f"https://{slug}.{base}")
+                    # slug.{every-streamtvdepot-base} — e.g. kalingo-tv.streamtvdepot.com
+                    for base in streamtvdepot_bases:
+                        streamtvdepot_origins.add(f"https://{slug}.{base}")
                 if domain:
                     # Exact client domain and all its subdomains
                     client_origins.add(f"https://{domain}")
@@ -250,9 +250,9 @@ async def configure_s3_cors(db_session: AsyncSession | None = None) -> None:
             logger.warning("Could not load client origins from DB for CORS policy: %s", exc)
 
     # PUT: admin + dev only (no raw client domains — their users never upload)
-    upload_origins = sorted(dev_origins | signalview_origins)
+    upload_origins = sorted(dev_origins | streamtvdepot_origins)
     # GET: everything — admin panels + storefronts + client custom domains
-    access_origins = sorted(dev_origins | signalview_origins | client_origins)
+    access_origins = sorted(dev_origins | streamtvdepot_origins | client_origins)
 
     logger.info(
         "S3 CORS — upload origins: %d | access origins: %d | clients: %s",
@@ -263,7 +263,7 @@ async def configure_s3_cors(db_session: AsyncSession | None = None) -> None:
 
     cors_rules = [
         {
-            # Presigned PUT: only from admin origins (localhost or *.signalview.*)
+            # Presigned PUT: only from admin origins (localhost or *.streamtvdepot.*)
             "AllowedHeaders": ["*"],
             "AllowedMethods": ["PUT"],
             "AllowedOrigins": upload_origins,

@@ -5,13 +5,13 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "SignalView"
+    APP_NAME: str = "StreamTVDepot"
     APP_ENV: str = "development"
     DEBUG: bool = True
     API_V1_PREFIX: str = "/api/v1"
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://signalview:signalview_secret@localhost:5432/signalview"
+    DATABASE_URL: str = "postgresql+asyncpg://streamtvdepot:stvdepot_20_26@localhost:5432/streamtvdepot"
     DATABASE_POOL_MODE: Literal["queue", "null"] = "queue"
     DATABASE_POOL_SIZE: int = 5
     DATABASE_MAX_OVERFLOW: int = 5
@@ -43,14 +43,14 @@ class Settings(BaseSettings):
 
     # CORS
     # In production add all client domains here, or use ALLOWED_ORIGINS_REGEX.
-    # e.g. ["https://signalview.com","https://admin.signalview.com","https://kalingo.tv","https://admin.kalingo.tv"]
-    ALLOWED_ORIGINS: List[str] = ["http://localhost","http://localhost:3000","http://localhost:3001","http://localhost:8000","http://localhost:8001","https://www.streamtvdepot.com","https://streamtvdepot.com","https://preview.streamtvdepot.com","https://console.streamtvdepot.com","https://splixtv.mitiztechnologies.in"]
+    # e.g. ["https://xyz.com","https://admin.streamtvdepot.com","https://abc.tv","https://admin.abc.tv"]
+    ALLOWED_ORIGINS: List[str] = ["http://localhost","http://localhost:3000","http://localhost:3001","http://localhost:8000","http://localhost:8001","https://www.streamtvdepot.com","https://streamtvdepot.com","https://preview.streamtvdepot.com","https://console.streamtvdepot.com","https://kalingotv.streamtvdepot.com"]
 
     ALLOWED_ORIGINS_REGEX: str = ""
     """Optional regex that matches any origin — useful for wildcard client domains in production.
-    e.g. r'https://(.*.signalview.com|.*.kalingo.tv)'"""
+    e.g. r'https://(.*.streamtvdepot.com|.*.kalingo.tv)'"""
 
-    # Preview deployment base domain (e.g. "preview.signalview.tech").
+    # Preview deployment base domain (e.g. "preview.streamtvdepot.com").
     # When set, all <slug>.<PREVIEW_BASE_DOMAIN> origins are automatically
     # allowed in both the FastAPI CORS middleware and the S3 CORS policy.
     PREVIEW_BASE_DOMAIN: str = ""
@@ -133,10 +133,10 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
-    EMAILS_FROM_EMAIL: str = "noreply@signalview.com"
+    EMAILS_FROM_EMAIL: str = "noreply@streamtvdepot.com"
     BREVO_API_KEY: str = ""
     BREVO_SENDER_EMAIL: str = ""
-    BREVO_SENDER_NAME: str = "SignalView"
+    BREVO_SENDER_NAME: str = "StreamTVDepot"
 
     model_config = {"env_file": ".env", "case_sensitive": True}
 

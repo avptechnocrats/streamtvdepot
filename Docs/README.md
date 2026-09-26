@@ -1,6 +1,6 @@
-# SignalView V2 Documentation
+# StreamTVDepot V2 Documentation
 
-Welcome to the SignalView V2 documentation. This folder contains comprehensive guides for understanding, developing, testing, and deploying the SignalView multi-tenant media SaaS platform.
+Welcome to the StreamTVDepot V2 documentation. This folder contains comprehensive guides for understanding, developing, testing, and deploying the StreamTVDepot multi-tenant media SaaS platform.
 
 ## 📚 Documentation Structure
 
@@ -32,7 +32,7 @@ Welcome to the SignalView V2 documentation. This folder contains comprehensive g
 ### Start Development Server
 ```bash
 # Navigate to project root
-cd /Volumes/Emperical/Devel/SignalView/V2
+cd /StreamTVDepot
 
 # Start all services with Docker Compose
 docker-compose up
@@ -112,8 +112,8 @@ docker-compose exec backend pytest
 docker-compose build
 
 # Push to registry
-docker tag signalview-backend:latest your-registry/signalview-backend:latest
-docker push your-registry/signalview-backend:latest
+docker tag streamtvdepot-backend:latest your-registry/streamtvdepot-backend:latest
+docker push your-registry/streamtvdepot-backend:latest
 ```
 
 ### Database Migrations

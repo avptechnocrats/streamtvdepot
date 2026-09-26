@@ -51,7 +51,7 @@ def _build_origin_regex() -> str | None:
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="SignalView – Multi-tenant Media SaaS Platform API",
+    description="StreamTVDepot – Multi-tenant Media SaaS Platform API",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",

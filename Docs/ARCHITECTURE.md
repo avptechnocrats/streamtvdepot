@@ -1,4 +1,4 @@
-# System Architecture - SignalView V2
+# System Architecture - StreamTVDepot V2
 
 ## System Architecture Overview
 
@@ -291,8 +291,8 @@ async def invalidate_cache(cache: Redis):
 User requests domain → Nginx detects host → Routes appropriately
 
 Examples:
-- signalview.com → Main SaaS platform
-- admin.signalview.com → Admin panel (SAAS)
+- streamtvdepot.com → Main SaaS platform
+- admin.streamtvdepot.com → Admin panel (SAAS)
 - admin.customer.com → Customer-specific admin
 - customer.com → Customer-specific storefront
 ```

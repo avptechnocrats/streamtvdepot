@@ -5,7 +5,7 @@ CloudFront's standard distribution caches the first ``Access-Control-Allow-Origi
 response header it receives for a given URL and replays it to every subsequent
 request, regardless of origin.  This breaks CORS for client storefronts that run
 on custom domains (e.g. kalingo.tv) when the cache was first seeded by an admin
-panel request (e.g. admin.signalview.com).
+panel request (e.g. admin.streamtvdepot.com).
 
 This module proxies HLS manifest files (.m3u8) through the FastAPI backend so
 that browsers never contact CloudFront/S3 for manifests.  Segment files (.ts) are
@@ -55,13 +55,13 @@ Proper fix (two steps):
         "Statement": [{
           "Effect": "Allow",
           "Action": ["s3:PutBucketCORS", "s3:GetBucketCORS"],
-          "Resource": "arn:aws:s3:::signalview"
+          "Resource": "arn:aws:s3:::streamtvdepot"
         }]
       }
 
   Step 2 — Force-recreate the backend container so ``configure_s3_cors()``
   re-runs and applies the CORS policy (which already includes
-  ``https://*.preview.signalview.tech`` when PREVIEW_BASE_DOMAIN is set):
+  ``https://*.preview.streamtvdepot.com`` when PREVIEW_BASE_DOMAIN is set):
 
       docker compose up -d --force-recreate backend
 

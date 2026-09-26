@@ -1,8 +1,8 @@
-# Project Overview - SignalView V2
+# Project Overview - StreamTVDepot V2
 
 ## 🎯 Project Summary
 
-**SignalView** is a multi-tenant SaaS platform for media content management and distribution. It enables businesses to manage their media libraries (movies, shows, content) and customize user experiences through theming and white-label capabilities. The platform supports multi-domain routing where different customer subdomains are served with customized storefronts while maintaining a centralized admin interface.
+**StreamTVDepot** is a multi-tenant SaaS platform for media content management and distribution. It enables businesses to manage their media libraries (movies, shows, content) and customize user experiences through theming and white-label capabilities. The platform supports multi-domain routing where different customer subdomains are served with customized storefronts while maintaining a centralized admin interface.
 
 ### Key Features
 - **Multi-Tenant Architecture** - Isolated customer environments with shared infrastructure
@@ -295,7 +295,7 @@ User (Admin/Customer)
 ## 💰 Country-Specific Pricing
 
 ### Feature Overview
-SignalView supports country-specific pricing for subscription plans. When end-users from different countries subscribe, they are automatically charged the price appropriate for their country (if configured), rather than always paying the base price.
+StreamTVDepot supports country-specific pricing for subscription plans. When end-users from different countries subscribe, they are automatically charged the price appropriate for their country (if configured), rather than always paying the base price.
 
 ### Why This Matters
 - **Industry Standard**: Netflix, Spotify, AWS, Shopify all use this

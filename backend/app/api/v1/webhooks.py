@@ -207,7 +207,7 @@ async def _finalize_platform_billing(
 
     # Send payment confirmation email with platform branding (Platform → Client)
     logo_url = await get_platform_logo_url()
-    platform_name = settings.APP_NAME or "SignalView"
+    platform_name = settings.APP_NAME or "StreamTVDepot"
     footer_text = await get_platform_footer_text(db)
     
     expires_str = current_expiry.strftime('%Y-%m-%d') if current_expiry else 'pending'
