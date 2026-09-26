@@ -696,7 +696,7 @@ async def initiate_client_plan_upgrade(
 
         # Send free upgrade confirmation email with platform branding (Platform → Client)
         logo_url = await get_platform_logo_url()
-        platform_name = settings.APP_NAME or "SignalView"
+        platform_name = settings.APP_NAME or "StreamTVDepot"
         footer_text = await get_platform_footer_text(db)
         
         expires_at = (now + timedelta(days=30)).isoformat()
@@ -1196,7 +1196,7 @@ async def confirm_client_plan_upgrade(
 
     # Send payment confirmation email with platform branding (Platform → Client)
     logo_url = await get_platform_logo_url()
-    platform_name = settings.APP_NAME or "SignalView"
+    platform_name = settings.APP_NAME or "StreamTVDepot"
     footer_text = await get_platform_footer_text(db)
     
     body_text = (

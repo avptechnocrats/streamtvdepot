@@ -108,19 +108,18 @@ AWS_REGION=us-east-1
 
 # Optional (if not using standard naming):
 CLOUDFRONT_DISTRIBUTION_ID_PATTERN=cf-{client_slug}
-S3_BUCKET_PATTERN=signalview-{client_slug}
+S3_BUCKET_PATTERN=streamtvdepot-{client_slug}
 ```
 
 ### 3.2 Install Dependencies
 
 ```bash
 # Backend dependencies
-cd /Volumes/Emperical/Devel/SignalView/V2/backend
 pip install -r requirements.txt
 # Should install: apscheduler==3.10.4, reportlab==4.0.9
 
 # Frontend dependencies (if not already installed)
-cd /Volumes/Emperical/Devel/SignalView/V2/frontend
+cd /frontend
 npm install
 ```
 
@@ -157,7 +156,7 @@ async def lifespan(app: FastAPI):
         scheduler.shutdown()
 
 app = FastAPI(
-    title="SignalView API",
+    title="StreamTvDepot API",
     lifespan=lifespan,
     # ... rest of config
 )
@@ -280,7 +279,7 @@ Logs: Enable access logs for analysis
 
 ### S3 Setup
 ```
-Bucket naming: signalview-{client_slug}
+Bucket naming: streamtvdepot-{client_slug}
 Metrics: Enable bucket size metrics in CloudWatch
 Logging: CloudWatch Metrics enabled
 ```
@@ -294,7 +293,7 @@ Timing information captured
 
 ### CloudWatch Custom Metrics
 ```
-Namespace: SignalView/Usage
+Namespace: StreamTVDepot/Usage
 Metric: ConcurrentUsers
 Dimensions: ClientSlug={client_slug}
 Publish from video player on client connections

@@ -411,7 +411,7 @@ async def test_superadmin_smtp_connection(
     # Fetch platform logo (logo_light.png)
     logo_url = await get_platform_logo_url()
     
-    company_name = general.get("company_name") or settings.APP_NAME or "SignalView"
+    company_name = general.get("company_name") or settings.APP_NAME or "StreamTVDepot"
     footer_parts = []
     if general.get("address1"):
         footer_parts.append(general.get("address1"))

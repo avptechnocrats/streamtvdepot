@@ -144,7 +144,7 @@ async def _send_end_user_verification_email(
 
     cfg = dict(client.site_config) if client.site_config else {}
     logo_url = await get_client_logo_url(db, client.id)
-    company_name = cfg.get("site_title") or client.slug or "SignalView"
+    company_name = cfg.get("site_title") or client.slug or "StreamTVDepot"
     footer_text = await get_client_footer_text(cfg)
 
     body_text = (
@@ -153,7 +153,7 @@ async def _send_end_user_verification_email(
         f"Your verification code: {otp}\n\n"
         f"This code expires in {_OTP_EXPIRY_MINUTES} minutes.\n"
         "If you did not create this account, you can ignore this email.\n\n"
-        "Regards,\nSignalView Team"
+        "Regards,\nStreamTVDepot Team"
     )
 
     return await send_system_email(
@@ -432,14 +432,14 @@ async def end_user_change_password(
 
     cfg = dict(client.site_config) if client and client.site_config else {}
     logo_url = await get_client_logo_url(db, current_user.client_id)
-    company_name = cfg.get("site_title") or (client.slug if client else "SignalView")
+    company_name = cfg.get("site_title") or (client.slug if client else "StreamTVDepot")
     footer_text = await get_client_footer_text(cfg)
 
     body_text = (
         f"Hi {current_user.full_name},\n\n"
         "This is to confirm that your account password was successfully changed.\n\n"
         "If you did not make this change, please contact support immediately.\n\n"
-        "Regards,\nSignalView Team"
+        "Regards,\nStreamTVDepot Team"
     )
 
     html_content = generate_professional_email_html(
@@ -491,7 +491,7 @@ async def end_user_forgot_password(
 
     cfg = dict(client.site_config) if client and client.site_config else {}
     logo_url = await get_client_logo_url(db, user.client_id)
-    company_name = cfg.get("site_title") or (client.slug if client else "SignalView")
+    company_name = cfg.get("site_title") or (client.slug if client else "StreamTVDepot")
     footer_text = await get_client_footer_text(cfg)
 
     body_text = (

@@ -3,8 +3,8 @@
 Adds Stripe Customer ID / PayPal Vault ID to end_users (off-session
 auto-renewal charging), and grace-period/reminder tracking columns plus a
 PAST_DUE status to user_subscriptions, mirroring the existing client-level
-(SplixTV -> SignalView) billing workflow for end-user (Pankaj/Vishal/... ->
-SplixTV) subscription renewals.
+(KalingoTV -> StreamTVDepot) billing workflow for end-user (Pankaj/Vishal/... ->
+KalingoTV) subscription renewals.
 
 Revision ID: ab1cd2ef3ab4
 Revises: w5x6y7z8a9b

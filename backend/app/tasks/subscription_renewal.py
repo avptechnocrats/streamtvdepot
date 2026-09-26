@@ -209,7 +209,7 @@ async def _send_email(
 ) -> None:
     try:
         logo_url = await get_platform_logo_url()
-        platform_name = settings.APP_NAME or "SignalView"
+        platform_name = settings.APP_NAME or "StreamTVDepot"
         footer_text = await get_platform_footer_text(db)
         html = generate_professional_email_html(
             subject=subject,
@@ -423,9 +423,9 @@ async def _process_one_renewal(
             subject="Your trial has ended — choose a plan to continue",
             body_text=(
                 f"Hi {client.email},\n\n"
-                f"Your {plan.name} trial has ended. Choose a paid plan to continue using SignalView.\n\n"
+                f"Your {plan.name} trial has ended. Choose a paid plan to continue using StreamTVDepot.\n\n"
                 f"View plans: {_billing_portal_url()}\n\n"
-                "Thank you for trying SignalView."
+                "Thank you for trying StreamTVDepot."
             ),
             event_key="subscription_trial_expired",
             metadata={"client_id": str(client.id), "plan_id": str(plan.id)},

@@ -1,9 +1,9 @@
 """
 End-user subscription renewal task — auto-charges Pankaj/Vishal/Manoj-style
 end users on their client's own Stripe/PayPal account (SplixTV's gateway,
-not SignalView's superadmin gateway).
+not StreamTVDepot's superadmin gateway).
 
-This mirrors app/tasks/subscription_renewal.py (Client -> SignalView SaaS
+This mirrors app/tasks/subscription_renewal.py (Client -> StreamTVDepot SaaS
 billing) but operates one layer down: EndUser -> Client (tenant) billing.
 
 Lifecycle:
@@ -217,7 +217,7 @@ async def _send_user_email(
     try:
         cfg = dict(client.site_config) if client.site_config else {}
         logo_url = await get_client_logo_url(db, client.id)
-        company_name = cfg.get("site_title") or client.slug or "SignalView"
+        company_name = cfg.get("site_title") or client.slug or "StreamTVDepot"
         footer_text = await get_client_footer_text(cfg)
         html = generate_professional_email_html(
             subject=subject,

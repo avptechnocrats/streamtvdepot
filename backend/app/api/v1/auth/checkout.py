@@ -846,7 +846,7 @@ async def complete_payment(
     # Build professional HTML email with client branding (Client → EndUser)
     cfg = dict(client.site_config) if client.site_config else {}
     logo_url = await get_client_logo_url(db, client.id)
-    company_name = cfg.get("site_title") or client.slug or "SignalView"
+    company_name = cfg.get("site_title") or client.slug or "StreamTVDepot"
     footer_text = await get_client_footer_text(cfg)
     
     body_text = (

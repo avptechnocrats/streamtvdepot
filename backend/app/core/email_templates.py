@@ -23,7 +23,7 @@ def generate_professional_email_html(
     # Escape HTML content for safety
     body_html = body_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br />")
     
-    company_display = company_name or "SignalView"
+    company_display = company_name or "StreamTVDepot"
     
     return f"""<!DOCTYPE html>
 <html>

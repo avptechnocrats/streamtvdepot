@@ -61,7 +61,7 @@ async def _poll_once() -> None:
                     # Parse client_slug from output_s3_prefix:
                     # stored as: s3://bucket/hls/client_slug/video_id/video_id  (no trailing slash)
                     # Strip scheme + bucket then split on /
-                    # e.g. "s3://signalview/hls/kalingo-tv/uuid/uuid" → ["hls","kalingo-tv","uuid","uuid"]
+                    # e.g. "s3://streamtvdepot/hls/kalingo-tv/uuid/uuid" → ["hls","kalingo-tv","uuid","uuid"]
                     raw_prefix = (job_row.output_s3_prefix or "").rstrip("/")
                     # Remove s3://bucket/ prefix if present
                     if raw_prefix.startswith("s3://"):

@@ -34,7 +34,7 @@ def _build_reply_email_html(full_name: str, message: str) -> str:
         f"<p>Thanks for your demo request. Our team replied:</p>"
         f"<blockquote style='margin:12px 0;padding:12px;border-left:3px solid #CBD5E1;background:#F8FAFC'>{formatted}</blockquote>"
         "<p>If you have more questions, reply to this email and we will help you.</p>"
-        "<p>Regards,<br>SignalView Team</p>"
+        "<p>Regards,<br>StreamTVDepot Team</p>"
     )
 
 
@@ -163,13 +163,13 @@ async def reply_demo_booking(
         event_key="demo_booking_reply",
         to_email=booking.work_email,
         to_name=booking.full_name,
-        subject="Reply to your SignalView demo request",
+        subject="Reply to your StreamTVDepot demo request",
         body_text=(
             f"Hi {booking.full_name},\n\n"
             "Thanks for your demo request. Our team replied:\n\n"
             f"{payload.message}\n\n"
             "If you have more questions, reply to this email and we will help you.\n\n"
-            "Regards,\nSignalView Team"
+            "Regards,\nStreamTVDepot Team"
         ),
         metadata={"booking_id": str(booking.id)},
     )

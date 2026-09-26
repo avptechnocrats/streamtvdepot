@@ -1,4 +1,4 @@
-# Testing Documentation - SignalView V2
+# Testing Documentation - StreamTVDepot
 
 ## Testing Strategy Overview
 

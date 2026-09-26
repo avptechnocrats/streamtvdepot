@@ -219,7 +219,7 @@ class AWSMetricsCollector:
             period = ((min_period + 59) // 60) * 60
 
             response = self.cloudwatch.get_metric_statistics(
-                Namespace="SignalView/Usage",
+                Namespace="StreamTVDepot/Usage",
                 MetricName="ConcurrentUsers",
                 Dimensions=[{"Name": "ClientSlug", "Value": client_slug}],
                 StartTime=start_time,

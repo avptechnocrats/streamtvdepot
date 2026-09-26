@@ -10,7 +10,7 @@ result_backend = settings.CELERY_RESULT_BACKEND or settings.REDIS_URL
 load_models()
 
 celery_app = Celery(
-    "signalview",
+    "streamtvdepot",
     broker=broker_url,
     backend=result_backend,
     include=["app.tasks.billing_worker", "app.tasks.notification_worker"],

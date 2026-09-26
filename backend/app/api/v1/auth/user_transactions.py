@@ -220,7 +220,7 @@ async def get_transaction_receipt_pdf(
     )
     client = client_result.scalar_one_or_none()
     cfg = dict(client.site_config) if client and client.site_config else {}
-    tenant_name = cfg.get("site_title") or (client.slug if client else "SignalView")
+    tenant_name = cfg.get("site_title") or (client.slug if client else "StreamTVDepot")
     tenant_logo_url = await get_client_logo_url(db, user._client_id)
 
     receipt_status = "paid"
@@ -304,7 +304,7 @@ async def get_transaction_receipt_details(
     client_result = await db.execute(select(Client).where(Client.id == user._client_id))
     client = client_result.scalar_one_or_none()
     cfg = dict(client.site_config) if client and client.site_config else {}
-    tenant_name = cfg.get("site_title") or (client.slug if client else "SignalView")
+    tenant_name = cfg.get("site_title") or (client.slug if client else "StreamTVDepot")
     tenant_logo_url = await get_client_logo_url(db, user._client_id)
 
     return UserTransactionReceiptOut(

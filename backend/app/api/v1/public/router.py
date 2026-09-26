@@ -273,7 +273,7 @@ def _build_vmap_xml(
             ads_xml.append(f"""
         <Ad id="{xml_escape(ad.advertisement_id)}">
           <InLine>
-            <AdSystem>SignalView</AdSystem>
+            <AdSystem>StreamTVDepot</AdSystem>
             <AdTitle><![CDATA[{_cdata_safe(ad.title)}]]></AdTitle>
             <Impression><![CDATA[{impression_url}]]></Impression>
             <Creatives>
@@ -1974,9 +1974,9 @@ def _build_demo_ack_html(full_name: str) -> str:
     name = full_name or "there"
     return (
         f"<p>Hi {name},</p>"
-        "<p>Thanks for reaching out to SignalView and booking a demo.</p>"
+        "<p>Thanks for reaching out to StreamTVDepot and booking a demo.</p>"
         "<p>Our team has received your request and will contact you within one business day.</p>"
-        "<p>Regards,<br>SignalView Team</p>"
+        "<p>Regards,<br>StreamTVDepot Team</p>"
     )
 
 
@@ -2022,12 +2022,12 @@ async def create_demo_booking(
             event_key="demo_booking_acknowledgement",
             to_email=booking.work_email,
             to_name=booking.full_name,
-            subject="We received your SignalView demo request",
+            subject="We received your StreamTVDepot demo request",
             body_text=(
                 f"Hi {booking.full_name},\n\n"
-                "Thanks for reaching out to SignalView and booking a demo.\n"
+                "Thanks for reaching out to StreamTVDepot and booking a demo.\n"
                 "Our team has received your request and will contact you within one business day.\n\n"
-                "Regards,\nSignalView Team"
+                "Regards,\nStreamTVDepot Team"
             ),
             metadata={"booking_id": booking_id},
         )
@@ -2115,8 +2115,8 @@ async def create_contact_submission(
         subject="We received your contact request",
         body_text=(
             f"Hi {submission.full_name},\n\n"
-            "Thanks for contacting SignalView. Our team has received your message and will get back to you soon.\n\n"
-            "Regards,\nSignalView Team"
+            "Thanks for contacting StreamTVDepot. Our team has received your message and will get back to you soon.\n\n"
+            "Regards,\nStreamTVDepot Team"
         ),
         client_id=client_id,
         metadata={"submission_id": str(submission.id)},

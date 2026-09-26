@@ -149,18 +149,18 @@ async def client_admin_change_password(
     from app.core.config import settings
     
     logo_url = await get_platform_logo_url()
-    company_name = settings.APP_NAME or "SignalView"
+    company_name = settings.APP_NAME or "StreamTVDepot"
     footer_text = await get_platform_footer_text(db)
     
     body_text = (
         f"Hi {current_user.full_name},\n\n"
-        "This is to confirm that your SignalView client-admin account password was successfully changed.\n\n"
+        "This is to confirm that your StreamTVDepot client-admin account password was successfully changed.\n\n"
         "If you did not make this change, please contact support immediately.\n\n"
-        "Regards,\nSignalView Team"
+        "Regards,\nStreamTVDepot Team"
     )
     
     html_content = generate_professional_email_html(
-        subject="Your SignalView password has been changed",
+        subject="Your StreamTVDepot password has been changed",
         body_text=body_text,
         logo_url=logo_url,
         company_name=company_name,
@@ -172,7 +172,7 @@ async def client_admin_change_password(
         event_key="client_admin_change_password",
         to_email=current_user.email,
         to_name=current_user.full_name,
-        subject="Your SignalView password has been changed",
+        subject="Your StreamTVDepot password has been changed",
         body_text=body_text,
         body_html=html_content,
         client_id=current_user.client_id,
@@ -210,7 +210,7 @@ async def client_admin_forgot_password(
     from app.core.config import settings
     
     logo_url = await get_platform_logo_url()
-    company_name = settings.APP_NAME or "SignalView"
+    company_name = settings.APP_NAME or "StreamTVDepot"
     footer_text = await get_platform_footer_text(db)
     
     body_text = (
@@ -221,7 +221,7 @@ async def client_admin_forgot_password(
     )
     
     html_content = generate_professional_email_html(
-        subject="SignalView password reset",
+        subject="StreamTVDepot password reset",
         body_text=body_text,
         logo_url=logo_url,
         company_name=company_name,
@@ -233,7 +233,7 @@ async def client_admin_forgot_password(
         event_key="client_admin_forgot_password",
         to_email=user.email,
         to_name=user.full_name,
-        subject="SignalView password reset",
+        subject="StreamTVDepot password reset",
         body_text=body_text,
         body_html=html_content,
         client_id=user.client_id,

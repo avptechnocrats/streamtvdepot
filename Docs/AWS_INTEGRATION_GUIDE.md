@@ -1,6 +1,6 @@
 # AWS Metrics Integration & Usage Tracking Implementation
 
-This document outlines the complete implementation of AWS metrics collection, usage tracking, alerting, and invoice generation for the SignalView SAAS platform.
+This document outlines the complete implementation of AWS metrics collection, usage tracking, alerting, and invoice generation for the StreamTVDepot SAAS platform.
 
 ## Overview
 
@@ -138,7 +138,7 @@ AWS_REGION=us-east-1
 CLOUDFRONT_DISTRIBUTION_ID_PATTERN=cf-{client_slug}
 
 # S3 bucket pattern (optional)
-S3_BUCKET_PATTERN=signalview-{client_slug}
+S3_BUCKET_PATTERN=streamtvdepot-{client_slug}
 ```
 
 ### Database Migrations
@@ -295,7 +295,7 @@ for alert in alerts.scalars():
 ### No metrics collected
 - Verify AWS credentials in environment
 - Check CloudFront distribution ID format (cf-{client_slug})
-- Verify S3 bucket naming (signalview-{client_slug})
+- Verify S3 bucket naming (streamtvdepot-{client_slug})
 - Check CloudWatch metrics are being published
 
 ### Alerts not created

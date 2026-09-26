@@ -151,13 +151,13 @@ async def saas_register(payload: SaasRegisterRequest, db: AsyncSession = Depends
         event_key="client_signup_verify_email",
         to_email=owner.email,
         to_name=owner.full_name,
-        subject="Verify your SignalView account",
+        subject="Verify your StreamTVDepot account",
         body_text=(
             f"Hi {owner.full_name},\n\n"
-            f"Your SignalView workspace '{client.name}' has been created.\n"
+            f"Your StreamTVDepot workspace '{client.name}' has been created.\n"
             "Please verify your email to activate your account and log in.\n\n"
             f"Verification link: {verify_url}\n\n"
-            "Regards,\nSignalView Team"
+            "Regards,\nStreamTVDepot Team"
         ),
         client_id=client.id,
         metadata={"client_slug": client.slug, "client_name": client.name},
@@ -171,7 +171,7 @@ async def saas_register(payload: SaasRegisterRequest, db: AsyncSession = Depends
             to_email=admin_notify_email,
             subject=f"New SaaS signup: {client.name}",
             body_text=(
-                "A new client registered on SignalView.\n\n"
+                "A new client registered on StreamTVDepot.\n\n"
                 f"Client: {client.name}\n"
                 f"Slug: {client.slug}\n"
                 f"Owner: {owner.full_name} <{owner.email}>\n"
