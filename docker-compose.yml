@@ -59,7 +59,7 @@ services:
     container_name: streamtvdepot_backend
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-stvdepot_20_26}@stv_postgres:5432/${POSTGRES_DB:-streamtvdepot}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-stvdepot_20_26}@stv_pgbouncer:5432/${POSTGRES_DB:-streamtvdepot}?prepared_statement_cache_size=0
       DATABASE_POOL_MODE: queue
       DATABASE_POOL_SIZE: ${API_DATABASE_POOL_SIZE:-5}
       DATABASE_MAX_OVERFLOW: ${API_DATABASE_MAX_OVERFLOW:-5}
@@ -84,7 +84,7 @@ services:
     env_file: .env
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-stvdepot_20_26}@stv_postgres:5432/${POSTGRES_DB:-streamtvdepot}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-stvdepot_20_26}@stv_pgbouncer:5432/${POSTGRES_DB:-streamtvdepot}?prepared_statement_cache_size=0
       DATABASE_POOL_MODE: null
       REDIS_URL: redis://stv_redis:6379
     volumes:
@@ -106,7 +106,7 @@ services:
     env_file: .env
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-stvdepot_20_26}@stv_postgres:5432/${POSTGRES_DB:-streamtvdepot}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-stvdepot_20_26}@stv_pgbouncer:5432/${POSTGRES_DB:-streamtvdepot}?prepared_statement_cache_size=0
       DATABASE_POOL_MODE: null
       REDIS_URL: redis://stv_redis:6379
     volumes:
@@ -129,7 +129,6 @@ services:
         - NEXT_PUBLIC_API_URL
         - NEXT_PUBLIC_RTMP_SERVER_HOST
     container_name: streamtvdepot_frontend
-    env_file: .env
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
       NEXT_PUBLIC_RTMP_SERVER_HOST: ${NEXT_PUBLIC_RTMP_SERVER_HOST}
