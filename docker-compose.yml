@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-streamtvdepot}
       POSTGRES_USER: ${POSTGRES_USER:-streamtvdepot}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stvdepot_20_26}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-xxxxxx}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -26,7 +26,7 @@ services:
     container_name: streamtvdepot_pgbouncer
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-stvdepot_20_26}@stv_postgres:5432/${POSTGRES_DB:-streamtvdepot}
+      DATABASE_URL: postgres://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-xxxxxx}@stv_postgres:5432/${POSTGRES_DB:-streamtvdepot}
       AUTH_TYPE: scram-sha-256
       POOL_MODE: transaction
       MAX_CLIENT_CONN: ${PGBOUNCER_MAX_CLIENT_CONN:-300}
@@ -59,7 +59,7 @@ services:
     container_name: streamtvdepot_backend
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-stvdepot_20_26}@stv_pgbouncer:5432/${POSTGRES_DB:-streamtvdepot}?prepared_statement_cache_size=0
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-xxxxxx}@stv_pgbouncer:5432/${POSTGRES_DB:-streamtvdepot}?prepared_statement_cache_size=0
       DATABASE_POOL_MODE: queue
       DATABASE_POOL_SIZE: ${API_DATABASE_POOL_SIZE:-5}
       DATABASE_MAX_OVERFLOW: ${API_DATABASE_MAX_OVERFLOW:-5}
@@ -84,7 +84,7 @@ services:
     env_file: .env
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-stvdepot_20_26}@stv_pgbouncer:5432/${POSTGRES_DB:-streamtvdepot}?prepared_statement_cache_size=0
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-xxxxxx}@stv_pgbouncer:5432/${POSTGRES_DB:-streamtvdepot}?prepared_statement_cache_size=0
       DATABASE_POOL_MODE: null
       REDIS_URL: redis://stv_redis:6379
     volumes:
@@ -106,7 +106,7 @@ services:
     env_file: .env
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-stvdepot_20_26}@stv_pgbouncer:5432/${POSTGRES_DB:-streamtvdepot}?prepared_statement_cache_size=0
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-streamtvdepot}:${POSTGRES_PASSWORD:-xxxxxx}@stv_pgbouncer:5432/${POSTGRES_DB:-streamtvdepot}?prepared_statement_cache_size=0
       DATABASE_POOL_MODE: null
       REDIS_URL: redis://stv_redis:6379
     volumes:

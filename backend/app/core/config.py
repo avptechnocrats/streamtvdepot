@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://streamtvdepot:stvdepot_20_26@localhost:5432/streamtvdepot"
+    DATABASE_URL: str = "postgresql+asyncpg://streamtvdepot:xxxxxx@localhost:5432/streamtvdepot"
     DATABASE_POOL_MODE: Literal["queue", "null"] = "queue"
     DATABASE_POOL_SIZE: int = 5
     DATABASE_MAX_OVERFLOW: int = 5
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     REMINDER_DISPATCH_BATCH_SIZE: int = 1000
 
     # Security
-    SECRET_KEY: str = "29c18658e47de26f481ab26e122143aa"
+    SECRET_KEY: str = "xxxxxxxxx"
     ALGORITHM: str = "HS256"
     # Large media uploads can run long on slower networks; keep admin access
     # tokens valid long enough to complete presign/upload/confirm safely.
@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # CORS
     # In production add all client domains here, or use ALLOWED_ORIGINS_REGEX.
     # e.g. ["https://xyz.com","https://admin.streamtvdepot.com","https://abc.tv","https://admin.abc.tv"]
-    ALLOWED_ORIGINS: List[str] = ["http://localhost","http://localhost:3000","http://localhost:3001","http://localhost:8000","http://localhost:8001","https://www.streamtvdepot.com","https://streamtvdepot.com","https://preview.streamtvdepot.com","https://console.streamtvdepot.com","https://kalingotv.streamtvdepot.com"]
+    ALLOWED_ORIGINS: List[str] = ["http://localhost","http://localhost:3002","http://localhost:3003","http://localhost:8000","http://localhost:8001","https://www.streamtvdepot.com","https://streamtvdepot.com","https://preview.streamtvdepot.com","https://console.streamtvdepot.com","https://kalingotv.streamtvdepot.com"]
 
     ALLOWED_ORIGINS_REGEX: str = ""
     """Optional regex that matches any origin — useful for wildcard client domains in production.
@@ -57,7 +57,7 @@ class Settings(BaseSettings):
 
     # SuperAdmin seed
     SUPERADMIN_EMAIL: str = "superadmin@streamtvdepot.com"
-    SUPERADMIN_PASSWORD: str = "SuperAdmin@123"
+    SUPERADMIN_PASSWORD: str = "xxxxxx"
 
     # Storage
     STORAGE_BACKEND: str = "local"
@@ -88,8 +88,8 @@ class Settings(BaseSettings):
     # Used to construct HLS proxy URLs returned in the API.
     # Dev default:  http://localhost:8001
     # Production:   https://api.yourdomain.com  (or https://yourdomain.com when behind nginx)
-    BACKEND_PUBLIC_URL: str = "http://localhost:8001"
-    FRONTEND_PUBLIC_URL: str = "http://localhost:3001"
+    BACKEND_PUBLIC_URL: str = "https://console.streamtvdepot.com"
+    FRONTEND_PUBLIC_URL: str = "https://console.streamtvdepot.com"
 
     # DRM – AES-128 HLS Encryption
     # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
