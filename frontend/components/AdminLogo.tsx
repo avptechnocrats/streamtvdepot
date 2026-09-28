@@ -15,7 +15,7 @@ export default function AdminLogo({
     href = "/",
     className = "flex items-center gap-2",
     showText = false,
-    logoSize = "h-23",
+    logoSize = "45px",
     style
 }: AdminLogoProps) {
     const { activeThemeId } = useTheme();
@@ -24,7 +24,12 @@ export default function AdminLogo({
 
     const content = (
         <>
-            <img src={logoSrc} alt="StreamTVDepot" className={`${logoSize} w-auto`} />
+            <img
+                src={logoSrc}
+                alt="StreamTVDepot"
+                className="w-auto"
+                style={{ height: logoSize, width: "auto" }}
+            />
             {showText && (
                 <span className="text-gradient-gold font-display tracking-tight" style={style}>
                     <span className="font-black">STREAMTV</span><span className="font-light">DEPOT</span>

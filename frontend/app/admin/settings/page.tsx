@@ -22,6 +22,7 @@ import {
     type SuperadminSettingsOut,
     type SuperadminGeneralSettingsIn,
     type SuperadminEmailSettingsIn,
+    type SuperadminAwsSettingsIn,
 } from "@/lib/api/services/superadmin";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { LabeledSwitch } from "@/components/ui/labeled-switch";
@@ -64,6 +65,29 @@ type SmtpDebug = {
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const DEFAULT_SUPERADMIN_AWS_SETTINGS: SuperadminSettingsOut["aws"] = {
+    storage_backend: "local",
+    aws_access_key_id: null,
+    aws_secret_access_key_set: false,
+    aws_s3_bucket: null,
+    aws_region: "us-east-1",
+    aws_s3_storage_class: "STANDARD",
+    cloudfront_domain: null,
+    cloudfront_distribution_id: null,
+    mediaconvert_endpoint: null,
+    mediaconvert_role_arn: null,
+};
+
+const S3_STORAGE_CLASSES = [
+    "STANDARD",
+    "INTELLIGENT_TIERING",
+    "STANDARD_IA",
+    "ONEZONE_IA",
+    "GLACIER_IR",
+    "GLACIER",
+    "DEEP_ARCHIVE",
+] as const;
 
 function isValidEmail(email: string): boolean {
     return EMAIL_REGEX.test(email.trim());
@@ -842,7 +866,7 @@ function SAGeneralTab({ data, onSaved, pushToast }: { data: SuperadminSettingsOu
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
                 <SectionCard>
                     <SectionHeading>Contact</SectionHeading>
-                    <Field label="Company Name"><input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Mitiz Technologies" className={inputCls} /></Field>
+                    <Field label="Company Name"><input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Next Technologies" className={inputCls} /></Field>
                     <Field label="Address Line 1"><input type="text" value={address1} onChange={(e) => setAddress1(e.target.value)} placeholder="123 Main Street" className={inputCls} /></Field>
                     <Field label="Address Line 2"><input type="text" value={address2} onChange={(e) => setAddress2(e.target.value)} placeholder="Suite 100, Building A" className={inputCls} /></Field>
                     <div className="grid grid-cols-2 gap-4">
@@ -1016,8 +1040,100 @@ function SAEmailTab({ data, onSaved, pushToast }: { data: SuperadminSettingsOut[
     );
 }
 
+function SAAwsTab({ data, onSaved, pushToast }: { data: SuperadminSettingsOut["aws"]; onSaved: (u: SuperadminSettingsOut["aws"]) => void; pushToast: (msg: string, type?: ToastType) => void }) {
+    const [storageBackend, setStorageBackend] = useState<"local" | "s3">(data.storage_backend ?? "local");
+    const [accessKeyId, setAccessKeyId] = useState(data.aws_access_key_id ?? "");
+    const [secretAccessKey, setSecretAccessKey] = useState("");
+    const [s3Bucket, setS3Bucket] = useState(data.aws_s3_bucket ?? "");
+    const [region, setRegion] = useState(data.aws_region ?? "us-east-1");
+    const [storageClass, setStorageClass] = useState(data.aws_s3_storage_class ?? "STANDARD");
+    const [cloudFrontDomain, setCloudFrontDomain] = useState(data.cloudfront_domain ?? "");
+    const [cloudFrontDistributionId, setCloudFrontDistributionId] = useState(data.cloudfront_distribution_id ?? "");
+    const [mediaConvertEndpoint, setMediaConvertEndpoint] = useState(data.mediaconvert_endpoint ?? "");
+    const [mediaConvertRoleArn, setMediaConvertRoleArn] = useState(data.mediaconvert_role_arn ?? "");
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        setStorageBackend(data.storage_backend ?? "local"); setAccessKeyId(data.aws_access_key_id ?? "");
+        setS3Bucket(data.aws_s3_bucket ?? ""); setRegion(data.aws_region ?? "us-east-1");
+        setStorageClass(data.aws_s3_storage_class ?? "STANDARD"); setCloudFrontDomain(data.cloudfront_domain ?? "");
+        setCloudFrontDistributionId(data.cloudfront_distribution_id ?? ""); setMediaConvertEndpoint(data.mediaconvert_endpoint ?? "");
+        setMediaConvertRoleArn(data.mediaconvert_role_arn ?? ""); setSecretAccessKey("");
+    }, [data]);
+
+    const handleSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
+        setSaving(true);
+        try {
+            const payload: SuperadminAwsSettingsIn = {
+                storage_backend: storageBackend,
+                aws_access_key_id: accessKeyId || null,
+                aws_s3_bucket: s3Bucket || null,
+                aws_region: region || null,
+                aws_s3_storage_class: storageClass || null,
+                cloudfront_domain: cloudFrontDomain || null,
+                cloudfront_distribution_id: cloudFrontDistributionId || null,
+                mediaconvert_endpoint: mediaConvertEndpoint || null,
+                mediaconvert_role_arn: mediaConvertRoleArn || null,
+            };
+            if (secretAccessKey) payload.aws_secret_access_key = secretAccessKey;
+            const saved = await saveSuperadminSettings({ aws: payload });
+            onSaved(saved.aws); setSecretAccessKey(""); pushToast("AWS settings saved.");
+        } catch (error) {
+            pushToast(parseApiError(error).message || "Failed to save AWS settings.", "error");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+                <SectionCard>
+                    <SectionHeading>Storage</SectionHeading>
+                    <Field label="Storage Backend">
+                        <select value={storageBackend} onChange={(event) => setStorageBackend(event.target.value as "local" | "s3")} className={inputCls}>
+                            <option value="local">Local</option>
+                            <option value="s3">Amazon S3</option>
+                        </select>
+                    </Field>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Field label="AWS Access Key ID"><input type="text" value={accessKeyId} onChange={(event) => setAccessKeyId(event.target.value)} placeholder="AKIA..." className={inputCls} /></Field>
+                        <Field label="AWS Secret Access Key" hint={data.aws_secret_access_key_set ? "A secret key is saved. Enter a new value to replace it." : undefined}>
+                            <SecretInput value={secretAccessKey} onChange={setSecretAccessKey} placeholder={data.aws_secret_access_key_set ? "••••••••" : "Enter secret access key"} isSet={data.aws_secret_access_key_set} />
+                        </Field>
+                        <Field label="S3 Bucket"><input type="text" value={s3Bucket} onChange={(event) => setS3Bucket(event.target.value)} placeholder="media-bucket" className={inputCls} /></Field>
+                        <Field label="AWS Region"><input type="text" value={region} onChange={(event) => setRegion(event.target.value)} placeholder="us-east-1" className={inputCls} /></Field>
+                        <Field label="S3 Storage Class">
+                            <select value={storageClass} onChange={(event) => setStorageClass(event.target.value)} className={inputCls}>
+                                {!S3_STORAGE_CLASSES.includes(storageClass as typeof S3_STORAGE_CLASSES[number]) && <option value={storageClass}>{storageClass}</option>}
+                                {S3_STORAGE_CLASSES.map((option) => <option key={option} value={option}>{option}</option>)}
+                            </select>
+                        </Field>
+                    </div>
+                </SectionCard>
+                <SectionCard>
+                    <SectionHeading>CloudFront & MediaConvert</SectionHeading>
+                    <div className="space-y-4">
+                        <Field label="CloudFront Domain"><input type="text" value={cloudFrontDomain} onChange={(event) => setCloudFrontDomain(event.target.value)} placeholder="d1234567890abc.cloudfront.net" className={inputCls} /></Field>
+                        <Field label="CloudFront Distribution ID"><input type="text" value={cloudFrontDistributionId} onChange={(event) => setCloudFrontDistributionId(event.target.value)} placeholder="E1234ABCDEFGHIJ" className={inputCls} /></Field>
+                        <Field label="MediaConvert Endpoint"><input type="url" value={mediaConvertEndpoint} onChange={(event) => setMediaConvertEndpoint(event.target.value)} placeholder="https://endpoint.mediaconvert.us-east-1.amazonaws.com" className={inputCls} /></Field>
+                        <Field label="MediaConvert Role ARN"><input type="text" value={mediaConvertRoleArn} onChange={(event) => setMediaConvertRoleArn(event.target.value)} placeholder="arn:aws:iam::123456789012:role/MediaConvert" className={inputCls} /></Field>
+                    </div>
+                </SectionCard>
+            </div>
+            <div className="flex justify-end pt-2">
+                <button type="submit" disabled={saving} className="flex items-center gap-2 px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                    {saving ? "Saving…" : "Save AWS Settings"}
+                </button>
+            </div>
+        </form>
+    );
+}
+
 function SuperAdminSettings() {
-    const [activeTab, setActiveTab] = useState<"General" | "Email">("General");
+    const [activeTab, setActiveTab] = useState<"General" | "Email" | "AWS">("General");
     const [settings, setSettings] = useState<SuperadminSettingsOut | null>(null);
     const [loading, setLoading] = useState(true);
     const { toasts, push: pushToast, dismiss } = useToast();
@@ -1037,7 +1153,7 @@ function SuperAdminSettings() {
                 </div>
             </div>
             <div className="flex gap-1 border-b border-border">
-                {(["General", "Email"] as const).map((tab) => (
+                {(["General", "Email", "AWS"] as const).map((tab) => (
                     <button key={tab} onClick={() => setActiveTab(tab)} className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === tab ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
                         {tab}
                     </button>
@@ -1050,6 +1166,7 @@ function SuperAdminSettings() {
                     <>
                         {activeTab === "General" && <SAGeneralTab data={settings.general} onSaved={(general) => setSettings((p) => p ? { ...p, general } : p)} pushToast={pushToast} />}
                         {activeTab === "Email" && <SAEmailTab data={settings.email} onSaved={(email) => setSettings((p) => p ? { ...p, email } : p)} pushToast={pushToast} />}
+                        {activeTab === "AWS" && <SAAwsTab data={settings.aws ?? DEFAULT_SUPERADMIN_AWS_SETTINGS} onSaved={(aws) => setSettings((p) => p ? { ...p, aws } : p)} pushToast={pushToast} />}
                     </>
                 )}
             </div>

@@ -435,6 +435,19 @@ export interface SuperadminEmailSettingsOut {
     mail_password_set: boolean;
 }
 
+export interface SuperadminAwsSettingsOut {
+    storage_backend: "local" | "s3";
+    aws_access_key_id: string | null;
+    aws_secret_access_key_set: boolean;
+    aws_s3_bucket: string | null;
+    aws_region: string;
+    aws_s3_storage_class: string;
+    cloudfront_domain: string | null;
+    cloudfront_distribution_id: string | null;
+    mediaconvert_endpoint: string | null;
+    mediaconvert_role_arn: string | null;
+}
+
 export interface SuperadminPayPalOut {
     enabled: boolean;
     is_default: boolean;
@@ -480,6 +493,7 @@ export interface SuperadminPaymentGatewayOut {
 export interface SuperadminSettingsOut {
     general: SuperadminGeneralSettingsOut;
     email: SuperadminEmailSettingsOut;
+    aws: SuperadminAwsSettingsOut;
     payment_gateway: SuperadminPaymentGatewayOut;
 }
 
@@ -500,6 +514,19 @@ export interface SuperadminEmailSettingsIn {
     mail_port?: number | null;
     mail_login?: string | null;
     mail_password?: string | null;
+}
+
+export interface SuperadminAwsSettingsIn {
+    storage_backend?: "local" | "s3" | null;
+    aws_access_key_id?: string | null;
+    aws_secret_access_key?: string | null;
+    aws_s3_bucket?: string | null;
+    aws_region?: string | null;
+    aws_s3_storage_class?: string | null;
+    cloudfront_domain?: string | null;
+    cloudfront_distribution_id?: string | null;
+    mediaconvert_endpoint?: string | null;
+    mediaconvert_role_arn?: string | null;
 }
 
 export interface SuperadminPayPalIn {
@@ -547,6 +574,7 @@ export interface SuperadminPaymentGatewayIn {
 export interface SuperadminSettingsIn {
     general?: SuperadminGeneralSettingsIn;
     email?: SuperadminEmailSettingsIn;
+    aws?: SuperadminAwsSettingsIn;
     payment_gateway?: SuperadminPaymentGatewayIn;
 }
 

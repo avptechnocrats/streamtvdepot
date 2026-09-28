@@ -37,6 +37,34 @@ class EmailSettingsIn(BaseModel):
     mail_password: Optional[str] = Field(None, description="Leave absent to keep existing")
 
 
+# ─── AWS / Storage ───────────────────────────────────────────────────────────
+
+class AwsSettingsIn(BaseModel):
+    storage_backend: Optional[str] = Field(None, pattern="^(local|s3)$")
+    aws_access_key_id: Optional[str] = Field(None, max_length=500)
+    aws_secret_access_key: Optional[str] = Field(None, description="Leave absent to keep existing; empty string clears it")
+    aws_s3_bucket: Optional[str] = Field(None, max_length=255)
+    aws_region: Optional[str] = Field(None, max_length=100)
+    aws_s3_storage_class: Optional[str] = Field(None, max_length=100)
+    cloudfront_domain: Optional[str] = Field(None, max_length=500)
+    cloudfront_distribution_id: Optional[str] = Field(None, max_length=255)
+    mediaconvert_endpoint: Optional[str] = Field(None, max_length=500)
+    mediaconvert_role_arn: Optional[str] = Field(None, max_length=500)
+
+
+class AwsSettingsOut(BaseModel):
+    storage_backend: str = "local"
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key_set: bool = False
+    aws_s3_bucket: Optional[str] = None
+    aws_region: str = "us-east-1"
+    aws_s3_storage_class: str = "STANDARD"
+    cloudfront_domain: Optional[str] = None
+    cloudfront_distribution_id: Optional[str] = None
+    mediaconvert_endpoint: Optional[str] = None
+    mediaconvert_role_arn: Optional[str] = None
+
+
 class EmailSettingsOut(BaseModel):
     admin_email: Optional[str] = None
     mail_server: Optional[str] = None
@@ -137,12 +165,14 @@ class SuperadminSettingsIn(BaseModel):
     """Partial-update: only the provided sections are written."""
     general: Optional[GeneralSettingsIn] = None
     email: Optional[EmailSettingsIn] = None
+    aws: Optional[AwsSettingsIn] = None
     payment_gateway: Optional[PaymentGatewaySettingsIn] = None
 
 
 class SuperadminSettingsOut(BaseModel):
     general: GeneralSettingsOut = GeneralSettingsOut()
     email: EmailSettingsOut = EmailSettingsOut()
+    aws: AwsSettingsOut = AwsSettingsOut()
     payment_gateway: PaymentGatewaySettingsOut = PaymentGatewaySettingsOut()
 
 

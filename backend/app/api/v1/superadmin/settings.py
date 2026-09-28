@@ -27,6 +27,7 @@ from app.core.security import decrypt_secret, encrypt_secret
 from app.core.system_mail import get_platform_logo_url
 from app.models.superadmin.settings import SuperadminSettings
 from app.schemas.superadmin.settings import (
+    AwsSettingsOut,
     EmailSettingsOut,
     GeneralSettingsOut,
     PaymentGatewaySettingsOut,
@@ -135,6 +136,7 @@ async def _get_or_create_row(db: AsyncSession) -> SuperadminSettings:
 def _build_response(cfg: dict) -> SuperadminSettingsOut:
     g = cfg.get("general", {})
     e = cfg.get("email", {})
+    aws = cfg.get("aws", {})
     pp = cfg.get("payment_gateway", {}).get("paypal", {})
     st = cfg.get("payment_gateway", {}).get("stripe", {})
     rz = cfg.get("payment_gateway", {}).get("razorpay", {})
@@ -157,6 +159,18 @@ def _build_response(cfg: dict) -> SuperadminSettingsOut:
             mail_port=e.get("mail_port"),
             mail_login=e.get("mail_login"),
             mail_password_set=bool(e.get("mail_password_encrypted")),
+        ),
+        aws=AwsSettingsOut(
+            storage_backend=aws.get("storage_backend", "local"),
+            aws_access_key_id=aws.get("aws_access_key_id"),
+            aws_secret_access_key_set=bool(aws.get("aws_secret_access_key_encrypted")),
+            aws_s3_bucket=aws.get("aws_s3_bucket"),
+            aws_region=aws.get("aws_region", "us-east-1"),
+            aws_s3_storage_class=aws.get("aws_s3_storage_class", "STANDARD"),
+            cloudfront_domain=aws.get("cloudfront_domain"),
+            cloudfront_distribution_id=aws.get("cloudfront_distribution_id"),
+            mediaconvert_endpoint=aws.get("mediaconvert_endpoint"),
+            mediaconvert_role_arn=aws.get("mediaconvert_role_arn"),
         ),
         payment_gateway=PaymentGatewaySettingsOut(
             default_gateway=default_gateway,
@@ -255,6 +269,28 @@ async def update_settings(
                 e.pop(field, None)
         _update_secret(e, "mail_password_encrypted", em.mail_password)
         cfg["email"] = e
+
+    # ── AWS / Storage ────────────────────────────────────────────────────────
+    if payload.aws is not None:
+        aws = dict(cfg.get("aws", {}))
+        for field in (
+            "storage_backend",
+            "aws_access_key_id",
+            "aws_s3_bucket",
+            "aws_region",
+            "aws_s3_storage_class",
+            "cloudfront_domain",
+            "cloudfront_distribution_id",
+            "mediaconvert_endpoint",
+            "mediaconvert_role_arn",
+        ):
+            value = getattr(payload.aws, field)
+            if value is not None:
+                aws[field] = value
+            elif field in payload.aws.model_fields_set:
+                aws.pop(field, None)
+        _update_secret(aws, "aws_secret_access_key_encrypted", payload.aws.aws_secret_access_key)
+        cfg["aws"] = aws
 
     # ── Payment Gateway ───────────────────────────────────────────────────────
     if payload.payment_gateway is not None:
