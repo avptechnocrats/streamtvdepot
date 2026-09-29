@@ -610,8 +610,8 @@ export default function VideoPlayer({
                 const imaProto = imaController
                     ? Object.getPrototypeOf(imaController)
                     : undefined;
-                if (imaProto && !imaProto.__signalviewVolumeGuard) {
-                    imaProto.__signalviewVolumeGuard = true;
+                if (imaProto && !imaProto.__streamtvdepotVolumeGuard) {
+                    imaProto.__streamtvdepotVolumeGuard = true;
                     for (const method of ["onPlayerVolumeChanged", "onPlayerEnterFullscreen", "onPlayerExitFullscreen"] as const) {
                         const original = imaProto[method];
                         if (typeof original === "function") {

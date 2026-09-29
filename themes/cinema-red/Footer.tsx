@@ -8,7 +8,7 @@ import { Youtube, Instagram, Facebook } from "lucide-react";
 
 export default function Footer() {
     const { site_title, copyright_text, youtube_url, instagram_url, facebook_url } = useSiteSettings();
-    const label = site_title || "SignalView";
+    const label = site_title || "StreamTVDepot";
 
     const socialLinks = [
         { icon: Youtube, url: youtube_url, label: "YouTube" },

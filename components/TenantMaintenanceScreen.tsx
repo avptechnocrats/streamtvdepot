@@ -1,29 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Mail, RefreshCw } from "lucide-react";
 import { useSiteSettings } from "@/hooks/use-site-settings";
-import { getTenantNameFromHost, toDisplayName } from "@/lib/tenant-display";
+import { useTenantName } from "@/hooks/use-tenant-name";
 
 export default function TenantMaintenanceScreen() {
-    const { site_title, tagline, contact_email } = useSiteSettings();
-    const [tenantName, setTenantName] = useState<string | null>(null);
-
-    useEffect(() => {
-        const fromHost = getTenantNameFromHost(window.location.hostname);
-        if (fromHost) {
-            setTenantName(fromHost);
-            return;
-        }
-
-        const fromEnv = process.env.NEXT_PUBLIC_CLIENT_SLUG
-            ? toDisplayName(process.env.NEXT_PUBLIC_CLIENT_SLUG)
-            : "";
-        setTenantName(fromEnv || null);
-    }, []);
-
-    const title = site_title?.trim() || tenantName || "SignalView";
+    const { tagline, contact_email } = useSiteSettings();
+    const title = useTenantName();
 
     return (
         <main className="relative min-h-screen overflow-hidden bg-background text-foreground">

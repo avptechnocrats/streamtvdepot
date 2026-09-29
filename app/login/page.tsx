@@ -4,7 +4,7 @@ import LoginForm from "./_components/LoginForm";
 
 export const metadata: Metadata = {
     title: "Sign In",
-    description: "Sign in to your SignalView account to start streaming.",
+    description: "Sign in to your account to start streaming.",
 };
 
 export default function LoginPage() {

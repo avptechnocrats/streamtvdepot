@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { useUserPrefs } from "@/hooks/use-user-prefs";
 import { usePlayGate } from "@/hooks/use-play-gate";
+import { useTenantName } from "@/hooks/use-tenant-name";
 import { getVideo, type VideoOut } from "@/lib/services";
 import { addToWatchlist, removeFromWatchlist, getWatchlist, type WatchlistItem } from "@/lib/services/watchlist";
 import { Button } from "@/components/ui/button";
@@ -215,6 +216,7 @@ function RelatedMovies({ ids }: { ids: string[] }) {
 
 export default function MovieDetailsPage() {
     const { id } = useParams<{ id: string }>();
+    const tenantName = useTenantName();
     const searchParams = useSearchParams();
     const [showPlayer, setShowPlayer] = useState(false);
     const { user, isLoading: authLoading } = useAuth();
@@ -289,9 +291,9 @@ export default function MovieDetailsPage() {
     }, [showPlayer]);
 
     useEffect(() => {
-        if (video) document.title = `${video.title} | SignalView`;
-        return () => { document.title = "SignalView — Stream Movies & TV Shows"; };
-    }, [video]);
+        if (video) document.title = `${video.title} | ${tenantName}`;
+        return () => { document.title = tenantName; };
+    }, [tenantName, video]);
 
     if (isLoading) {
         return <MovieDetailsSkeleton />;

@@ -3,10 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Play } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { useTenantName } from "@/hooks/use-tenant-name";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getTenantNameFromHost, toDisplayName } from "@/lib/tenant-display";
 
 interface SiteLogoProps {
     /** Extra class names for the wrapper <Link> */
@@ -31,23 +30,8 @@ export default function SiteLogo({
     showLabel = true,
     labelClassName = "text-xl font-display font-800 text-gradient-gold tracking-tight",
 }: SiteLogoProps) {
-    const { logo_url, site_title, isLoading } = useSiteSettings();
-    const [tenantName, setTenantName] = useState<string | null>(null);
-
-    useEffect(() => {
-        const fromHost = getTenantNameFromHost(window.location.hostname);
-        if (fromHost) {
-            setTenantName(fromHost);
-            return;
-        }
-
-        const fromEnv = process.env.NEXT_PUBLIC_CLIENT_SLUG
-            ? toDisplayName(process.env.NEXT_PUBLIC_CLIENT_SLUG)
-            : "";
-        setTenantName(fromEnv || null);
-    }, []);
-
-    const label = site_title?.trim() || tenantName || "SignalView";
+    const { logo_url, isLoading } = useSiteSettings();
+    const label = useTenantName();
 
     if (isLoading) {
         return (
