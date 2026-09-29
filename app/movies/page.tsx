@@ -3,7 +3,7 @@ import MoviesClient from "./_components/MoviesClient";
 
 export const metadata: Metadata = {
     title: "Movies",
-    description: "Watch the latest movies and blockbusters on SignalView.",
+    description: "Watch the latest movies and blockbusters.",
 };
 
 export default function MoviesPage() {

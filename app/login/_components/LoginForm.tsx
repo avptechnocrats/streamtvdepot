@@ -13,9 +13,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { userLogin, userResendVerification, userVerifyEmail } from "@/lib/services/user-auth";
 import { fetchSocialAuthConfig } from "@/lib/services/site-settings";
 import SiteLogo from "@/components/SiteLogo";
+import { useTenantName } from "@/hooks/use-tenant-name";
 
 export default function LoginForm() {
     const router = useRouter();
+    const tenantName = useTenantName();
     const searchParams = useSearchParams();
     const requestedReturnTo = searchParams.get("returnTo") ?? "/";
     const returnTo = requestedReturnTo.startsWith("/") && !requestedReturnTo.startsWith("//")
@@ -327,7 +329,7 @@ export default function LoginForm() {
                             <div className="w-full border-t border-border/40" />
                         </div>
                         <div className="relative flex justify-center">
-                            <span className="bg-background px-3 text-xs text-muted-foreground">New to SignalView?</span>
+                            <span className="bg-background px-3 text-xs text-muted-foreground">New to {tenantName}?</span>
                         </div>
                     </div>
 

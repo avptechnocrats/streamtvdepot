@@ -3,12 +3,12 @@ import type { UserPrefs } from "@/hooks/use-user-prefs";
 import type { ContentRowProps } from "@/types/content";
 import type { CategoryGridProps } from "@/types/category";
 
-// ─── WordPress-style theme component contract ──────────────────────────────────
+// ─── Style theme component contract ──────────────────────────────────
 /**
  * Every theme folder must export a ThemeComponents object that satisfies this
- * interface. This is the equivalent of WordPress's template hierarchy:
+ * interface:
  *
- *   WordPress theme files          →   SignalView ThemeComponents
+ *   StreamTVDepot ThemeComponents
  *   ─────────────────────────────────────────────────────────────
  *   header.php                     →   Navbar
  *   front-page.php / hero section  →   Banner
@@ -37,7 +37,7 @@ export interface ThemeComponents {
 
 // ─── Theme definition ──────────────────────────────────────────────────────────
 /**
- * Defines a self-contained visual theme for SignalView.
+ * Defines a self-contained visual theme for StreamTVDepot.
  *
  * Architecture:
  *  - Each theme maps to a `data-theme` CSS attribute selector in globals.css

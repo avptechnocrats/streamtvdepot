@@ -1,29 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import SiteLogo from "@/components/SiteLogo";
 import { useSiteSettings } from "@/hooks/use-site-settings";
-import { getTenantNameFromHost, toDisplayName } from "@/lib/tenant-display";
+import { useTenantName } from "@/hooks/use-tenant-name";
 import { Youtube, Instagram, Facebook } from "lucide-react";
 
 const Footer = () => {
-  const { site_title, copyright_text, youtube_url, instagram_url, facebook_url } = useSiteSettings();
-  const [tenantName, setTenantName] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fromHost = getTenantNameFromHost(window.location.hostname);
-    if (fromHost) {
-      setTenantName(fromHost);
-      return;
-    }
-
-    const fromEnv = process.env.NEXT_PUBLIC_CLIENT_SLUG
-      ? toDisplayName(process.env.NEXT_PUBLIC_CLIENT_SLUG)
-      : "";
-    setTenantName(fromEnv || null);
-  }, []);
-
-  const label = site_title?.trim() || tenantName || "SignalView";
+  const { copyright_text, youtube_url, instagram_url, facebook_url } = useSiteSettings();
+  const label = useTenantName();
 
   const socialLinks = [
     { icon: Youtube, url: youtube_url, label: "YouTube" },

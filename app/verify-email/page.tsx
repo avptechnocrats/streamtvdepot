@@ -9,8 +9,10 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Label } from "@/components/ui/label";
 import { userVerifyEmail } from "@/lib/services/user-auth";
 import AuthLayout from "@/app/layout-auth";
+import { useTenantName } from "@/hooks/use-tenant-name";
 
 function VerifyEmailInner() {
+    const tenantName = useTenantName();
     const [email, setEmail] = useState("");
     const [otp, setOtp] = useState("");
     const [loading, setLoading] = useState(false);
@@ -18,8 +20,8 @@ function VerifyEmailInner() {
     const [message, setMessage] = useState<string | null>(null);
 
     useEffect(() => {
-        document.title = "Verify Email | SignalView";
-    }, []);
+        document.title = `Verify Email | ${tenantName}`;
+    }, [tenantName]);
 
     async function handleSubmit(event: React.FormEvent) {
         event.preventDefault();

@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { userResetPassword } from "@/lib/services/user-auth";
 import AuthLayout from "@/app/layout-auth";
+import { useTenantName } from "@/hooks/use-tenant-name";
 
 function ResetPasswordForm() {
     const router = useRouter();
+    const tenantName = useTenantName();
     const searchParams = useSearchParams();
     const token = searchParams.get("token") ?? "";
 
@@ -21,7 +23,7 @@ function ResetPasswordForm() {
     const [loading, setLoading] = useState(false);
     const [done, setDone] = useState(false);
 
-    useEffect(() => { document.title = "Reset Password | SignalView"; }, []);
+    useEffect(() => { document.title = `Reset Password | ${tenantName}`; }, [tenantName]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -100,12 +102,14 @@ function ResetPasswordForm() {
 }
 
 export default function ResetPasswordPage() {
+    const tenantName = useTenantName();
+
     return (
         <AuthLayout>
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-display font-800 text-gradient-gold tracking-tight">
-                        SIGNALVIEW
+                        {tenantName}
                     </h1>
                 </div>
 

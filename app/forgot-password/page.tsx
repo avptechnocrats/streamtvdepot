@@ -3,7 +3,7 @@ import ForgotPasswordForm from "./_components/ForgotPasswordForm";
 
 export const metadata: Metadata = {
     title: "Forgot Password",
-    description: "Reset your SignalView account password.",
+    description: "Reset your account password.",
 };
 
 export default function ForgotPasswordPage() {

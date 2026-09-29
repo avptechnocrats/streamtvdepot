@@ -17,6 +17,7 @@ import {
     type VideoOut,
 } from "@/lib/services";
 import { usePlayGate } from "@/hooks/use-play-gate";
+import { useTenantName } from "@/hooks/use-tenant-name";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import EpgGuide from "../_components/EpgGuide";
@@ -112,6 +113,7 @@ function RelatedChannelCard({ channel }: { channel: LiveTvChannelOut }) {
 
 export default function ChannelDetailPage() {
     const { id } = useParams<{ id: string }>();
+    const tenantName = useTenantName();
     const searchParams = useSearchParams();
     const [playbackError, setPlaybackError] = useState<string | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -147,9 +149,9 @@ export default function ChannelDetailPage() {
     }, [id]);
 
     useEffect(() => {
-        if (channel) document.title = `${channel.title} | SignalView`;
-        return () => { document.title = "SignalView — Stream Movies & TV Shows"; };
-    }, [channel]);
+        if (channel) document.title = `${channel.title} | ${tenantName}`;
+        return () => { document.title = tenantName; };
+    }, [channel, tenantName]);
 
     useEffect(() => {
         setPlaybackError(null);
