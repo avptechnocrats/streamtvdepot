@@ -1,0 +1,959 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Gold Dark (default) ─────────────────────────────────────────── */
+@layer base {
+
+    :root,
+    [data-theme="gold"] {
+        --background: 220 20% 6%;
+        --foreground: 40 10% 92%;
+
+        --card: 220 18% 10%;
+        --card-foreground: 40 10% 92%;
+
+        --popover: 220 18% 10%;
+        --popover-foreground: 40 10% 92%;
+
+        --primary: 40 90% 55%;
+        --primary-foreground: 220 20% 6%;
+
+        --secondary: 220 15% 16%;
+        --secondary-foreground: 40 10% 85%;
+
+        --muted: 220 15% 14%;
+        --muted-foreground: 220 10% 55%;
+
+        --accent: 40 90% 55%;
+        --accent-foreground: 220 20% 6%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 220 15% 18%;
+        --input: 220 15% 18%;
+        --ring: 40 90% 55%;
+        --radius: 0.5rem;
+
+        --sidebar-background: 220 18% 8%;
+        --sidebar-foreground: 40 10% 85%;
+        --sidebar-primary: 40 90% 55%;
+        --sidebar-primary-foreground: 220 20% 6%;
+        --sidebar-accent: 220 15% 14%;
+        --sidebar-accent-foreground: 40 10% 85%;
+        --sidebar-border: 220 15% 18%;
+        --sidebar-ring: 40 90% 55%;
+
+        --gold: 40 90% 55%;
+        --gold-dim: 40 60% 40%;
+        --surface-hover: 220 15% 18%;
+
+        --gradient-primary-1: hsl(40 90% 55%);
+        --gradient-primary-2: hsl(45 100% 70%);
+        --gradient-primary-3: hsl(35 80% 50%);
+        --banner-bg: hsl(220 20% 6%);
+        --banner-bg-overlay: hsl(220 20% 6% / 0.8);
+    }
+}
+
+/* ─── Midnight (deep navy + cyan) ────────────────────────────────── */
+@layer base {
+    [data-theme="midnight"] {
+        --background: 230 30% 5%;
+        --foreground: 190 15% 90%;
+
+        --card: 230 25% 9%;
+        --card-foreground: 190 15% 90%;
+
+        --popover: 230 25% 9%;
+        --popover-foreground: 190 15% 90%;
+
+        --primary: 190 90% 50%;
+        --primary-foreground: 230 30% 5%;
+
+        --secondary: 230 20% 14%;
+        --secondary-foreground: 190 10% 82%;
+
+        --muted: 230 20% 12%;
+        --muted-foreground: 220 10% 52%;
+
+        --accent: 190 90% 50%;
+        --accent-foreground: 230 30% 5%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 230 20% 16%;
+        --input: 230 20% 16%;
+        --ring: 190 90% 50%;
+
+        --sidebar-background: 230 25% 7%;
+        --sidebar-foreground: 190 10% 82%;
+        --sidebar-primary: 190 90% 50%;
+        --sidebar-primary-foreground: 230 30% 5%;
+        --sidebar-accent: 230 20% 12%;
+        --sidebar-accent-foreground: 190 10% 82%;
+        --sidebar-border: 230 20% 16%;
+        --sidebar-ring: 190 90% 50%;
+
+        --gold: 190 90% 50%;
+        --gold-dim: 190 60% 35%;
+        --surface-hover: 230 20% 16%;
+
+        --gradient-primary-1: hsl(190 90% 50%);
+        --gradient-primary-2: hsl(195 100% 65%);
+        --gradient-primary-3: hsl(185 80% 42%);
+        --banner-bg: hsl(230 30% 5%);
+        --banner-bg-overlay: hsl(230 30% 5% / 0.8);
+    }
+}
+
+/* ─── Sunset (dark charcoal + orange) ────────────────────────────── */
+@layer base {
+    [data-theme="sunset"] {
+        --background: 15 18% 6%;
+        --foreground: 30 10% 92%;
+
+        --card: 15 15% 10%;
+        --card-foreground: 30 10% 92%;
+
+        --popover: 15 15% 10%;
+        --popover-foreground: 30 10% 92%;
+
+        --primary: 20 100% 55%;
+        --primary-foreground: 15 18% 6%;
+
+        --secondary: 15 12% 15%;
+        --secondary-foreground: 30 10% 82%;
+
+        --muted: 15 12% 13%;
+        --muted-foreground: 15 8% 52%;
+
+        --accent: 20 100% 55%;
+        --accent-foreground: 15 18% 6%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 15 12% 17%;
+        --input: 15 12% 17%;
+        --ring: 20 100% 55%;
+
+        --sidebar-background: 15 15% 8%;
+        --sidebar-foreground: 30 10% 82%;
+        --sidebar-primary: 20 100% 55%;
+        --sidebar-primary-foreground: 15 18% 6%;
+        --sidebar-accent: 15 12% 13%;
+        --sidebar-accent-foreground: 30 10% 82%;
+        --sidebar-border: 15 12% 17%;
+        --sidebar-ring: 20 100% 55%;
+
+        --gold: 20 100% 55%;
+        --gold-dim: 20 70% 38%;
+        --surface-hover: 15 12% 17%;
+
+        --gradient-primary-1: hsl(20 100% 55%);
+        --gradient-primary-2: hsl(35 100% 65%);
+        --gradient-primary-3: hsl(10 90% 48%);
+        --banner-bg: hsl(15 18% 6%);
+        --banner-bg-overlay: hsl(15 18% 6% / 0.8);
+    }
+}
+
+/* ─── Emerald (dark forest + green) ──────────────────────────────── */
+@layer base {
+    [data-theme="emerald"] {
+        --background: 150 22% 5%;
+        --foreground: 140 10% 90%;
+
+        --card: 150 18% 9%;
+        --card-foreground: 140 10% 90%;
+
+        --popover: 150 18% 9%;
+        --popover-foreground: 140 10% 90%;
+
+        --primary: 152 60% 45%;
+        --primary-foreground: 150 22% 5%;
+
+        --secondary: 150 14% 13%;
+        --secondary-foreground: 140 8% 80%;
+
+        --muted: 150 14% 11%;
+        --muted-foreground: 140 8% 50%;
+
+        --accent: 152 60% 45%;
+        --accent-foreground: 150 22% 5%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 150 14% 15%;
+        --input: 150 14% 15%;
+        --ring: 152 60% 45%;
+
+        --sidebar-background: 150 18% 7%;
+        --sidebar-foreground: 140 8% 80%;
+        --sidebar-primary: 152 60% 45%;
+        --sidebar-primary-foreground: 150 22% 5%;
+        --sidebar-accent: 150 14% 11%;
+        --sidebar-accent-foreground: 140 8% 80%;
+        --sidebar-border: 150 14% 15%;
+        --sidebar-ring: 152 60% 45%;
+
+        --gold: 152 60% 45%;
+        --gold-dim: 152 40% 30%;
+        --surface-hover: 150 14% 15%;
+
+        --gradient-primary-1: hsl(152 60% 45%);
+        --gradient-primary-2: hsl(160 70% 60%);
+        --gradient-primary-3: hsl(145 55% 38%);
+        --banner-bg: hsl(150 22% 5%);
+        --banner-bg-overlay: hsl(150 22% 5% / 0.8);
+    }
+}
+
+/* ─── Neon City (ultra-dark purple + electric violet) ─────────────── */
+@layer base {
+    [data-theme="neon-city"] {
+        --background: 270 25% 4%;
+        --foreground: 280 10% 92%;
+
+        --card: 270 20% 8%;
+        --card-foreground: 280 10% 92%;
+
+        --popover: 270 20% 8%;
+        --popover-foreground: 280 10% 92%;
+
+        --primary: 270 70% 60%;
+        --primary-foreground: 270 25% 4%;
+
+        --secondary: 270 15% 13%;
+        --secondary-foreground: 280 8% 82%;
+
+        --muted: 270 15% 11%;
+        --muted-foreground: 270 8% 52%;
+
+        --accent: 270 70% 60%;
+        --accent-foreground: 270 25% 4%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 270 15% 16%;
+        --input: 270 15% 16%;
+        --ring: 270 70% 60%;
+
+        --sidebar-background: 270 20% 6%;
+        --sidebar-foreground: 280 8% 82%;
+        --sidebar-primary: 270 70% 60%;
+        --sidebar-primary-foreground: 270 25% 4%;
+        --sidebar-accent: 270 15% 11%;
+        --sidebar-accent-foreground: 280 8% 82%;
+        --sidebar-border: 270 15% 16%;
+        --sidebar-ring: 270 70% 60%;
+
+        --gold: 270 70% 60%;
+        --gold-dim: 270 50% 42%;
+        --surface-hover: 270 15% 16%;
+
+        --gradient-primary-1: hsl(270 70% 60%);
+        --gradient-primary-2: hsl(280 80% 72%);
+        --gradient-primary-3: hsl(260 65% 52%);
+        --banner-bg: hsl(270 25% 4%);
+        --banner-bg-overlay: hsl(270 25% 4% / 0.8);
+    }
+}
+
+/* ─── Apple TV (pure black + clean cyan-blue) ─────────────────────── */
+@layer base {
+    [data-theme="apple-tv"] {
+        --background: 0 0% 3%;
+        --foreground: 0 0% 94%;
+
+        --card: 0 0% 8%;
+        --card-foreground: 0 0% 94%;
+
+        --popover: 0 0% 8%;
+        --popover-foreground: 0 0% 94%;
+
+        --primary: 190 90% 50%;
+        --primary-foreground: 0 0% 3%;
+
+        --secondary: 0 0% 13%;
+        --secondary-foreground: 0 0% 82%;
+
+        --muted: 0 0% 11%;
+        --muted-foreground: 0 0% 48%;
+
+        --accent: 190 90% 50%;
+        --accent-foreground: 0 0% 3%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 0 0% 15%;
+        --input: 0 0% 15%;
+        --ring: 190 90% 50%;
+
+        --sidebar-background: 0 0% 5%;
+        --sidebar-foreground: 0 0% 82%;
+        --sidebar-primary: 190 90% 50%;
+        --sidebar-primary-foreground: 0 0% 3%;
+        --sidebar-accent: 0 0% 11%;
+        --sidebar-accent-foreground: 0 0% 82%;
+        --sidebar-border: 0 0% 15%;
+        --sidebar-ring: 190 90% 50%;
+
+        --gold: 190 90% 50%;
+        --gold-dim: 190 60% 35%;
+        --surface-hover: 0 0% 15%;
+
+        --gradient-primary-1: hsl(190 90% 50%);
+        --gradient-primary-2: hsl(195 100% 65%);
+        --gradient-primary-3: hsl(185 80% 42%);
+        --banner-bg: hsl(0 0% 3%);
+        --banner-bg-overlay: hsl(0 0% 3% / 0.75);
+    }
+}
+
+/* ─── Cinema Red (near-black + deep crimson spotlight) ────────────── */
+@layer base {
+    [data-theme="cinema-red"] {
+        --background: 0 20% 5%;
+        --foreground: 10 10% 92%;
+
+        --card: 0 15% 9%;
+        --card-foreground: 10 10% 92%;
+
+        --popover: 0 15% 9%;
+        --popover-foreground: 10 10% 92%;
+
+        --primary: 340 80% 55%;
+        --primary-foreground: 0 20% 5%;
+
+        --secondary: 0 12% 14%;
+        --secondary-foreground: 10 8% 82%;
+
+        --muted: 0 12% 12%;
+        --muted-foreground: 0 8% 52%;
+
+        --accent: 340 80% 55%;
+        --accent-foreground: 0 20% 5%;
+
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+
+        --border: 0 12% 16%;
+        --input: 0 12% 16%;
+        --ring: 340 80% 55%;
+
+        --sidebar-background: 0 15% 7%;
+        --sidebar-foreground: 10 8% 82%;
+        --sidebar-primary: 340 80% 55%;
+        --sidebar-primary-foreground: 0 20% 5%;
+        --sidebar-accent: 0 12% 12%;
+        --sidebar-accent-foreground: 10 8% 82%;
+        --sidebar-border: 0 12% 16%;
+        --sidebar-ring: 340 80% 55%;
+
+        --gold: 340 80% 55%;
+        --gold-dim: 340 55% 38%;
+        --surface-hover: 0 12% 16%;
+
+        --gradient-primary-1: hsl(340 80% 55%);
+        --gradient-primary-2: hsl(350 90% 68%);
+        --gradient-primary-3: hsl(330 75% 48%);
+        --banner-bg: hsl(0 20% 5%);
+        --banner-bg-overlay: hsl(0 20% 5% / 0.8);
+    }
+}
+
+/* ─── Gold Light (light mode) ─────────────────────────────────────── */
+@layer base {
+    [data-theme="gold-light"] {
+        --background: 220 15% 97%;
+        --foreground: 220 20% 12%;
+
+        --card: 0 0% 100%;
+        --card-foreground: 220 20% 12%;
+
+        --popover: 0 0% 100%;
+        --popover-foreground: 220 20% 12%;
+
+        --primary: 38 88% 38%;
+        --primary-foreground: 0 0% 100%;
+
+        --secondary: 220 14% 92%;
+        --secondary-foreground: 220 15% 22%;
+
+        --muted: 220 14% 94%;
+        --muted-foreground: 220 10% 44%;
+
+        --accent: 38 88% 38%;
+        --accent-foreground: 0 0% 100%;
+
+        --destructive: 0 80% 50%;
+        --destructive-foreground: 0 0% 100%;
+
+        --border: 220 14% 86%;
+        --input: 220 14% 86%;
+        --ring: 38 88% 38%;
+        --radius: 0.5rem;
+
+        --sidebar-background: 220 15% 94%;
+        --sidebar-foreground: 220 15% 22%;
+        --sidebar-primary: 38 88% 38%;
+        --sidebar-primary-foreground: 0 0% 100%;
+        --sidebar-accent: 220 14% 89%;
+        --sidebar-accent-foreground: 220 15% 22%;
+        --sidebar-border: 220 14% 86%;
+        --sidebar-ring: 38 88% 38%;
+
+        --gold: 38 88% 38%;
+        --gold-dim: 38 60% 30%;
+        --surface-hover: 220 14% 90%;
+
+        --gradient-primary-1: hsl(38 88% 38%);
+        --gradient-primary-2: hsl(45 100% 48%);
+        --gradient-primary-3: hsl(32 80% 36%);
+        --banner-bg: hsl(220 15% 97%);
+        --banner-bg-overlay: hsl(220 15% 97% / 0.8);
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background text-foreground font-body antialiased;
+        font-size: var(--font-size-base, 16px);
+    }
+}
+
+/* ─── Content card density ────────────────────────────────────────── */
+.content-card {
+    width: 10rem;
+}
+
+@media (min-width: 768px) {
+    .content-card {
+        width: 12rem;
+    }
+}
+
+[data-density="compact"] .content-card {
+    width: 7.5rem;
+}
+
+@media (min-width: 768px) {
+    [data-density="compact"] .content-card {
+        width: 9rem;
+    }
+}
+
+[data-density="spacious"] .content-card {
+    width: 13rem;
+}
+
+@media (min-width: 768px) {
+    [data-density="spacious"] .content-card {
+        width: 15rem;
+    }
+}
+
+@layer utilities {
+    .text-gradient-gold {
+        background: linear-gradient(135deg, var(--gradient-primary-1), var(--gradient-primary-2), var(--gradient-primary-3));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .banner-overlay {
+        /* Strong scrim covering the full banner height so text remains legible
+           over any background image — bright or dark, vivid or muted.
+           Bottom half is near-opaque for the content area; top fades to a
+           lighter tint so the image still reads as a hero visual. */
+        background:
+            /* bottom-up: darkens the content zone strongly */
+            linear-gradient(to top,
+                rgba(0, 0, 0, 0.92) 0%,
+                rgba(0, 0, 0, 0.72) 28%,
+                rgba(0, 0, 0, 0.40) 50%,
+                rgba(0, 0, 0, 0.15) 70%,
+                transparent 85%),
+            /* top-down: tints bright skies/light tops */
+            linear-gradient(to bottom,
+                rgba(0, 0, 0, 0.45) 0%,
+                rgba(0, 0, 0, 0.10) 30%,
+                transparent 50%);
+    }
+
+    .banner-bottom-fade {
+        /* Blends the bottom of the banner image into the page background.
+           In dark themes, --background is near-black so the fade is invisible.
+           In light themes (e.g. gold-light), --background is near-white,
+           creating a soft transition from the image to the page. */
+        background: linear-gradient(to bottom,
+                transparent 50%,
+                hsl(var(--background)) 100%);
+    }
+
+    .card-shine {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .card-shine::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, transparent 40%, hsl(var(--primary) / 0.08) 50%, transparent 60%);
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .card-shine:hover::after {
+        opacity: 1;
+    }
+
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+}
+
+/* ── Prime Video-style immersive player ──────────────────────────────────────
+   All .vp-* classes live outside @layer so they win over unlayered video.js. */
+
+/* Force video.js to fill its container in immersive mode */
+.vp-immersive .video-js,
+.vp-immersive .vjs-fluid {
+    width: 100% !important;
+    height: 100% !important;
+    padding-top: 0 !important;
+}
+
+.vp-immersive .video-js video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* ── Full-screen overlay container ── */
+.vp-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: pointer;
+}
+
+/* All direct children are hidden until .vp-visible is applied */
+.vp-overlay>* {
+    opacity: 0;
+    transition: opacity 280ms ease;
+    pointer-events: none;
+}
+
+.vp-overlay.vp-visible>* {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Gradient vignettes — always visible (not toggled) */
+.vp-grad-top,
+.vp-grad-bottom {
+    position: absolute !important;
+    pointer-events: none !important;
+    opacity: 1 !important;
+    z-index: 0;
+}
+
+.vp-grad-top {
+    inset: 0 0 auto 0;
+    height: 140px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+}
+
+.vp-grad-bottom {
+    inset: auto 0 0 0;
+    height: 200px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
+}
+
+/* ── Top bar ── */
+.vp-top-bar {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+}
+
+.vp-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #fff;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.4rem 0.75rem 0.4rem 0.4rem;
+    border-radius: 0.5rem;
+    transition: background 150ms;
+}
+
+.vp-back-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.vp-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    max-width: 38vw;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.vp-top-right {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+}
+
+.vp-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 9999px;
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    transition: background 150ms;
+}
+
+.vp-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.vp-close-btn {
+    margin-left: 0.25rem;
+}
+
+/* Compact always-visible volume slider */
+.vp-volume-area {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0 0.25rem;
+}
+
+.vp-volume-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 64px;
+    height: 4px;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    /* fill handled via inline style gradient */
+}
+
+.vp-volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    margin-top: -4.5px;
+    box-shadow: none;
+}
+
+.vp-volume-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+}
+
+.vp-volume-slider::-moz-range-thumb {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #fff;
+    border: none;
+    cursor: pointer;
+}
+
+.vp-volume-slider::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.25);
+}
+
+/* Active state for icon buttons (quality open, PiP active) */
+.vp-icon-active {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: #00a8e1 !important;
+}
+
+/* Quality dropdown */
+.vp-quality-wrap {
+    position: relative;
+}
+
+.vp-quality-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: rgba(18, 18, 18, 0.95);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 6px 0;
+    min-width: 110px;
+    z-index: 30;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+.vp-quality-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 4px 14px 8px;
+}
+
+.vp-quality-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 14px;
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.85);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background 120ms;
+}
+
+.vp-quality-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.vp-quality-active {
+    color: #fff;
+    font-weight: 600;
+}
+
+.vp-quality-item svg {
+    flex-shrink: 0;
+    color: #00a8e1;
+}
+
+/* ── Center controls ── */
+.vp-center-controls {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 2.5rem;
+}
+
+.vp-play-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 5rem;
+    height: 5rem;
+    border-radius: 9999px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 2px solid rgba(255, 255, 255, 0.65);
+    color: #fff;
+    cursor: pointer;
+    transition: background 150ms, transform 150ms, border-color 150ms;
+    flex-shrink: 0;
+}
+
+.vp-play-btn:hover {
+    background: rgba(0, 0, 0, 0.75);
+    border-color: #fff;
+    transform: scale(1.08);
+}
+
+.vp-seek-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.75rem;
+    height: 3.75rem;
+    border-radius: 9999px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1.5px solid rgba(255, 255, 255, 0.4);
+    color: #fff;
+    cursor: pointer;
+    transition: background 150ms, transform 150ms, border-color 150ms;
+    flex-shrink: 0;
+}
+
+.vp-seek-btn:hover {
+    background: rgba(0, 0, 0, 0.72);
+    border-color: rgba(255, 255, 255, 0.85);
+    transform: scale(1.08);
+}
+
+.vp-seek-btn svg {
+    width: 2rem;
+    height: 2rem;
+}
+
+.vp-seek-btn span {
+    position: absolute;
+    font-size: 0.625rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* ── Bottom bar ── */
+.vp-bottom-bar {
+    position: relative;
+    z-index: 2;
+    padding: 0 1.5rem 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Progress / seek bar */
+.vp-progress {
+    position: relative;
+    height: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.vp-progress-track,
+.vp-progress-buf,
+.vp-progress-fill {
+    position: absolute;
+    height: 4px;
+    border-radius: 2px;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: height 150ms;
+}
+
+.vp-progress:hover .vp-progress-track,
+.vp-progress:hover .vp-progress-buf,
+.vp-progress:hover .vp-progress-fill {
+    height: 6px;
+}
+
+.vp-progress-track {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.vp-progress-buf {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.vp-progress-fill {
+    background: #00a8e1;
+}
+
+/* Prime Video teal-blue */
+.vp-progress-thumb {
+    position: absolute;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    transform: translate(-50%, -50%) scale(0);
+    transition: transform 150ms;
+    pointer-events: none;
+}
+
+.vp-progress:hover .vp-progress-thumb {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.vp-time-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 0.4em;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    font-variant-numeric: tabular-nums;
+    padding: 0 2px;
+}
+
+.vp-time-sep {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+    .vp-center-controls {
+        gap: 1.5rem;
+    }
+
+    .vp-play-btn {
+        width: 4rem;
+        height: 4rem;
+    }
+
+    .vp-seek-btn {
+        width: 3rem;
+        height: 3rem;
+    }
+
+    .vp-title {
+        max-width: 28vw;
+        font-size: 0.8rem;
+    }
+}
+
+/* ── Corner-style UserPrefs — targets card/thumbnail wrappers ─── */
+html[data-radius="sharp"] [class*="aspect-"].overflow-hidden,
+html[data-radius="sharp"] .aspect-video.overflow-hidden,
+html[data-radius="sharp"] .aspect-square.overflow-hidden {
+    border-radius: 2px !important;
+}
+
+html[data-radius="rounded"] [class*="aspect-"].overflow-hidden,
+html[data-radius="rounded"] .aspect-video.overflow-hidden,
+html[data-radius="rounded"] .aspect-square.overflow-hidden {
+    border-radius: 1rem !important;
+}
