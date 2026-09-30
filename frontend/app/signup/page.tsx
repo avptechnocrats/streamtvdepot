@@ -8,8 +8,9 @@ import { saasRegister } from "@/lib/api";
 
 const perks = [
     "No credit card required",
+    "Free 30-day trial period",
     "Custom domain included",
-    "12+ native app platforms",
+    "8+ native app platforms",
     "Cancel any time",
 ];
 
@@ -113,8 +114,8 @@ export default function SignupPage() {
                             today.
                         </h2>
                         <p className="text-sm text-white/35 mt-4 leading-relaxed">
-                            Join thousands of creators and businesses using StreamTVDepot to build,
-                            brand, and grow their streaming platform.
+                            Join thousands of creators and businesses building, branding, and growing
+                            their streaming platforms with StreamTVDepot.
                         </p>
                     </div>
 

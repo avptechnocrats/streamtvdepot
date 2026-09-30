@@ -24,6 +24,7 @@ export interface MenuGroup {
     isActive: boolean;
     sortOrder: number;
     footerColumns: number;
+    maxMenuDisplay?: number | null;
     links: MenuLink[];
 }
 
@@ -31,6 +32,7 @@ export interface MenuGroupPayload {
     name: string;
     position: MenuPosition;
     footerColumns?: number;
+    maxMenuDisplay?: number | null;
 }
 
 export interface MenuLinkPayload {
@@ -62,6 +64,7 @@ interface ApiMenuGroup {
     is_active: boolean;
     sort_order: number;
     footer_columns: number;
+    max_menu_display?: number | null;
     links: ApiMenuLink[];
 }
 
@@ -87,6 +90,7 @@ function toMenuGroup(api: ApiMenuGroup): MenuGroup {
         isActive: api.is_active,
         sortOrder: api.sort_order,
         footerColumns: api.footer_columns,
+        maxMenuDisplay: api.max_menu_display,
         links: (api.links || []).map(toMenuLink).sort((a, b) => a.sortOrder - b.sortOrder),
     };
 }
@@ -108,6 +112,7 @@ export async function createMenuGroup(payload: MenuGroupPayload): Promise<MenuGr
         name: payload.name,
         position: payload.position,
         footer_columns: payload.footerColumns,
+        max_menu_display: payload.maxMenuDisplay,
     });
     return toMenuGroup(res.data);
 }
@@ -116,6 +121,7 @@ export async function updateMenuGroup(id: string, payload: Partial<MenuGroupPayl
     const res = await apiClient.patch<ApiMenuGroup>(ENDPOINTS.admin.menuGroup(id), {
         name: payload.name,
         footer_columns: payload.footerColumns,
+        max_menu_display: payload.maxMenuDisplay,
     });
     return toMenuGroup(res.data);
 }

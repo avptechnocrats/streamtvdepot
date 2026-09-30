@@ -171,6 +171,8 @@ def _build_response(cfg: dict, client_name: str | None = None) -> SiteSettingsOu
             )
         ),
         client_name=client_name,
+        # Existing tenants predate onboarding and should not be redirected into it.
+        onboarding_completed=cfg.get("onboarding_completed", True),
     )
 
 
@@ -285,6 +287,9 @@ async def save_site_settings(
                 google["redirect_uri"] = redirect_uri
             social_auth["google"] = google
             cfg["social_auth"] = social_auth
+
+    if payload.onboarding_completed is not None:
+        cfg["onboarding_completed"] = payload.onboarding_completed
 
     client.site_config = cfg
     await db.commit()

@@ -68,6 +68,12 @@ export interface SaasRegisterResponse {
 export interface VerifyEmailResponse {
     verified: boolean;
     message: string;
+    access_token?: string | null;
+    refresh_token?: string | null;
+    token_type?: string;
+    role?: "client_admin" | null;
+    email?: string | null;
+    full_name?: string | null;
 }
 
 // ─── Superadmin auth ──────────────────────────────────────────────────────────

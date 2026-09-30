@@ -64,10 +64,16 @@ def _normalize_groups(raw_groups: list[dict] | None) -> list[dict]:
     for idx, group in enumerate(groups):
         position = group.get("position")
         footer_columns = int(group.get("footer_columns") or 1)
+        raw_max_menu_display = group.get("max_menu_display")
+        max_menu_display = int(raw_max_menu_display) if raw_max_menu_display is not None else None
         if footer_columns < 1:
             footer_columns = 1
         if footer_columns > 12:
             footer_columns = 12
+        if max_menu_display is not None and max_menu_display < 1:
+            max_menu_display = 1
+        if max_menu_display is not None and max_menu_display > 12:
+            max_menu_display = 12
         normalized.append(
             {
                 "id": str(group.get("id") or uuid.uuid4()),
@@ -76,6 +82,7 @@ def _normalize_groups(raw_groups: list[dict] | None) -> list[dict]:
                 "is_active": bool(group.get("is_active", False)),
                 "sort_order": int(group.get("sort_order") or idx + 1),
                 "footer_columns": footer_columns,
+                "max_menu_display": max_menu_display,
                 "links": _normalize_links(group.get("links") or []),
             }
         )
@@ -132,6 +139,7 @@ def _to_group_out(group: dict) -> MenuGroupOut:
         is_active=group["is_active"],
         sort_order=group["sort_order"],
         footer_columns=group.get("footer_columns", 1),
+        max_menu_display=group.get("max_menu_display", 12),
         links=[MenuLinkOut(**link) for link in sorted(group["links"], key=lambda l: l["sort_order"])],
     )
 
@@ -181,6 +189,7 @@ async def create_menu_group(
         "is_active": not any(g["is_active"] for g in pos_groups),
         "sort_order": len(pos_groups) + 1,
         "footer_columns": payload.footer_columns or (4 if payload.position == "footer" else 1),
+        "max_menu_display": payload.max_menu_display,
         "links": [],
     }
     groups.append(group)
@@ -199,10 +208,13 @@ async def update_menu_group(
     groups = _read_groups(client)
     group_idx, group = _find_group(groups, group_id)
 
-    if payload.name is not None:
-        group["name"] = payload.name.strip()
-    if payload.footer_columns is not None:
-        group["footer_columns"] = payload.footer_columns
+    updates = payload.model_dump(exclude_unset=True)
+    if "name" in updates and updates["name"] is not None:
+        group["name"] = updates["name"].strip()
+    if "footer_columns" in updates and updates["footer_columns"] is not None:
+        group["footer_columns"] = updates["footer_columns"]
+    if "max_menu_display" in updates:
+        group["max_menu_display"] = updates["max_menu_display"]
     groups[group_idx] = group
 
     await _save_groups(client, db, groups)
@@ -257,6 +269,12 @@ async def add_menu_link(
     client = await _get_client(admin._client_id, db)
     groups = _read_groups(client)
     group_idx, group = _find_group(groups, group_id)
+
+    if group["position"] == "header" and len(group["links"]) >= 12:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A header menu can contain a maximum of 12 menu items.",
+        )
 
     link = {
         "id": str(uuid.uuid4()),

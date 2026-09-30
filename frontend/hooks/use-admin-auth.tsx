@@ -12,6 +12,7 @@ import {
     ADMIN_SESSION_KEY,
     createSession,
     isSessionValid,
+    persistAdminSession,
     validateCredentials,
     type AdminRole,
     type AdminSession,
@@ -72,7 +73,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         if (result.ok && result.role) {
             const s = createSession(email, result.role, result.fullName);
             setSession(s);
-            localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(s));
+            persistAdminSession(email, result.role, result.fullName);
         }
         return result;
     }, []);

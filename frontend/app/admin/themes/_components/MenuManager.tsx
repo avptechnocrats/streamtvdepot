@@ -196,10 +196,16 @@ export function MenuManager() {
     };
 
     const handleAddLink = (groupId: string) => {
+        const allGroups = [...headerGroups, ...footerGroups];
+        const group = allGroups.find((item) => item.id === groupId) || null;
+        if (group?.position === "header" && group.links.length >= 12) {
+            toast("A header menu can contain a maximum of 12 menu items.", false);
+            return;
+        }
+
         setFormType("link");
         setSelectedGroupId(groupId);
-        const allGroups = [...headerGroups, ...footerGroups];
-        setSelectedGroup(allGroups.find((g) => g.id === groupId) || null);
+        setSelectedGroup(group);
         setFormOpen(true);
     };
 
@@ -265,6 +271,42 @@ export function MenuManager() {
             await loadMenus();
         } catch (err) {
             toast(err instanceof Error ? err.message : "Failed to update footer columns", false);
+            await loadMenus();
+        }
+    };
+
+    const handleMaxMenuDisplayChange = async (group: MenuGroup, value: string) => {
+        if (!value.trim()) {
+            const optimisticGroups = headerGroups.map((item) =>
+                item.id === group.id ? { ...item, maxMenuDisplay: null } : item,
+            );
+            setHeaderGroups(optimisticGroups);
+
+            try {
+                await updateMenuGroup(group.id, { maxMenuDisplay: null });
+                toast("Max menu display cleared");
+                await loadMenus();
+            } catch (err) {
+                toast(err instanceof Error ? err.message : "Failed to clear max menu display", false);
+                await loadMenus();
+            }
+            return;
+        }
+
+        const nextMaxMenuDisplay = Number(value);
+        if (!Number.isInteger(nextMaxMenuDisplay) || nextMaxMenuDisplay < 1 || nextMaxMenuDisplay > 12) return;
+
+        const optimisticGroups = headerGroups.map((item) =>
+            item.id === group.id ? { ...item, maxMenuDisplay: nextMaxMenuDisplay } : item,
+        );
+        setHeaderGroups(optimisticGroups);
+
+        try {
+            await updateMenuGroup(group.id, { maxMenuDisplay: nextMaxMenuDisplay });
+            toast("Max menu display updated");
+            await loadMenus();
+        } catch (err) {
+            toast(err instanceof Error ? err.message : "Failed to update max menu display", false);
             await loadMenus();
         }
     };
@@ -352,9 +394,31 @@ export function MenuManager() {
                                 {group.footerColumns} {group.footerColumns === 1 ? "column" : "columns"}
                             </p>
                         )}
+                        {group.position === "header" && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                                Max display: {group.maxMenuDisplay ?? "All menu items"}
+                            </p>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                        {group.position === "header" && (
+                            <>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-xs text-muted-foreground">Max menu display:</span>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={12}
+                                        value={group.maxMenuDisplay ?? ""}
+                                        onChange={(e) => handleMaxMenuDisplayChange(group, e.target.value)}
+                                        className="h-7 w-14 rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                                        title="Maximum header menu items displayed before More"
+                                    />
+                                </div>
+                                <div className="w-px h-5 bg-border" />
+                            </>
+                        )}
                         {group.position === "footer" && (
                             <>
                                 <div className="flex items-center gap-1.5">
@@ -378,7 +442,10 @@ export function MenuManager() {
                             variant="ghost"
                             onClick={() => handleAddLink(group.id)}
                             className="h-7 w-7 p-0"
-                            title="Add menu item"
+                            disabled={group.position === "header" && group.links.length >= 12}
+                            title={group.position === "header" && group.links.length >= 12
+                                ? "Header menu limit reached"
+                                : "Add menu item"}
                         >
                             <Plus className="h-3.5 w-3.5" />
                         </Button>
@@ -484,7 +551,7 @@ export function MenuManager() {
                 <span className="text-blue-500 mt-0.5 shrink-0">i</span>
                 <span>
                     Create menu groups and add multiple menu items within each group. Only one menu group per position
-                    (header/footer) can be active at a time.
+                    (header/footer) can be active at a time. Header groups can contain a maximum of 12 menu items.
                 </span>
             </div>
 

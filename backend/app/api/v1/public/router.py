@@ -454,6 +454,13 @@ def _normalize_public_menu_groups(raw_groups: list[dict] | None) -> list[dict]:
         if position not in ("header", "footer"):
             continue
 
+        raw_max_menu_display = group.get("max_menu_display")
+        max_menu_display = (
+            max(1, min(12, int(raw_max_menu_display)))
+            if raw_max_menu_display is not None
+            else None
+        )
+
         raw_links = group.get("links") or []
         links: list[dict] = []
         for idx, link in enumerate(raw_links):
@@ -485,6 +492,7 @@ def _normalize_public_menu_groups(raw_groups: list[dict] | None) -> list[dict]:
                 "is_active": bool(group.get("is_active", False)),
                 "sort_order": int(group.get("sort_order") or 1),
                 "footer_columns": int(group.get("footer_columns") or 1),
+                "max_menu_display": max_menu_display,
                 "links": links,
             }
         )
@@ -501,6 +509,7 @@ def _to_menu_group_out(group: dict) -> MenuGroupOut:
         is_active=group["is_active"],
         sort_order=group["sort_order"],
         footer_columns=max(1, int(group.get("footer_columns") or 1)),
+        max_menu_display=group.get("max_menu_display"),
         links=[MenuLinkOut(**link) for link in group["links"]],
     )
 

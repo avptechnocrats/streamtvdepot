@@ -18,7 +18,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.demo_provision import provision_demo_content
-from app.core.security import create_email_verification_token, decode_token, hash_password
+from app.core.security import (
+    create_access_token,
+    create_email_verification_token,
+    create_refresh_token,
+    decode_token,
+    hash_password,
+)
 from app.core.subscription import ensure_trial_subscription
 from app.core.system_mail import get_platform_notification_email, send_system_email
 from app.models.client.user import AdminRole, ClientAdminUser, ClientPermission, ClientRole
@@ -73,6 +79,7 @@ async def saas_register(payload: SaasRegisterRequest, db: AsyncSession = Depends
         name=payload.platform_name,
         slug=payload.platform_slug,
         domain=payload.domain,
+        site_config={"onboarding_completed": False},
         email=payload.email,
         phone=payload.phone,
         country=payload.country,
@@ -224,25 +231,42 @@ async def verify_client_signup_email(token: str, db: AsyncSession = Depends(get_
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
 
+    client = (await db.execute(
+        select(Client).where(Client.id == user.client_id)
+    )).scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found.")
+
     if user.is_email_verified:
         trial_assigned = await ensure_trial_subscription(user.client_id, db)
-        if not trial_assigned:
-            return VerifyEmailResponse(
-                verified=True,
-                message="Email already verified. No active trial plan is configured by superadmin.",
-            )
-        return VerifyEmailResponse(verified=True, message="Email already verified. You can log in.")
-
-    user.is_email_verified = True
-    trial_assigned = await ensure_trial_subscription(user.client_id, db)
-    await db.flush()
-
-    if not trial_assigned:
-        await db.commit()
-        return VerifyEmailResponse(
-            verified=True,
-            message="Email verified successfully, but no active trial plan is configured. Contact support.",
+        message = (
+            "Email already verified. No active trial plan is configured by superadmin."
+            if not trial_assigned
+            else "Email already verified. Continue setting up your platform."
+        )
+    else:
+        user.is_email_verified = True
+        trial_assigned = await ensure_trial_subscription(user.client_id, db)
+        await db.flush()
+        message = (
+            "Email verified successfully, but no active trial plan is configured. Contact support."
+            if not trial_assigned
+            else "Email verified successfully. Continue setting up your platform."
         )
 
     await db.commit()
-    return VerifyEmailResponse(verified=True, message="Email verified successfully. You can now log in.")
+    token_data = {
+        "role": "client_admin",
+        "client_id": str(user.client_id),
+        "client_slug": client.slug,
+        "full_name": user.full_name or "",
+    }
+    return VerifyEmailResponse(
+        verified=True,
+        message=message,
+        access_token=create_access_token(str(user.id), token_data),
+        refresh_token=create_refresh_token(str(user.id), token_data),
+        role="client_admin",
+        email=user.email,
+        full_name=user.full_name,
+    )
