@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-import { verifySignupEmail } from "@/lib/api";
+import { setTokens, verifySignupEmail } from "@/lib/api";
+import { persistAdminSession } from "@/lib/admin-auth";
 import AdminLogo from "@/components/AdminLogo";
 
 export default function VerifyEmailPage() {
+    const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [verified, setVerified] = useState(false);
     const [message, setMessage] = useState("Verifying your email...");
@@ -34,6 +37,12 @@ export default function VerifyEmailPage() {
                 if (!active) return;
                 setVerified(Boolean(response.verified));
                 setMessage(response.message || "Email verified successfully.");
+                if (response.verified && response.access_token && response.refresh_token && response.email) {
+                    setTokens(response.access_token, response.refresh_token);
+                    persistAdminSession(response.email, "clientAdmin", response.full_name ?? undefined);
+                    router.replace("/setup");
+                    return;
+                }
             } catch (err) {
                 if (!active) return;
                 const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
@@ -48,7 +57,7 @@ export default function VerifyEmailPage() {
         return () => {
             active = false;
         };
-    }, [token]);
+    }, [router, token]);
 
     return (
         <div className="min-h-screen flex items-center justify-center px-6 py-16" style={{ background: "#08090f" }}>

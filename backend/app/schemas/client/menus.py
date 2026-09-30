@@ -44,11 +44,13 @@ class MenuGroupCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     position: MenuPosition
     footer_columns: int | None = Field(None, ge=1, le=12)
+    max_menu_display: int | None = Field(None, ge=1, le=12)
 
 
 class MenuGroupUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=120)
     footer_columns: int | None = Field(None, ge=1, le=12)
+    max_menu_display: int | None = Field(None, ge=1, le=12)
 
 
 class MenuGroupOut(BaseModel):
@@ -58,6 +60,7 @@ class MenuGroupOut(BaseModel):
     is_active: bool
     sort_order: int
     footer_columns: int = 1
+    max_menu_display: int | None = Field(None, ge=1, le=12)
     links: list[MenuLinkOut] = Field(default_factory=list)
 
 

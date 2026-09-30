@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AlertTriangle, Clock } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
-import { fetchBillingLicensing, type CurrentSaasPlan } from "@/lib/api";
+import { fetchBillingLicensing, fetchSiteSettings, type CurrentSaasPlan } from "@/lib/api";
 import AdminSidebar from "./AdminSidebar";
 import ClientAdminSidebar from "./ClientAdminSidebar";
 import AdminTopbar from "./AdminTopbar";
@@ -32,8 +32,10 @@ function resolveBillingNotice(plan: CurrentSaasPlan | null): BillingNoticeKind {
 export default function AdminAuthGuard({ children, requireSuperAdmin = false }: AdminAuthGuardProps) {
     const { isAuthenticated, isLoading, role } = useAdminAuth();
     const router = useRouter();
+    const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [billingNotice, setBillingNotice] = useState<{ kind: BillingNoticeKind; plan: CurrentSaasPlan | null }>({ kind: null, plan: null });
+    const [onboarding, setOnboarding] = useState<{ checked: boolean; complete: boolean }>({ checked: false, complete: true });
 
     useEffect(() => {
         if (isLoading) return;
@@ -45,6 +47,30 @@ export default function AdminAuthGuard({ children, requireSuperAdmin = false }: 
             router.replace("/admin");
         }
     }, [isAuthenticated, isLoading, router, requireSuperAdmin, role]);
+
+    useEffect(() => {
+        if (!isAuthenticated || role !== "clientAdmin") {
+            setOnboarding({ checked: true, complete: true });
+            return;
+        }
+
+        let cancelled = false;
+        setOnboarding((state) => ({ ...state, checked: false }));
+        void fetchSiteSettings()
+            .then((settings) => {
+                if (!cancelled) setOnboarding({ checked: true, complete: settings.onboarding_completed });
+            })
+            .catch(() => {
+                if (!cancelled) setOnboarding({ checked: true, complete: true });
+            });
+        return () => { cancelled = true; };
+    }, [isAuthenticated, role]);
+
+    useEffect(() => {
+        if (isAuthenticated && role === "clientAdmin" && onboarding.checked && !onboarding.complete && pathname !== "/setup") {
+            router.replace("/setup");
+        }
+    }, [isAuthenticated, onboarding, pathname, role, router]);
 
     useEffect(() => {
         if (!isAuthenticated || role !== "clientAdmin") {
@@ -82,6 +108,8 @@ export default function AdminAuthGuard({ children, requireSuperAdmin = false }: 
 
     if (!isAuthenticated) return null;
     if (requireSuperAdmin && role !== "superadmin") return null;
+    if (role === "clientAdmin" && !onboarding.checked) return null;
+    if (role === "clientAdmin" && !onboarding.complete) return null;
 
     const Sidebar = role === "clientAdmin" ? ClientAdminSidebar : AdminSidebar;
     const { kind: noticeKind, plan: noticePlan } = billingNotice;

@@ -61,6 +61,12 @@ class SaasRegisterResponse(BaseModel):
 class VerifyEmailResponse(BaseModel):
     verified: bool
     message: str
+    access_token: str | None = None
+    refresh_token: str | None = None
+    token_type: str = "bearer"
+    role: str | None = None
+    email: EmailStr | None = None
+    full_name: str | None = None
 
 
 class VerifyEmailRequest(BaseModel):

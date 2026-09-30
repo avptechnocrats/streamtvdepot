@@ -124,6 +124,7 @@ class SiteSettingsIn(BaseModel):
     general: Optional[GeneralSettingsIn] = None
     email: Optional[EmailSettingsIn] = None
     social_auth: Optional[SocialAuthSettingsIn] = None
+    onboarding_completed: Optional[bool] = None
 
 
 class SiteSettingsOut(BaseModel):
@@ -131,6 +132,7 @@ class SiteSettingsOut(BaseModel):
     email: EmailSettingsOut
     social_auth: SocialAuthSettingsOut
     client_name: Optional[str] = None
+    onboarding_completed: bool = True
 
 
 # ─── SMTP Test ────────────────────────────────────────────────────────────────

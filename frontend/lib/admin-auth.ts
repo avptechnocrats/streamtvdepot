@@ -29,6 +29,13 @@ export function createSession(email: string, role: AdminRole, fullName?: string)
     return { email, fullName, role, loginAt: now, expiresAt: now + SESSION_DURATION_MS };
 }
 
+export function persistAdminSession(email: string, role: AdminRole, fullName?: string): AdminSession {
+    const session = createSession(email, role, fullName);
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
+    localStorage.setItem("sv_role", role === "superadmin" ? "superadmin" : "clientAdmin");
+    return session;
+}
+
 export function isSessionValid(session: AdminSession): boolean {
     return Date.now() < session.expiresAt;
 }

@@ -54,6 +54,7 @@ export function MenuForm({ open, onClose, onSubmit, formType, position = "header
     // Group form fields
     const [groupName, setGroupName] = useState("");
     const [footerColumns, setFooterColumns] = useState("4");
+    const [maxMenuDisplay, setMaxMenuDisplay] = useState("");
 
     // Link form fields
     const [label, setLabel] = useState("");
@@ -73,9 +74,11 @@ export function MenuForm({ open, onClose, onSubmit, formType, position = "header
             if (initialData) {
                 setGroupName(initialData.name);
                 setFooterColumns(String(initialData.footerColumns ?? (position === "footer" ? 4 : 1)));
+                setMaxMenuDisplay(initialData.maxMenuDisplay != null ? String(initialData.maxMenuDisplay) : "");
             } else {
                 setGroupName("");
                 setFooterColumns(position === "footer" ? "4" : "1");
+                setMaxMenuDisplay("");
             }
         } else {
             if (initialData) {
@@ -119,10 +122,22 @@ export function MenuForm({ open, onClose, onSubmit, formType, position = "header
                     setError("Menu group name is required");
                     return;
                 }
+                const parsedMaxMenuDisplay = Number(maxMenuDisplay);
+                if (
+                    position === "header"
+                    && maxMenuDisplay.trim()
+                    && (!Number.isInteger(parsedMaxMenuDisplay) || parsedMaxMenuDisplay < 1 || parsedMaxMenuDisplay > 12)
+                ) {
+                    setError("Max Menu Display must be a whole number from 1 to 12.");
+                    return;
+                }
                 await onSubmit({
                     name: groupName.trim(),
                     position,
                     footerColumns: position === "footer" ? Number(footerColumns) : 1,
+                    maxMenuDisplay: position === "header" && maxMenuDisplay.trim()
+                        ? parsedMaxMenuDisplay
+                        : undefined,
                 } as MenuGroupPayload);
             } else {
                 if (itemType === "name" && !label.trim()) {
@@ -158,6 +173,7 @@ export function MenuForm({ open, onClose, onSubmit, formType, position = "header
     const handleClose = () => {
         setGroupName("");
         setFooterColumns(position === "footer" ? "4" : "1");
+        setMaxMenuDisplay("");
         setLabel("");
         setCustomUrl("");
         setSelectedLink(CUSTOM_LINK_OPTION);
@@ -221,6 +237,25 @@ export function MenuForm({ open, onClose, onSubmit, formType, position = "header
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                    </div>
+                                )}
+
+                                {position === "header" && (
+                                    <div className="col-span-2 space-y-2">
+                                        <Label htmlFor="max-menu-display">Max Menu Display</Label>
+                                        <Input
+                                            id="max-menu-display"
+                                            type="number"
+                                            min={1}
+                                            max={12}
+                                            value={maxMenuDisplay}
+                                            onChange={(e) => setMaxMenuDisplay(e.target.value)}
+                                            disabled={loading}
+                                            placeholder="Leave blank to show all menu items"
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            Optional. Enter a whole number from 1 to 12 to place remaining items in More.
+                                        </p>
                                     </div>
                                 )}
                             </>

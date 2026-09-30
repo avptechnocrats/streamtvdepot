@@ -54,6 +54,7 @@ export interface SiteSettingsOut {
     email: EmailSettingsOut;
     social_auth: SocialAuthSettingsOut;
     client_name: string | null;
+    onboarding_completed: boolean;
 }
 
 export interface GeneralSettingsIn {
@@ -98,6 +99,7 @@ export interface SiteSettingsIn {
     general?: GeneralSettingsIn;
     email?: EmailSettingsIn;
     social_auth?: SocialAuthSettingsIn;
+    onboarding_completed?: boolean;
 }
 
 export interface LogoPresignRequest {

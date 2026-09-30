@@ -188,15 +188,10 @@ async def configure_s3_cors(db_session: AsyncSession | None = None) -> None:
         return
 
     # ── Shared: dev origins (appear in both PUT and GET rules) ───────────────
-    dev_origins: set[str] = {
-        "http://localhost",
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:8001",
-        "http://127.0.0.1",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "http://127.0.0.1:8001",
+    dev_origins = {
+        origin
+        for origin in settings.ALLOWED_ORIGINS
+        if urlparse(origin).hostname in {"localhost", "127.0.0.1"}
     }
 
     # ── streamtvdepot origins: admin panels — allowed for PUT and GET ───────────
