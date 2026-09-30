@@ -16,7 +16,7 @@ const Footer = () => {
   ];
 
   return (
-    <footer className="px-6 lg:px-12 py-12 border-t border-border/50">
+    <footer className="px-6 lg:px-12 pt-12 pb-6 border-t border-border/50">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
         <div className="space-y-3">
           <h4 className="text-sm font-display font-600 text-foreground">Company</h4>

@@ -79,13 +79,20 @@ export default function ThemeRenderer() {
                     setRows(prev => page === 1 ? data.rows : [...prev, ...data.rows]);
                     setHasMore(data.has_more);
                 }
+            } catch {
+                if (!cancelled) {
+                    setRows([]);
+                    setHasMore(false);
+                }
             } finally {
                 if (!cancelled) setLoading(false);
             }
         }
+
+        if (page > 1 && !hasMore) return;
         loadPage();
         return () => { cancelled = true; };
-    }, [page]);
+    }, [page, hasMore]);
 
     // Infinite scroll: IntersectionObserver
     const sentinelRef = useRef<HTMLDivElement | null>(null);

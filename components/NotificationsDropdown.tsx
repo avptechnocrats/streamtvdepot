@@ -173,13 +173,9 @@ export default function NotificationsDropdown({ scrolled }: NotificationsDropdow
             : "text-white/80 hover:text-white hover:bg-white/10"
     }`;
 
-    // If not logged in, render a non-functional bell (or hide it)
+    // Notifications belong to authenticated user accounts only.
     if (!user) {
-        return (
-            <button className={btnCls} aria-label="Notifications">
-                <Bell size={20} />
-            </button>
-        );
+        return null;
     }
 
     return (
