@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { getTenantNameFromHost, toDisplayName } from "@/lib/tenant-display";
 
-export function useTenantName(fallback = "your service"): string {
+export function useTenantName(fallback = "Your OTT"): string {
     const { site_title } = useSiteSettings();
     const [hostTenantName, setHostTenantName] = useState<string | null>(null);
 
@@ -12,6 +12,12 @@ export function useTenantName(fallback = "your service"): string {
         const fromHost = getTenantNameFromHost(window.location.hostname);
         if (fromHost) {
             setHostTenantName(fromHost);
+            return;
+        }
+
+        const fromBrand = process.env.NEXT_PUBLIC_CLIENT_BRAND?.trim();
+        if (fromBrand) {
+            setHostTenantName(fromBrand);
             return;
         }
 

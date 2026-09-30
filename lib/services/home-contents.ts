@@ -1,3 +1,4 @@
+import axios from "axios";
 import publicApiClient from "./public-client";
 
 interface HomeVideoItemThumbnails {
@@ -38,6 +39,15 @@ interface FetchHomeContentRowsParams {
     contentType?: string;
 }
 
+function isTenantlessLocalRequest(): boolean {
+    if (typeof window === "undefined") return false;
+
+    const hostname = window.location.hostname.toLowerCase();
+    const hasConfiguredClient = Boolean(process.env.NEXT_PUBLIC_CLIENT_SLUG);
+
+    return ["localhost", "127.0.0.1", "0.0.0.0"].includes(hostname) && !hasConfiguredClient;
+}
+
 export async function fetchHomeVideoRows({
     page = 1,
     pageSize = 3,
@@ -45,17 +55,39 @@ export async function fetchHomeVideoRows({
     categoryId,
     contentType = "video",
 }: FetchHomeContentRowsParams = {}): Promise<HomeContentsResponse> {
-    const { data } = await publicApiClient.get<HomeContentsResponse>("/home-contents", {
-        params: {
-            content_type: contentType,
+    if (isTenantlessLocalRequest()) {
+        return {
+            rows: [],
             page,
             page_size: pageSize,
-            items_per_row: itemsPerRow,
-            ...(categoryId ? { category_id: categoryId } : {}),
-        },
-    });
+            has_more: false,
+        };
+    }
 
-    return data;
+    try {
+        const { data } = await publicApiClient.get<HomeContentsResponse>("/home-contents", {
+            params: {
+                content_type: contentType,
+                page,
+                page_size: pageSize,
+                items_per_row: itemsPerRow,
+                ...(categoryId ? { category_id: categoryId } : {}),
+            },
+        });
+
+        return data;
+    } catch (error) {
+        if (axios.isAxiosError(error) && [404, 500].includes(error.response?.status ?? 0)) {
+            return {
+                rows: [],
+                page,
+                page_size: pageSize,
+                has_more: false,
+            };
+        }
+
+        throw error;
+    }
 }
 
 // Infinite scroll: UI should call fetchHomeVideoRows({ page, ... }) as needed.

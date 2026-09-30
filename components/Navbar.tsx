@@ -40,7 +40,13 @@ const Navbar = () => {
     queryFn: fetchPublicActiveMenus,
     staleTime: 60_000,
   });
-  const headerLinks = menus?.header?.links?.length ? menus.header.links : FALLBACK_HEADER_LINKS;
+  const activeHeaderMenu = menus?.header?.links?.length ? menus.header : null;
+  const headerLinks = activeHeaderMenu?.links ?? FALLBACK_HEADER_LINKS;
+  const maxMenuDisplay = typeof activeHeaderMenu?.max_menu_display === "number"
+    ? Math.min(12, Math.max(1, activeHeaderMenu.max_menu_display))
+    : headerLinks.length;
+  const visibleHeaderLinks = headerLinks.slice(0, maxMenuDisplay);
+  const overflowHeaderLinks = headerLinks.slice(maxMenuDisplay);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -67,7 +73,7 @@ const Navbar = () => {
         <div className="flex items-center gap-8">
           <SiteLogo />
           <div className="hidden md:flex items-center gap-1">
-            {headerLinks.map((item) => {
+            {visibleHeaderLinks.map((item) => {
               const active = isActive(item.url);
               const cls = `px-4 py-2 text-sm font-medium rounded-md transition-colors ${active
                 ? "text-primary bg-primary/10"
@@ -85,6 +91,35 @@ const Navbar = () => {
                 </a>
               );
             })}
+            {overflowHeaderLinks.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={`flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${overflowHeaderLinks.some((item) => isActive(item.url))
+                      ? "text-primary bg-primary/15 hover:bg-primary/20"
+                      : scrolled
+                        ? "text-muted-foreground hover:text-foreground hover:bg-surface-hover"
+                        : "text-white/90 hover:text-white hover:bg-white/10"
+                      } focus:outline-none focus-visible:ring-1 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background`}
+                  >
+                    More <ChevronDown size={14} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-44">
+                  {overflowHeaderLinks.map((item) => (
+                    <DropdownMenuItem key={item.id} asChild>
+                      {item.url.startsWith("/") ? (
+                        <Link href={item.url}>{item.label}</Link>
+                      ) : (
+                        <a href={item.url} target={item.target} rel={item.target === "_blank" ? "noreferrer" : undefined}>
+                          {item.label}
+                        </a>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">

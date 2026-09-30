@@ -18,6 +18,7 @@ export interface PublicMenuGroup {
     position: MenuPosition;
     is_active: boolean;
     sort_order: number;
+    max_menu_display?: number | null;
     links: PublicMenuLink[];
 }
 
