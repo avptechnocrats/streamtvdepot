@@ -16,6 +16,7 @@ from .mail_logs import router as mail_logs_router
 from .jobs import router as jobs_router
 from .demo_content import router as demo_content_router
 from .demo_categories import router as demo_categories_router
+from .demo_assets import router as demo_assets_router
 
 router = APIRouter()
 
@@ -35,3 +36,4 @@ router.include_router(mail_logs_router, prefix="/mail-logs", tags=["SuperAdmin �
 router.include_router(jobs_router, prefix="/jobs", tags=["SuperAdmin – Job Scheduler"])
 router.include_router(demo_content_router,    prefix="/demo-content",    tags=["SuperAdmin – Demo Content"])
 router.include_router(demo_categories_router, prefix="/demo-categories", tags=["SuperAdmin – Demo Categories"])
+router.include_router(demo_assets_router,     prefix="/demo-assets",     tags=["SuperAdmin – Demo Assets"])

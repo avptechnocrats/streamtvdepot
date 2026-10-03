@@ -257,8 +257,9 @@ async def provision_client_demo_content(
     Clone all demo categories and content into an existing client's tables.
 
     By default (force=False) this is a no-op if the client already has
-    content categories — preventing accidental duplicates.
-    Pass ?force=true to reprovision regardless.
+    content categories. Pass ?force=true to reconcile the current demo
+    categories and content: matching records are updated and missing records
+    are created.
     """
     from sqlalchemy import select as sa_select
     from app.models.client.content import Category
@@ -279,7 +280,7 @@ async def provision_client_demo_content(
             )
 
     await provision_demo_content(client_id, db)
-    return {"message": f"Demo content provisioned for client '{client.name}'."}
+    return {"message": f"Demo content reconciled for client '{client.name}'."}
 
 
 # ─── Client Subscription Management ──────────────────────────────────────────

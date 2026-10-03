@@ -18,10 +18,46 @@ from sqlalchemy import select
 from app.core.database import AsyncSessionLocal
 from app.core.mediaconvert import get_job_status, hls_manifest_s3_key, hls_manifest_url, invalidate_cloudfront_hls
 from app.models.client.content import TranscodeJob, Video
+from app.models.superadmin.demo_content import DemoContent
 
 logger = logging.getLogger(__name__)
 
 POLL_INTERVAL = 30  # seconds between sweeps
+_DEMO_TRANSCODE_NAMESPACE = "platform-demo"
+
+
+async def _poll_demo_content(db, loop: asyncio.AbstractEventLoop) -> None:
+    result = await db.execute(
+        select(DemoContent).where(
+            DemoContent.transcode_status.in_(["pending", "processing"]),
+            DemoContent.transcode_job_id.isnot(None),
+        )
+    )
+    for item in result.scalars().all():
+        try:
+            info = await loop.run_in_executor(None, lambda job_id=item.transcode_job_id: get_job_status(job_id))
+            mc_status: str = info["status"]
+            progress: int = info.get("progress", 0)
+            error_message: str | None = info.get("error_message")
+
+            if mc_status == "COMPLETE":
+                item.transcode_status = "complete"
+                item.transcode_progress = 100
+                item.hls_manifest_key = hls_manifest_s3_key(_DEMO_TRANSCODE_NAMESPACE, str(item.id))
+                item.hls_url = hls_manifest_url(_DEMO_TRANSCODE_NAMESPACE, str(item.id))
+                await loop.run_in_executor(
+                    None,
+                    lambda demo_id=str(item.id): invalidate_cloudfront_hls(_DEMO_TRANSCODE_NAMESPACE, demo_id),
+                )
+            elif mc_status in {"ERROR", "CANCELED"}:
+                item.transcode_status = "failed"
+                item.transcode_job_id = f"error:{error_message or mc_status}"
+            else:
+                item.transcode_status = "processing"
+                item.transcode_progress = progress
+            await db.commit()
+        except Exception:
+            logger.exception("Poller: error syncing demo transcode %s", item.id)
 
 
 async def _poll_once() -> None:
@@ -35,10 +71,8 @@ async def _poll_once() -> None:
         )
         active_jobs = result.scalars().all()
 
-        if not active_jobs:
-            return
-
-        logger.debug("Polling %d active MediaConvert job(s)", len(active_jobs))
+        if active_jobs:
+            logger.debug("Polling %d active MediaConvert job(s)", len(active_jobs))
         loop = asyncio.get_event_loop()
 
         for job_row in active_jobs:
@@ -130,6 +164,8 @@ async def _poll_once() -> None:
                     "Poller: error syncing job %s: %s",
                     job_row.mediaconvert_job_id, exc,
                 )
+
+        await _poll_demo_content(db, loop)
 
 
 async def run_poller() -> None:

@@ -28,19 +28,15 @@ from app.models.superadmin.demo_content import DemoCategory, DemoContent, demo_c
 DEMO_CATEGORIES = [
     {"name": "Latest Movies",       "slug": "latest-movies",       "content_type": "video",       "sort_order": 1,
      "description": "New releases and blockbuster films."},
-    {"name": "Web Series",          "slug": "web-series",          "content_type": "series",      "sort_order": 2,
-     "description": "Binge-worthy episodic original series."},
-    {"name": "Music Videos",        "slug": "music-videos",        "content_type": "video",       "sort_order": 3,
+    {"name": "Music Videos",        "slug": "music-videos",        "content_type": "video",       "sort_order": 2,
      "description": "Official music videos and lyric videos."},
-    {"name": "Devotional",          "slug": "devotional",          "content_type": "video",       "sort_order": 4,
+    {"name": "Devotional",          "slug": "devotional",          "content_type": "video",       "sort_order": 3,
      "description": "Bhajans, kirtans, and spiritual content."},
-    {"name": "Comedy",              "slug": "comedy",              "content_type": "video",       "sort_order": 5,
+    {"name": "Comedy",              "slug": "comedy",              "content_type": "video",       "sort_order": 4,
      "description": "Stand-up, sketches, and funny clips."},
-    {"name": "News & Live TV",      "slug": "news-live-tv",        "content_type": "live_stream", "sort_order": 6,
-     "description": "24×7 live news and regional channels."},
-    {"name": "Kids Corner",         "slug": "kids-corner",         "content_type": "video",       "sort_order": 7,
+    {"name": "Kids Corner",         "slug": "kids-corner",         "content_type": "video",       "sort_order": 5,
      "description": "Safe, fun content for children."},
-    {"name": "Music",               "slug": "music",               "content_type": "audio",       "sort_order": 8,
+    {"name": "Music",               "slug": "music",               "content_type": "audio",       "sort_order": 6,
      "description": "Full songs, albums, and playlists."},
 ]
 
@@ -205,73 +201,6 @@ DEMO_CONTENT = [
         "album": "Demo Audio Collection",
         "is_featured": False,
         "categories": ["music"],
-    },
-    # ── Series ────────────────────────────────────────────────────────────────
-    {
-        "title": "Blender Open Movies — Season 1",
-        "content_type": "series",
-        "stream_url": None,
-        "thumbnail_url": f"{_IMG}/BigBuckBunny.jpg",
-        "short_description": "A showcase of Blender Foundation's award-winning open movies.",
-        "description": (
-            "A curated anthology series presenting the Blender Foundation's freely licensed "
-            "short films — spanning animation, sci-fi, and fantasy. Each episode is a complete "
-            "short film in its own right."
-        ),
-        "duration_seconds": None,
-        "genre": "Animation",
-        "language": "English",
-        "is_featured": True,
-        "extra_data": {
-            "episodes": [
-                {
-                    "title": "Big Buck Bunny",
-                    "season_number": 1,
-                    "episode_number": 1,
-                    "stream_url": f"{_GCS}/BigBuckBunny.mp4",
-                    "thumbnail_url": f"{_IMG}/BigBuckBunny.jpg",
-                    "duration_seconds": 596,
-                    "description": "A gentle giant rabbit vs three tiny bullies. Comedy at its finest.",
-                },
-                {
-                    "title": "Elephants Dream",
-                    "season_number": 1,
-                    "episode_number": 2,
-                    "stream_url": f"{_GCS}/ElephantsDream.mp4",
-                    "thumbnail_url": f"{_IMG}/ElephantsDream.jpg",
-                    "duration_seconds": 653,
-                    "description": "Two characters traverse a surreal mechanical world in the first-ever open Blender film.",
-                },
-                {
-                    "title": "For Bigger Blazes",
-                    "season_number": 1,
-                    "episode_number": 3,
-                    "stream_url": f"{_GCS}/ForBiggerBlazes.mp4",
-                    "thumbnail_url": f"{_IMG}/ForBiggerBlazes.jpg",
-                    "duration_seconds": 15,
-                    "description": "A high-energy action promo showcasing blazing speed.",
-                },
-            ]
-        },
-        "categories": ["web-series"],
-    },
-    # ── Live Stream ───────────────────────────────────────────────────────────
-    {
-        "title": "Demo Live Channel",
-        "content_type": "live_stream",
-        "stream_url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-        "thumbnail_url": f"{_IMG}/BigBuckBunny.jpg",
-        "short_description": "A 24×7 demo HLS live stream for testing.",
-        "description": (
-            "A publicly accessible HLS test stream hosted by Mux. Use this to verify live "
-            "TV playback, channel switchers, and EPG layouts. Replace with your own channel URL when live."
-        ),
-        "duration_seconds": None,
-        "genre": "Live TV",
-        "language": "English",
-        "is_featured": True,
-        "extra_data": {"source": "external"},
-        "categories": ["news-live-tv"],
     },
 ]
 

@@ -66,6 +66,11 @@ export const ENDPOINTS = {
         jobRun: (jobId: string) => `/superadmin/jobs/${jobId}/run`,
         demoContent: "/superadmin/demo-content",
         demoContentItem: (id: string) => `/superadmin/demo-content/${id}`,
+        demoContentTranscode: (id: string) => `/superadmin/demo-content/${id}/transcode`,
+        demoAssets: {
+            presign: "/superadmin/demo-assets/presign",
+            confirm: "/superadmin/demo-assets/confirm",
+        },
         demoCategories: "/superadmin/demo-categories",
         demoCategoryItem: (id: string) => `/superadmin/demo-categories/${id}`,
     },
