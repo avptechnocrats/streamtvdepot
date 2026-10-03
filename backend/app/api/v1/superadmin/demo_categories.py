@@ -11,6 +11,12 @@ from app.models.superadmin.demo_content import DemoCategory
 from app.schemas.superadmin.demo_category import DemoCategoryCreate, DemoCategoryOut, DemoCategoryUpdate
 
 router = APIRouter()
+_THUMBNAIL_PREFIX = "platform/demo-assets/image/"
+
+
+def _validate_thumbnail_key(s3_key: str | None) -> None:
+    if s3_key and not s3_key.startswith(_THUMBNAIL_PREFIX):
+        raise HTTPException(status_code=422, detail="Category thumbnails must use an image asset.")
 
 
 @router.get("", response_model=list[DemoCategoryOut])
@@ -35,6 +41,7 @@ async def create_demo_category(
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Category slug already exists")
+    _validate_thumbnail_key(payload.thumbnail_s3_key)
     cat = DemoCategory(**payload.model_dump())
     db.add(cat)
     await db.flush()
@@ -53,7 +60,15 @@ async def update_demo_category(
     cat = result.scalar_one_or_none()
     if not cat:
         raise HTTPException(status_code=404, detail="Demo category not found")
-    for field, value in payload.model_dump(exclude_none=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    if "slug" in update_data and update_data["slug"] != cat.slug:
+        existing = await db.execute(
+            select(DemoCategory).where(DemoCategory.slug == update_data["slug"])
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=409, detail="Category slug already exists")
+    _validate_thumbnail_key(update_data.get("thumbnail_s3_key"))
+    for field, value in update_data.items():
         setattr(cat, field, value)
     await db.flush()
     await db.refresh(cat)

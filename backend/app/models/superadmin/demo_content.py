@@ -27,6 +27,8 @@ class DemoCategory(Base, UUIDMixin, TimestampMixin):
     # video | audio | series | live_stream | general
     content_type: Mapped[str | None] = mapped_column(String(20), index=True)
     thumbnail_url: Mapped[str | None] = mapped_column(Text)
+    thumbnail_s3_key: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False, index=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     items: Mapped[list["DemoContent"]] = relationship(
@@ -45,7 +47,10 @@ class DemoContent(Base, UUIDMixin, TimestampMixin):
     # video | audio | series | live_stream
     content_type: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     stream_url: Mapped[str | None] = mapped_column(Text)         # null for series (episodes carry URLs)
+    # Platform-owned immutable S3 keys. These are never owned by a tenant.
+    stream_s3_key: Mapped[str | None] = mapped_column(Text)
     thumbnail_url: Mapped[str | None] = mapped_column(Text)
+    thumbnail_s3_key: Mapped[str | None] = mapped_column(Text)
     description: Mapped[str | None] = mapped_column(Text)
     short_description: Mapped[str | None] = mapped_column(Text)
     duration_seconds: Mapped[int | None] = mapped_column(Integer)
@@ -55,6 +60,12 @@ class DemoContent(Base, UUIDMixin, TimestampMixin):
     album: Mapped[str | None] = mapped_column(String(255))       # audio
     age_rating: Mapped[str | None] = mapped_column(String(20))   # video
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False, index=True)
+    transcode_status: Mapped[str | None] = mapped_column(String(20), index=True)
+    transcode_job_id: Mapped[str | None] = mapped_column(String(255))
+    transcode_progress: Mapped[int | None] = mapped_column(Integer)
+    hls_manifest_key: Mapped[str | None] = mapped_column(Text)
+    hls_url: Mapped[str | None] = mapped_column(Text)
     # type-specific extras; for series: {"episodes": [{title, season, episode, stream_url, thumbnail_url, duration_seconds}]}
     # for live_stream: {"is_live": false, "source": "external"}
     extra_data: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)

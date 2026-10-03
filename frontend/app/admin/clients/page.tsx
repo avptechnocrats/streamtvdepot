@@ -821,7 +821,7 @@ export default function ClientsPage() {
                                 {reseedAlreadyExists ? (
                                     <>
                                         <span className="font-medium text-foreground">{reseedTarget.name}</span> already has content categories.
-                                        Re-seeding may create duplicate entries.
+                                        Re-seeding updates matching demo content and adds any missing records.
                                     </>
                                 ) : (
                                     <>

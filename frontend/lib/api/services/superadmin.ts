@@ -637,6 +637,8 @@ export interface DemoCategoryOut {
     description: string | null;
     content_type: string | null;
     thumbnail_url: string | null;
+    thumbnail_s3_key: string | null;
+    status: "draft" | "published";
     sort_order: number;
     created_at: string;
 }
@@ -647,37 +649,34 @@ export interface DemoCategoryCreate {
     description?: string | null;
     content_type?: string | null;
     thumbnail_url?: string | null;
+    thumbnail_s3_key?: string | null;
+    status?: "draft" | "published";
     sort_order?: number;
 }
 
 export interface DemoCategoryUpdate {
     name?: string;
+    slug?: string;
     description?: string | null;
     content_type?: string | null;
     thumbnail_url?: string | null;
+    thumbnail_s3_key?: string | null;
+    status?: "draft" | "published";
     sort_order?: number;
 }
 
 // ─── Demo Content types ───────────────────────────────────────────────────────
 
-export type DemoContentType = "video" | "audio" | "series" | "live_stream";
-
-export interface DemoEpisode {
-    title: string;
-    season_number: number;
-    episode_number: number;
-    stream_url: string;
-    thumbnail_url?: string | null;
-    duration_seconds?: number | null;
-    description?: string | null;
-}
+export type DemoContentType = "audio" | "video";
 
 export interface DemoContentItem {
     id: string;
     title: string;
     content_type: DemoContentType;
     stream_url: string | null;
+    stream_s3_key: string | null;
     thumbnail_url: string | null;
+    thumbnail_s3_key: string | null;
     description: string | null;
     short_description: string | null;
     duration_seconds: number | null;
@@ -687,16 +686,30 @@ export interface DemoContentItem {
     album: string | null;
     age_rating: string | null;
     is_featured: boolean;
+    status: "draft" | "published";
+    transcode_status: "pending" | "processing" | "complete" | "failed" | null;
+    transcode_progress: number | null;
+    hls_url: string | null;
     extra_data: Record<string, unknown>;
     categories: Array<{ id: string; name: string; slug: string; content_type: string | null }>;
     created_at: string;
+}
+
+export interface DemoContentPage {
+    items: DemoContentItem[];
+    page: number;
+    page_size: number;
+    total: number;
+    has_more: boolean;
 }
 
 export interface DemoContentCreatePayload {
     title: string;
     content_type: DemoContentType;
     stream_url?: string | null;
+    stream_s3_key?: string | null;
     thumbnail_url?: string | null;
+    thumbnail_s3_key?: string | null;
     description?: string | null;
     short_description?: string | null;
     duration_seconds?: number | null;
@@ -706,11 +719,56 @@ export interface DemoContentCreatePayload {
     album?: string | null;
     age_rating?: string | null;
     is_featured?: boolean;
+    status?: "draft" | "published";
     extra_data?: Record<string, unknown>;
     category_ids?: string[];
 }
 
 export type DemoContentUpdatePayload = Partial<DemoContentCreatePayload>;
+
+interface DemoAssetPresignResponse {
+    upload_url: string;
+    s3_key: string;
+}
+
+interface DemoAssetUploadResult {
+    s3_key: string;
+    display_url: string;
+}
+
+function uploadToPresignedUrl(url: string, file: File, onProgress?: (percent: number) => void): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const request = new XMLHttpRequest();
+        request.open("PUT", url);
+        request.setRequestHeader("Content-Type", file.type);
+        request.upload.onprogress = event => {
+            if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100));
+        };
+        request.onerror = () => reject(new Error("File upload to storage failed."));
+        request.onload = () => {
+            if (request.status >= 200 && request.status < 300) resolve();
+            else reject(new Error("File upload to storage failed."));
+        };
+        request.send(file);
+    });
+}
+
+export async function uploadDemoAsset(
+    file: File,
+    purpose: "media" | "thumbnail" = "media",
+    onProgress?: (percent: number) => void,
+): Promise<DemoAssetUploadResult> {
+    const { data: presign } = await apiClient.post<DemoAssetPresignResponse>(
+        ENDPOINTS.superadmin.demoAssets.presign,
+        { filename: file.name, content_type: file.type, file_size: file.size, purpose },
+    );
+    await uploadToPresignedUrl(presign.upload_url, file, onProgress);
+    const { data } = await apiClient.post<DemoAssetUploadResult>(
+        ENDPOINTS.superadmin.demoAssets.confirm,
+        { s3_key: presign.s3_key },
+    );
+    return data;
+}
 
 // ─── Demo Category functions ──────────────────────────────────────────────────
 
@@ -735,8 +793,12 @@ export async function deleteDemoCategory(id: string): Promise<void> {
 
 // ─── Demo Content functions ───────────────────────────────────────────────────
 
-export async function listDemoContent(): Promise<DemoContentItem[]> {
-    const { data } = await apiClient.get<DemoContentItem[]>(ENDPOINTS.superadmin.demoContent);
+export async function listDemoContent(params: {
+    content_type: DemoContentType;
+    page: number;
+    page_size: number;
+}): Promise<DemoContentPage> {
+    const { data } = await apiClient.get<DemoContentPage>(ENDPOINTS.superadmin.demoContent, { params });
     return data;
 }
 
@@ -752,4 +814,11 @@ export async function updateDemoContent(id: string, payload: DemoContentUpdatePa
 
 export async function removeDemoContent(id: string): Promise<void> {
     await apiClient.delete(ENDPOINTS.superadmin.demoContentItem(id));
+}
+
+export async function triggerDemoContentTranscode(id: string): Promise<DemoContentItem> {
+    const { data } = await apiClient.post<DemoContentItem>(
+        ENDPOINTS.superadmin.demoContentTranscode(id),
+    );
+    return data;
 }
