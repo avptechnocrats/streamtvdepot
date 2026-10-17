@@ -487,7 +487,7 @@ export function CategoryForm({ mode, categoryId, defaultValues }: CategoryFormPr
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="w-full">
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6 items-start">
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6 items-start mb-14">
 
                 {/* ══════════════ LEFT COLUMN ══════════════ */}
                 <div className="space-y-6">
@@ -672,7 +672,7 @@ export function CategoryForm({ mode, categoryId, defaultValues }: CategoryFormPr
                 </div>
             )}
 
-            <div className="fixed bottom-6 right-6 z-30 flex items-center gap-2">
+            <div className="fixed flex justify-end w-full z-30 items-center bottom-0 left-0 gap-2 px-6 p-2.5 border-t border-border/50 bg-card">
                 <button
                     type="submit"
                     disabled={isSubmitting}

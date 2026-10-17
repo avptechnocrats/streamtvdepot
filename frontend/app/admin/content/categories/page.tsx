@@ -18,7 +18,7 @@ import { CategoryCard } from "./_components/CategoryCard";
 import { CategoryRowSkeleton } from "./_components/Skeletons";
 import { DeleteCategoryConfirm } from "./_components/DeleteCategoryConfirm";
 
-type ContentTypeFilter = "all" | "video" | "audio" | "livestream" | "series" | "channel";
+type ContentTypeFilter = "all" | "video" | "series" | "audio" | "livestream" | "channel";
 
 const PAGE_SIZE = 10;
 
@@ -31,9 +31,9 @@ function getContentTypeIcon(type: ContentTypeFilter): React.ElementType {
     const iconMap: Record<ContentTypeFilter, React.ElementType> = {
         all: Grid3X3,
         video: Video,
+        series: Layers,
         audio: Music,
         livestream: Zap,
-        series: Layers,
         channel: Grid,
     };
     return iconMap[type] || Grid3X3;
@@ -47,7 +47,7 @@ export default function CategoriesPage() {
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
-    const [contentTypeFilter, setContentTypeFilter] = useState<ContentTypeFilter>("video");
+    const [contentTypeFilter, setContentTypeFilter] = useState<ContentTypeFilter>("all");
     const [confirmDelete, setConfirmDelete] = useState<CategoryOut | null>(null);
     const [toastMsg, setToastMsg] = useState<{ text: string; ok: boolean } | null>(null);
     const [dragIndex, setDragIndex] = useState<number | null>(null);
