@@ -5,8 +5,9 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Globe, Loader2, AlertTriangle, CheckCircle2, Upload, X, Tv2 } from "lucide-react";
+import { ChevronDown, Globe, Loader2, AlertTriangle, CheckCircle2, Upload, X, Tv2, Image } from "lucide-react";
 import { LabeledSwitch } from "@/components/ui/labeled-switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     createLiveTvChannel, updateLiveTvChannel,
     type LiveTvChannelCreate,
@@ -22,6 +23,7 @@ import { resolveMediaUrl } from "@/lib/media";
 import ImageCropModal, { type CropAspect } from "../../videos/_components/ImageCropModal";
 import MediaLibraryModal from "../../videos/_components/MediaLibraryModal";
 import { AiWriteButton } from "@/components/AiWriteButton";
+import { CategoryPicker } from "@/components/CategoryPicker";
 
 // ─── Countries ──────────────────────────────────────────────────────────────
 
@@ -55,7 +57,8 @@ const schema = z.object({
     description: z.string().optional(),
     categories: z.array(z.string()),  // category slugs
     language: z.array(z.string()).optional(),
-    source: z.enum(["rtmp", "srt", "external"], { required_error: "Source is required" }),
+    // SRT will implement in future.
+    source: z.enum(["rtmp", "external"], { required_error: "Source is required" }),
     stream_url: z.string().optional(),
     is_active: z.boolean(),
     is_featured: z.boolean(),
@@ -367,7 +370,7 @@ export function liveTvChannelToFormValues(c: LiveTvChannelOut): FormValues {
         description: c.description ?? "",
         categories: c.categories ?? [],
         language: c.language ?? [],
-        source: c.source as "rtmp" | "srt" | "external",
+        source: c.source as "rtmp" | "external",
         stream_url: c.stream_url ?? "",
         is_active: c.is_active,
         is_featured: c.is_featured,
@@ -492,7 +495,7 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="w-full">
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6 items-start">
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_450px] gap-6 items-start mb-14">
 
                 {/* ══════════════ LEFT COLUMN ══════════════ */}
                 <div className="space-y-6">
@@ -542,57 +545,13 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                             <Controller
                                 name="categories"
                                 control={control}
-                                render={({ field }) => {
-                                    const selected: string[] = field.value ?? [];
-                                    const toggle = (slug: string) => {
-                                        const next = selected.includes(slug)
-                                            ? selected.filter((s) => s !== slug)
-                                            : [...selected, slug];
-                                        field.onChange(next);
-                                    };
-                                    return (
-                                        <div className="space-y-1.5">
-                                            {selected.length > 0 && (
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {selected.map((slug) => {
-                                                        const cat = categories.find((c) => c.slug === slug);
-                                                        return (
-                                                            <span
-                                                                key={slug}
-                                                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/15 text-primary text-xs font-medium"
-                                                            >
-                                                                {cat?.name ?? slug}
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => toggle(slug)}
-                                                                    className="hover:text-red-400 transition-colors"
-                                                                    aria-label={`Remove ${cat?.name ?? slug}`}
-                                                                >
-                                                                    <X size={11} />
-                                                                </button>
-                                                            </span>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                            <div className="relative">
-                                                <select
-                                                    value=""
-                                                    onChange={(e) => { if (e.target.value) toggle(e.target.value); }}
-                                                    className={selectCls()}
-                                                >
-                                                    <option value="">+ Add category…</option>
-                                                    {categories
-                                                        .filter((c) => !selected.includes(c.slug))
-                                                        .map((c) => (
-                                                            <option key={c.id} value={c.slug}>{c.name}</option>
-                                                        ))}
-                                                </select>
-                                                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                                            </div>
-                                        </div>
-                                    );
-                                }}
+                                render={({ field }) => (
+                                    <CategoryPicker
+                                        options={categories.map(category => ({ value: category.slug, label: category.name }))}
+                                        selected={field.value ?? []}
+                                        onChange={field.onChange}
+                                    />
+                                )}
                             />
                         </div>
 
@@ -763,6 +722,62 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                 {/* ══════════════ RIGHT COLUMN ══════════════ */}
                 <div className="space-y-6 xl:sticky xl:top-8">
 
+                    {/* ── Banner and Thumbnails ──────────────────────────── */}
+                    <Tabs defaultValue="banner" className="w-full">
+                        <TabsList className="mb-4">
+                            <TabsTrigger value="banner" className="flex items-center gap-2">
+                                <Image size={14} />
+                                Banner
+                            </TabsTrigger>
+                            <TabsTrigger value="thumbnails" className="flex items-center gap-2">
+                                <Image size={14} />
+                                Thumbnails
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="banner">
+                            <section className="rounded-2xl border border-border bg-card p-6 space-y-5">
+                                <SectionHeading>Banner</SectionHeading>
+                                <Controller name="banner" control={control} render={({ field }) => (
+                                    <S3ImageField
+                                        label="Banner"
+                                        hint="Wide banner used in hero and detail pages"
+                                        aspect="16:9"
+                                        value={field.value ?? ""}
+                                        onChange={field.onChange}
+                                    />
+                                )} />
+                            </section>
+                        </TabsContent>
+
+                        <TabsContent value="thumbnails">
+                            <section className="rounded-2xl border border-border bg-card p-6 space-y-5">
+                                <SectionHeading>Thumbnails</SectionHeading>
+                                <div className="space-y-6">
+                                    <Controller name="portrait" control={control} render={({ field }) => (
+                                        <S3ImageField
+                                            label="Portrait Thumbnail"
+                                            hint="Vertical card thumbnail"
+                                            aspect="2:3"
+                                            value={field.value ?? ""}
+                                            onChange={field.onChange}
+                                        />
+                                    )} />
+
+                                    <Controller name="wide" control={control} render={({ field }) => (
+                                        <S3ImageField
+                                            label="Wide Thumbnail"
+                                            hint="Horizontal card thumbnail"
+                                            aspect="3:2"
+                                            value={field.value ?? ""}
+                                            onChange={field.onChange}
+                                        />
+                                    )} />
+                                </div>
+                            </section>
+                        </TabsContent>
+                    </Tabs>
+
                     {/* ── Status Settings ───────────────────────────────────── */}
                     <section className="rounded-2xl border border-border bg-card p-6 space-y-2">
                         <SectionHeading>Status Settings</SectionHeading>
@@ -778,41 +793,6 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                             <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Live Now" description="Mark this channel as currently live" />
                         )} />
                     </section>
-
-                    {/* ── Thumbnails ──────────────────────────────────────── */}
-                    <section className="rounded-2xl border border-border bg-card p-6 space-y-6">
-                        <SectionHeading>Banner and Thumbnails</SectionHeading>
-
-                        <Controller name="banner" control={control} render={({ field }) => (
-                            <S3ImageField
-                                label="Banner"
-                                hint="Wide banner used in hero and detail pages"
-                                aspect="16:9"
-                                value={field.value ?? ""}
-                                onChange={field.onChange}
-                            />
-                        )} />
-
-                        <Controller name="portrait" control={control} render={({ field }) => (
-                            <S3ImageField
-                                label="Portrait Thumbnail"
-                                hint="Vertical card thumbnail"
-                                aspect="2:3"
-                                value={field.value ?? ""}
-                                onChange={field.onChange}
-                            />
-                        )} />
-
-                        <Controller name="wide" control={control} render={({ field }) => (
-                            <S3ImageField
-                                label="Wide Thumbnail"
-                                hint="Horizontal card thumbnail"
-                                aspect="3:2"
-                                value={field.value ?? ""}
-                                onChange={field.onChange}
-                            />
-                        )} />
-                    </section>
                 </div>
             </div>
 
@@ -823,7 +803,7 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                 </div>
             )}
 
-            <div className="fixed bottom-6 right-6 z-30 flex items-center gap-2">
+            <div className="fixed flex justify-end w-full z-30 items-center bottom-0 left-0 gap-2 px-6 p-2.5 border-t border-border/50 bg-card">
                 <button
                     type="submit"
                     disabled={isSubmitting}
@@ -835,7 +815,7 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                 <button
                     type="button"
                     onClick={() => router.push("/admin/content/live-tv")}
-                    className="px-4 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    className="px-4 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors"
                 >
                     Cancel
                 </button>

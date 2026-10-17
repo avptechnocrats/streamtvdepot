@@ -18,6 +18,7 @@ import { resolveMediaUrl } from "@/lib/media";
 import ImageCropModal, { type CropAspect } from "../../videos/_components/ImageCropModal";
 import MediaLibraryModal from "../../videos/_components/MediaLibraryModal";
 import { AiWriteButton } from "@/components/AiWriteButton";
+import { CategoryPicker } from "@/components/CategoryPicker";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -264,8 +265,6 @@ const DEFAULT_VALUES: FormValues = {
 export function AudioForm({ mode, audioId, defaultValues }: AudioFormProps) {
     const router = useRouter();
     const [availableCategories, setAvailableCategories] = useState<CategoryOut[]>([]);
-    const [categorySearch, setCategorySearch] = useState("");
-    const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
     const [audioPickerOpen, setAudioPickerOpen] = useState(false);
     const [pricingPlans, setPricingPlans] = useState<ClientPricingPlanOut[]>([]);
 
@@ -298,18 +297,6 @@ export function AudioForm({ mode, audioId, defaultValues }: AudioFormProps) {
 
     const paidPlans = pricingPlans.filter((plan) =>
         accessType === "ppv" ? plan.plan_type === "ppv" : plan.plan_type === "rent"
-    );
-
-    const toggleCategory = (slug: string) => {
-        const current = selectedCategories ?? [];
-        setValue(
-            "categories",
-            current.includes(slug) ? current.filter((c) => c !== slug) : [...current, slug],
-        );
-    };
-
-    const filteredCategories = availableCategories.filter((c) =>
-        c.name.toLowerCase().includes(categorySearch.toLowerCase())
     );
 
     const submitForm = async (data: FormValues, targetStatus: "draft" | "published") => {
@@ -449,46 +436,13 @@ export function AudioForm({ mode, audioId, defaultValues }: AudioFormProps) {
                     {/* Categories */}
                     <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
                         <SectionHeading>Categories</SectionHeading>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                value={categorySearch}
-                                onChange={(e) => { setCategorySearch(e.target.value); setCategoryDropdownOpen(true); }}
-                                onFocus={() => setCategoryDropdownOpen(true)}
-                                onBlur={() => setTimeout(() => setCategoryDropdownOpen(false), 150)}
-                                placeholder="Search categories…"
-                                className={inputCls()}
-                            />
-                            {categoryDropdownOpen && filteredCategories.length > 0 && (
-                                <div className="absolute z-20 mt-1 w-full rounded-xl border border-border bg-card shadow-xl max-h-48 overflow-y-auto">
-                                    {filteredCategories.map((c) => (
-                                        <button
-                                            key={c.id}
-                                            type="button"
-                                            onMouseDown={() => toggleCategory(c.slug)}
-                                            className={`w-full text-left px-3 py-2 text-sm transition-colors ${(selectedCategories ?? []).includes(c.slug) ? "bg-primary/10 text-primary" : "hover:bg-secondary text-foreground"}`}
-                                        >
-                                            {c.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                        {(selectedCategories ?? []).length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-2">
-                                {(selectedCategories ?? []).map((slug) => {
-                                    const cat = availableCategories.find((c) => c.slug === slug);
-                                    return (
-                                        <span key={slug} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20">
-                                            {cat?.name ?? slug}
-                                            <button type="button" onClick={() => toggleCategory(slug)} className="hover:text-red-400 transition-colors">
-                                                <X size={10} />
-                                            </button>
-                                        </span>
-                                    );
-                                })}
-                            </div>
-                        )}
+                        <CategoryPicker
+                            options={availableCategories.map(category => ({ value: category.slug, label: category.name }))}
+                            selected={selectedCategories ?? []}
+                            onChange={categories => setValue("categories", categories, { shouldDirty: true })}
+                            placeholder="Search categories..."
+                            searchable
+                        />
                     </section>
                 </div>
 

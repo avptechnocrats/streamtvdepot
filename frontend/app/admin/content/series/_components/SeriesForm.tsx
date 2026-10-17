@@ -19,6 +19,7 @@ import { resolveMediaUrl } from "@/lib/media";
 import ImageCropModal, { type CropAspect } from "../../videos/_components/ImageCropModal";
 import MediaLibraryModal from "../../videos/_components/MediaLibraryModal";
 import { AiWriteButton } from "@/components/AiWriteButton";
+import { CategoryPicker } from "@/components/CategoryPicker";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -498,59 +499,13 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
                                 <Controller
                                     name="categories"
                                     control={control}
-                                    render={({ field }) => {
-                                        const selected: string[] = field.value ?? [];
-                                        const toggle = (slug: string) => {
-                                            const next = selected.includes(slug)
-                                                ? selected.filter((s) => s !== slug)
-                                                : [...selected, slug];
-                                            field.onChange(next);
-                                        };
-                                        return (
-                                            <div className="space-y-1.5">
-                                                {/* Selected pills */}
-                                                {selected.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {selected.map((slug) => {
-                                                            const cat = availableCategories.find((c) => c.slug === slug);
-                                                            return (
-                                                                <span
-                                                                    key={slug}
-                                                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/15 text-primary text-xs font-medium"
-                                                                >
-                                                                    {cat?.name ?? slug}
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => toggle(slug)}
-                                                                        className="hover:text-red-400 transition-colors"
-                                                                        aria-label={`Remove ${cat?.name ?? slug}`}
-                                                                    >
-                                                                        <X size={11} />
-                                                                    </button>
-                                                                </span>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-                                                {/* Dropdown to add more */}
-                                                <div className="relative">
-                                                    <select
-                                                        value=""
-                                                        onChange={(e) => { if (e.target.value) toggle(e.target.value); }}
-                                                        className={selectCls()}
-                                                    >
-                                                        <option value="">+ Add category…</option>
-                                                        {availableCategories
-                                                            .filter((c) => !selected.includes(c.slug))
-                                                            .map((c) => (
-                                                                <option key={c.id} value={c.slug}>{c.name}</option>
-                                                            ))}
-                                                    </select>
-                                                    <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                                                </div>
-                                            </div>
-                                        );
-                                    }}
+                                    render={({ field }) => (
+                                        <CategoryPicker
+                                            options={availableCategories.map(category => ({ value: category.slug, label: category.name }))}
+                                            selected={field.value ?? []}
+                                            onChange={field.onChange}
+                                        />
+                                    )}
                                 />
                             </div>
                             <div className="space-y-1">

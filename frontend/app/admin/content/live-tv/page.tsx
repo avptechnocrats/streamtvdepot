@@ -100,7 +100,7 @@ export default function LiveTvPage() {
                     ))
                     : channels.length === 0
                         ? (
-                            <div className="col-span-full py-16 flex flex-col border border-border rounded-xl bg-white items-center gap-3 text-muted-foreground">
+                            <div className="col-span-full py-16 flex flex-col border border-border rounded-xl bg-card items-center gap-3 text-muted-foreground">
                                 <div className="rounded-xl bg-secondary p-4">
                                     <Tv2 size={40} className="opacity-20" />
                                 </div>

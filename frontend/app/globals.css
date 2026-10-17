@@ -80,6 +80,27 @@
         --banner-bg: hsl(220 20% 6%);
         --banner-bg-overlay: hsl(220 20% 6% / 0.8);
     }
+
+    /* Theme-aware browser autofill styling */
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    input:-webkit-autofill:active,
+    textarea:-webkit-autofill,
+    textarea:-webkit-autofill:hover,
+    textarea:-webkit-autofill:focus,
+    textarea:-webkit-autofill:active,
+    select:-webkit-autofill,
+    select:-webkit-autofill:hover,
+    select:-webkit-autofill:focus,
+    select:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 1000px hsl(var(--secondary)) inset !important;
+        box-shadow: 0 0 0 1000px hsl(var(--secondary)) inset !important;
+        -webkit-text-fill-color: hsl(var(--foreground)) !important;
+        color: hsl(var(--foreground)) !important;
+        caret-color: hsl(var(--foreground)) !important;
+        transition: background-color 9999s ease-in-out 0s;
+    }
 }
 
 /* ─── Midnight (deep navy + cyan) ────────────────────────────────── */

@@ -7,9 +7,9 @@ import { ENDPOINTS } from "../endpoints";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+// SRT will implement in future.
 export const LIVE_TV_SOURCES = [
     { value: "rtmp", label: "Encoder or Streaming Software – RTMP" },
-    { value: "srt", label: "Encoder or Streaming Software – SRT" },
     { value: "external", label: "External Live Feed (M3U8 / HLS)" },
 ] as const;
 

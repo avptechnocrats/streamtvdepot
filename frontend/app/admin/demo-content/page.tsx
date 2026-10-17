@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/pagination";
 import { CategoriesTab } from "./_components/CategoriesTab";
 import { ContentTab } from "./_components/ContentTab";
+import { CategoryPicker } from "@/components/CategoryPicker";
 import {
     listDemoContent, addDemoContent, updateDemoContent, removeDemoContent,
     listDemoCategories, createDemoCategory, updateDemoCategory, deleteDemoCategory,
@@ -42,7 +43,6 @@ const CONTENT_TYPES: { value: DemoContentType; label: string }[] = [
 const CAT_CONTENT_TYPES = [
     { value: "audio", label: "Audio" },
     { value: "video", label: "Video" },
-    { value: "channel", label: "Channel" },
 ];
 const AGE_RATINGS = ["U", "U/A 7+", "U/A 13+", "U/A 16+", "A", "S"];
 const PAGE_SIZE = 20;
@@ -78,46 +78,6 @@ function ModalLayer({ children, onClose, closeOnBackdrop = true }: { children: R
             {children}
         </div>,
         document.body,
-    );
-}
-
-// ─── Category Multi-select ────────────────────────────────────────────────────
-
-function CategoryPicker({ categories, selected, onChange }: {
-    categories: DemoCategoryOut[];
-    selected: string[];
-    onChange: (ids: string[]) => void;
-}) {
-    const toggle = (id: string) =>
-        onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
-    const publishedCategories = categories.filter(c => c.status === "published");
-    return (
-        <div className="space-y-1.5">
-            {selected.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                    {selected.map(id => {
-                        const category = publishedCategories.find(item => item.id === id);
-                        return (
-                            <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/15 text-primary text-xs font-medium">
-                                {category?.name ?? id}
-                                <button type="button" onClick={() => toggle(id)} className="hover:text-red-400 transition-colors" aria-label={`Remove ${category?.name ?? id}`}>
-                                    <X size={11} />
-                                </button>
-                            </span>
-                        );
-                    })}
-                </div>
-            )}
-            <div className="relative">
-                <select value="" onChange={event => { if (event.target.value) toggle(event.target.value); }} className={`${INPUT} appearance-none pr-8`}>
-                    <option value="">+ Add category...</option>
-                    {publishedCategories.filter(category => !selected.includes(category.id)).map(category => (
-                        <option key={category.id} value={category.id}>{category.name}</option>
-                    ))}
-                </select>
-                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            </div>
-        </div>
     );
 }
 
@@ -383,7 +343,13 @@ function ContentForm({ mode, defaultType, initial, categories, onClose, onSaved,
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <label className={LABEL}>Categories</label>
-                                <CategoryPicker categories={categories} selected={catIds} onChange={setCatIds} />
+                                <CategoryPicker
+                                    options={categories
+                                        .filter(category => category.status === "published")
+                                        .map(category => ({ value: category.id, label: category.name }))}
+                                    selected={catIds}
+                                    onChange={setCatIds}
+                                />
                             </div>
                             <div className="space-y-1.5">
                                 <label className={LABEL}>Languages</label>
