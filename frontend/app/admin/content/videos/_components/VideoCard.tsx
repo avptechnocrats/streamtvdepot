@@ -109,6 +109,11 @@ export function VideoCard({ video, onDelete, onStatusChange }: VideoCardProps) {
     const [previewDrmToken, setPreviewDrmToken] = useState<string | undefined>(undefined);
     const [imgLoaded, setImgLoaded] = useState(false);
     const [confirmRegenerate, setConfirmRegenerate] = useState(false);
+    const cardImage =
+        video.thumbnails.video_w_thumbnail ||
+        video.thumbnails.video_banner ||
+        video.thumbnails.video_h_thumbnail ||
+        null;
 
     // Build the CORS-safe backend proxy URL instead of the raw hls_url (raw
     // CloudFront URLs are vulnerable to cross-origin cache poisoning — see /media/stream proxy).
@@ -187,7 +192,7 @@ export function VideoCard({ video, onDelete, onStatusChange }: VideoCardProps) {
         <div className="rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/30 transition-colors">
             {/* Thumbnail strip */}
             <div className="relative h-48 bg-muted/40 overflow-hidden">
-                {video.thumbnails.video_w_thumbnail ? (
+                {cardImage ? (
                     <>
                         {/* Skeleton shown until image loads */}
                         {!imgLoaded && (
@@ -195,7 +200,7 @@ export function VideoCard({ video, onDelete, onStatusChange }: VideoCardProps) {
                         )}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                            src={video.thumbnails.video_w_thumbnail}
+                            src={cardImage}
                             alt={video.title}
                             onLoad={() => setImgLoaded(true)}
                             className={`w-full h-full object-cover transition-opacity duration-300 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
