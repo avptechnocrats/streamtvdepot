@@ -8,13 +8,18 @@ export interface TrashVideoCardProps {
 }
 
 export function TrashVideoCard({ video, onRestore, onDeleteForever }: TrashVideoCardProps) {
+    const image =
+        video.thumbnails.video_w_thumbnail ||
+        video.thumbnails.video_banner ||
+        video.thumbnails.video_h_thumbnail ||
+        null;
     return (
         <div className="rounded-2xl border border-border bg-card p-4 flex items-center gap-4 opacity-70 hover:opacity-90 transition-opacity">
             {/* Thumbnail */}
             <div className="w-16 h-16 rounded-lg bg-muted/40 overflow-hidden shrink-0">
-                {video.thumbnails.video_w_thumbnail ? (
+                {image ? (
                     <img
-                        src={video.thumbnails.video_w_thumbnail}
+                        src={image}
                         alt={video.title}
                         className="w-full h-full object-cover"
                     />

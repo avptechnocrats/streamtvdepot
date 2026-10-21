@@ -44,9 +44,11 @@ class Settings(BaseSettings):
     # CORS
     # In production add all client domains here, or use ALLOWED_ORIGINS_REGEX.
     # e.g. ["https://xyz.com","https://admin.streamtvdepot.com","https://abc.tv","https://admin.abc.tv"]
-    ALLOWED_ORIGINS: List[str] = ["http://localhost","http://localhost:3002","http://localhost:3003","http://localhost:8000","http://localhost:8001","https://www.streamtvdepot.com","https://streamtvdepot.com","https://preview.streamtvdepot.com","https://console.streamtvdepot.com","https://kalingotv.streamtvdepot.com"]
+    ALLOWED_ORIGINS: List[str] = ["http://localhost","http://localhost:3002","http://localhost:3003","http://localhost:8000","http://localhost:8001","https://www.streamtvdepot.com","https://streamtvdepot.com","https://preview.streamtvdepot.com","https://console.streamtvdepot.com","https://kalingotv.streamtvdepot.com", "https://kalingo.tv"]
 
-    ALLOWED_ORIGINS_REGEX: str = ""
+    ALLOWED_ORIGINS_REGEX: str = (
+        r"https://(?:[a-z0-9-]+\.)*(?:streamtvdepot\.com|kalingo\.tv)"
+    )
     """Optional regex that matches any origin — useful for wildcard client domains in production.
     e.g. r'https://(.*.streamtvdepot.com|.*.kalingo.tv)'"""
 
