@@ -507,8 +507,9 @@ export default function VideoPlayer({
             containerRef.current!.appendChild(videoEl);
             videoElRef.current = videoEl;
 
+            // Strip the query so tokenised URLs (manifest.m3u8?token=…) are still HLS.
             const isHls =
-                src.endsWith(".m3u8") ||
+                src.split(/[?#]/, 1)[0].endsWith(".m3u8") ||
                 src.includes("application/x-mpegURL") ||
                 src.includes("application/vnd.apple.mpegurl");
 
