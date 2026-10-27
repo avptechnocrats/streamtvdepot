@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core import aws_credentials
 from app.core.database import get_db
 from app.core.dependencies import get_current_superadmin
 from app.core.smtp import send_email_via_smtp
@@ -291,6 +292,7 @@ async def update_settings(
                 aws.pop(field, None)
         _update_secret(aws, "aws_secret_access_key_encrypted", payload.aws.aws_secret_access_key)
         cfg["aws"] = aws
+        aws_credentials.apply(aws)  # take effect now; other workers pick it up on their next refresh
 
     # ── Payment Gateway ───────────────────────────────────────────────────────
     if payload.payment_gateway is not None:

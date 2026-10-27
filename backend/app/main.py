@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import re
 from contextlib import asynccontextmanager
 
@@ -11,25 +12,37 @@ from app.api.v1.router import api_router
 from app.api.v1.admin.upload import configure_s3_cors
 from app.core.scheduler import schedule_jobs
 from app.core.transcode_poller import run_poller
+from app.core.live_pipeline import run_live_poller
+from app.core import aws_credentials
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    # Database AWS settings take priority over .env; must run before anything reads them.
+    try:
+        await aws_credentials.refresh_from_db()
+    except Exception:
+        logger.exception("Could not load AWS settings from the database; using .env values")
     async with AsyncSessionLocal() as session:
         await configure_s3_cors(session)
 
     scheduler = schedule_jobs()
     app.state.scheduler = scheduler
     poller_task = asyncio.create_task(run_poller())
+    aws_refresh_task = asyncio.create_task(aws_credentials.run_refresher())
+    live_poller_task = asyncio.create_task(run_live_poller())
     yield
 
     scheduler.shutdown(wait=False)
-    poller_task.cancel()
-    try:
-        await poller_task
-    except asyncio.CancelledError:
-        pass
+    for task in (poller_task, aws_refresh_task, live_poller_task):
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
     await close_db()
 
 

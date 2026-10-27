@@ -1,0 +1,308 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  StreamTVDepot managed live pipeline - shared, one-time infrastructure.
+  Per-channel resources (MediaLive input/channel, MediaPackage channel, MediaTailor config) are created
+  by the backend (app/core/aws_live.py). Deploy in the same region as the VOD S3 bucket (us-east-1);
+  the ACM certificate for CloudFront must also be in us-east-1.
+
+Parameters:
+  ChannelGroupName:
+    Type: String
+    Default: stv-live
+    Description: MediaPackage v2 channel group (must match MEDIAPACKAGE_CHANNEL_GROUP).
+  LiveDomainNames:
+    Type: CommaDelimitedList
+    Description: >
+      CDN hostnames viewers use: the shared one first (LIVE_CLOUDFRONT_DOMAIN, e.g. live.streamtvdepot.com)
+      then one per tenant custom domain (e.g. live.kalingo.tv).
+  CertificateArn:
+    Type: String
+    Description: ACM certificate ARN (us-east-1) covering every name in LiveDomainNames.
+  AllowedOriginDomains:
+    Type: CommaDelimitedList
+    Default: streamtvdepot.com,kalingo.tv
+    Description: >
+      Apex domains whose pages (and any subdomain, including preview sites) may play live video.
+      Add each tenant's custom domain here.
+  CloudFrontPublicKeyPem:
+    Type: String
+    Description: RSA public key (PEM) whose private half is LIVE_CF_PRIVATE_KEY_PEM.
+  MediaTailorHost:
+    Type: String
+    Description: >
+      MediaTailor session host for the account/region, e.g. 1a2b3c.mediatailor.us-east-1.amazonaws.com
+      (see SessionInitializationEndpointPrefix of any playback configuration).
+  VodBucketName:
+    Type: String
+    Default: streamtvdepot-bucket
+    Description: S3 bucket that receives harvested VOD (MEDIACONVERT_OUTPUT_BUCKET / AWS_S3_BUCKET).
+  ResourcePrefix:
+    Type: String
+    Default: stv
+    Description: Must match LIVE_RESOURCE_PREFIX.
+
+Resources:
+  # ── Ingest ────────────────────────────────────────────────────────────────
+  # Input security groups are created per channel by the backend from LIVE_INGEST_ALLOWED_CIDRS.
+  MediaLiveRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ResourcePrefix}-medialive"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: medialive.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: publish-to-mediapackage
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: mediapackagev2:PutObject
+                Resource: !Sub "arn:${AWS::Partition}:mediapackagev2:${AWS::Region}:${AWS::AccountId}:channelGroup/${ChannelGroupName}/channel/*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+  # ── Origin ────────────────────────────────────────────────────────────────
+  ChannelGroup:
+    Type: AWS::MediaPackageV2::ChannelGroup
+    Properties:
+      ChannelGroupName: !Ref ChannelGroupName
+
+  # ── Delivery ──────────────────────────────────────────────────────────────
+  PublicKey:
+    Type: AWS::CloudFront::PublicKey
+    Properties:
+      PublicKeyConfig:
+        Name: !Sub "${ResourcePrefix}-live-signing"
+        CallerReference: !Sub "${ResourcePrefix}-live-signing-v1"
+        EncodedKey: !Ref CloudFrontPublicKeyPem
+
+  KeyGroup:
+    Type: AWS::CloudFront::KeyGroup
+    Properties:
+      KeyGroupConfig:
+        Name: !Sub "${ResourcePrefix}-live-signers"
+        Items:
+          - !Ref PublicKey
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${ResourcePrefix}-mediapackagev2"
+        OriginAccessControlOriginType: mediapackagev2
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # Playlists live ~1 request per player per segment; a 1s edge TTL collapses viewer fan-out without adding lag.
+  PlaylistCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${ResourcePrefix}-live-playlists"
+        MinTTL: 0
+        DefaultTTL: 1
+        MaxTTL: 2
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: all
+
+  SegmentCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${ResourcePrefix}-live-segments"
+        MinTTL: 0
+        DefaultTTL: 60
+        MaxTTL: 3600
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: false
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: all
+
+  # CloudFront cannot reflect an arbitrary origin from a response-headers policy, so a function does it:
+  # credentialed CORS needs the exact calling origin, and preview/tenant sites are created dynamically.
+  CorsFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub "${ResourcePrefix}-live-cors"
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Reflect allowed origins for credentialed CORS
+        Runtime: cloudfront-js-2.0
+      FunctionCode: !Sub
+        - |
+          var domains = ["${Domains}"];
+          function handler(event) {
+            var request = event.request;
+            var response = event.response;
+            var origin = request.headers.origin ? request.headers.origin.value : '';
+            var match = /^https:\/\/([a-z0-9.-]+)$/.exec(origin);
+            var allowed = false;
+            if (match) {
+              for (var i = 0; i < domains.length; i++) {
+                if (match[1] === domains[i] || match[1].endsWith('.' + domains[i])) { allowed = true; }
+              }
+            }
+            var cors = {};
+            if (allowed) {
+              cors['access-control-allow-origin'] = { value: origin };
+              cors['access-control-allow-credentials'] = { value: 'true' };
+              cors['access-control-expose-headers'] = { value: 'Content-Length, Content-Range, Date' };
+              cors['vary'] = { value: 'Origin' };
+            }
+            if (event.context.eventType === 'viewer-request') {
+              if (request.method === 'OPTIONS') {
+                cors['access-control-allow-methods'] = { value: 'GET, HEAD, OPTIONS' };
+                cors['access-control-allow-headers'] = { value: 'Range, Origin, Accept, Content-Type' };
+                cors['access-control-max-age'] = { value: '600' };
+                return { statusCode: 204, statusDescription: 'No Content', headers: cors };
+              }
+              return request;
+            }
+            for (var name in cors) { response.headers[name] = cors[name]; }
+            return response;
+          }
+        - Domains: !Join ["\",\"", !Ref AllowedOriginDomains]
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub "${ResourcePrefix} live streaming"
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_All
+        Aliases: !Ref LiveDomainNames
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        Origins:
+          - Id: mediapackage
+            DomainName: !GetAtt ChannelGroup.EgressDomain
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+          - Id: mediatailor
+            DomainName: !Ref MediaTailorHost
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols: [TLSv1.2]
+        # Playlists are intentionally unsigned: MediaTailor pulls them as the content source. Segments
+        # and MediaTailor session manifests (the only things a viewer needs) require signed cookies.
+        CacheBehaviors:
+          - PathPattern: "/out/v1/*.m3u8"
+            TargetOriginId: mediapackage
+            ViewerProtocolPolicy: https-only
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            CachePolicyId: !Ref PlaylistCachePolicy
+            FunctionAssociations:
+              - EventType: viewer-request
+                FunctionARN: !GetAtt CorsFunction.FunctionMetadata.FunctionARN
+              - EventType: viewer-response
+                FunctionARN: !GetAtt CorsFunction.FunctionMetadata.FunctionARN
+            Compress: true
+          - PathPattern: "/v1/*"
+            TargetOriginId: mediatailor
+            ViewerProtocolPolicy: https-only
+            AllowedMethods: [GET, HEAD, OPTIONS]
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # Managed-CachingDisabled
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # Managed-AllViewerExceptHostHeader
+            FunctionAssociations:
+              - EventType: viewer-request
+                FunctionARN: !GetAtt CorsFunction.FunctionMetadata.FunctionARN
+              - EventType: viewer-response
+                FunctionARN: !GetAtt CorsFunction.FunctionMetadata.FunctionARN
+            TrustedKeyGroups:
+              - !Ref KeyGroup
+        DefaultCacheBehavior:
+          TargetOriginId: mediapackage
+          ViewerProtocolPolicy: https-only
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachePolicyId: !Ref SegmentCachePolicy
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt CorsFunction.FunctionMetadata.FunctionARN
+            - EventType: viewer-response
+              FunctionARN: !GetAtt CorsFunction.FunctionMetadata.FunctionARN
+          TrustedKeyGroups:
+            - !Ref KeyGroup
+
+  # ── Backend credentials ───────────────────────────────────────────────────
+  BackendPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "${ResourcePrefix}-live-backend"
+      Description: Attach to the IAM user behind AWS_ACCESS_KEY_ID.
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - medialive:CreateInput
+              - medialive:UpdateInput
+              - medialive:DeleteInput
+              - medialive:DescribeInput
+              - medialive:CreateInputSecurityGroup
+              - medialive:DeleteInputSecurityGroup
+              - medialive:CreateChannel
+              - medialive:DeleteChannel
+              - medialive:DescribeChannel
+              - medialive:StartChannel
+              - medialive:StopChannel
+              - medialive:BatchUpdateSchedule
+              - medialive:CreateTags
+              - mediapackagev2:*
+              - mediatailor:PutPlaybackConfiguration
+              - mediatailor:DeletePlaybackConfiguration
+              - mediatailor:GetPlaybackConfiguration
+              - mediatailor:TagResource
+            Resource: "*"
+          - Effect: Allow
+            Action: iam:PassRole
+            Resource: !GetAtt MediaLiveRole.Arn
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+              - s3:GetObject
+            Resource:
+              - !Sub "arn:${AWS::Partition}:s3:::${VodBucketName}"
+              - !Sub "arn:${AWS::Partition}:s3:::${VodBucketName}/*"
+
+Outputs:
+  MediaLiveRoleArn:
+    Description: MEDIALIVE_ROLE_ARN
+    Value: !GetAtt MediaLiveRole.Arn
+  CloudFrontDistributionArn:
+    Description: LIVE_CLOUDFRONT_DISTRIBUTION_ARN
+    Value: !Sub "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+  CloudFrontDomainName:
+    Description: CNAME target for LiveDomainName
+    Value: !GetAtt Distribution.DomainName
+  CloudFrontKeyPairId:
+    Description: LIVE_CF_KEY_PAIR_ID
+    Value: !Ref PublicKey
+  BackendPolicyArn:
+    Description: Attach to the backend IAM user
+    Value: !Ref BackendPolicy

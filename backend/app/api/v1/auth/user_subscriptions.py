@@ -5,13 +5,15 @@ GET /auth/user/my-subscriptions         → list all active/past subscriptions
 GET /auth/user/my-subscriptions/access  → check access to specific content
 """
 
+import logging
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import aws_live
 from app.core.database import get_db
 from app.core.dependencies import get_current_end_user, get_current_end_user_optional
 from app.core.config import settings
@@ -30,6 +32,7 @@ from app.models.client.content import (
     video_categories,
 )
 from app.models.client.payment import Payment
+from app.models.superadmin.client import Client
 from app.models.client.subscription import (
     ClientSubscriptionPlan,
     PlanType,
@@ -40,6 +43,7 @@ from app.schemas.client.content import _refresh_s3_url, _refresh_thumbnail_urls
 from pydantic import BaseModel
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -72,6 +76,19 @@ class ContentAccessOut(BaseModel):
 
 class PlaybackAuthorizationOut(BaseModel):
     stream_url: str
+
+
+class LiveCdnAuthOut(BaseModel):
+    domain: str                 # cookie Domain attribute (must cover the CDN host)
+    expires: int                # unix seconds; the player should refresh before this
+    cookies: dict[str, str]
+
+
+class LivePlaybackAuthorizationOut(BaseModel):
+    stream_url: str
+    ads_enabled: bool
+    low_latency: bool
+    cdn: LiveCdnAuthOut
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -607,6 +624,54 @@ async def authorize_video_playback(
 
     token = create_key_access_token(video_id=str(video_id), user_id=str(current_user.id))
     return PlaybackAuthorizationOut(stream_url=f"{stream_url}?token={token}")
+
+
+@router.post("/playback/live/{stream_id}", response_model=LivePlaybackAuthorizationOut)
+async def authorize_live_playback(
+    stream_id: uuid.UUID,
+    request: Request,
+    current_user=Depends(get_current_end_user_optional),
+    db: AsyncSession = Depends(get_db),
+):
+    """Authorize a managed live channel: entitlement check, then short-lived CDN signed cookies.
+
+    Free channels need no login. Subscription/PPV channels need an entitled user (401/403 otherwise).
+    The returned cookies only cover this channel's CDN paths and expire quickly; the player renews them.
+    """
+    stream = (await db.execute(
+        select(LiveStream).where(LiveStream.id == stream_id, LiveStream.is_active.is_(True))
+    )).scalar_one_or_none()
+    state = dict(stream.aws_live or {}) if stream else {}
+    if not stream or state.get("status") != "ready":
+        raise HTTPException(status_code=404, detail="Channel not available.")
+    if current_user is not None and current_user._client_id != stream.client_id:
+        raise HTTPException(status_code=404, detail="Channel not available.")
+    if not stream.is_live:
+        raise HTTPException(status_code=409, detail="This channel is currently offline.")
+
+    if stream.access_type != "free":
+        if current_user is None:
+            raise HTTPException(status_code=401, detail="Please sign in to watch this channel.")
+        access = await get_content_access(db, current_user._client_id, current_user.id, stream_id)
+        if not access.has_access:
+            raise HTTPException(status_code=403, detail="You do not have access to this channel.")
+
+    try:
+        # The page the viewer is on decides which CDN host (and cookie domain) the browser will accept.
+        page = request.headers.get("origin") or request.headers.get("referer")
+        tenant_domain = await db.scalar(select(Client.domain).where(Client.id == stream.client_id))
+        cdn_host, cookie_domain = aws_live.resolve_viewer_cdn(state, page, tenant_domain)
+        cdn = aws_live.cdn_cookies(state, cdn_host, cookie_domain)
+    except aws_live.LiveAwsError as exc:
+        logger.error("Live playback authorization failed for %s: %s", stream_id, exc)
+        raise HTTPException(status_code=503, detail="Live playback is temporarily unavailable.") from exc
+    ads_enabled = bool((state.get("options") or {}).get("ads_enabled"))
+    return LivePlaybackAuthorizationOut(
+        stream_url=aws_live.playback_url(state, cdn_host) or "",
+        ads_enabled=ads_enabled,
+        low_latency=not ads_enabled and bool(state.get("ll_manifest_path")),
+        cdn=LiveCdnAuthOut(**cdn),
+    )
 
 
 @router.post(
