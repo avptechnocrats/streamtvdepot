@@ -29,8 +29,8 @@
 /* ─── Blue Dark (default) ─────────────────────────────────────────── */
 @layer base {
 
-    :root,
-    [data-theme="blue"] {
+    [data-theme="blue"],
+    [data-theme="gold"] {
         --background: 220 20% 6%;
         --foreground: 210 10% 92%;
 
@@ -417,6 +417,7 @@
 
 /* ─── Gold Light (light mode) ─────────────────────────────────────── */
 @layer base {
+    html:not([data-theme]),
     [data-theme="gold-light"],
     [data-theme="blue-light"] {
         --background: 220 15% 97%;

@@ -129,7 +129,7 @@ export const THEMES: ThemeDefinition[] = [
     },
 ];
 
-export const DEFAULT_THEME_ID = "dark-gold";
+export const DEFAULT_THEME_ID = "gold-light";
 
 /** Convenience lookup by id */
 export function getThemeById(id: string): ThemeDefinition {

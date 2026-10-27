@@ -6,15 +6,17 @@ interface LoginLogoProps {
     href?: string;
     className?: string;
     style?: React.CSSProperties;
+    light?: boolean;
 }
 
 export default function LoginLogo({
     href = "/",
     className = "flex items-center gap-2 w-fit group relative z-10",
-    style
+    style,
+    light = false,
 }: LoginLogoProps) {
     const content = (
-        <img src="/logo.png" alt="StreamTVDepot" className="h-14 w-auto" />
+        <img src={light ? "/logo_light.png" : "/logo.png"} alt="StreamTVDepot" className="h-14 w-auto" />
     );
 
     if (href) {
