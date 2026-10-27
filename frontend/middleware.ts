@@ -3,12 +3,12 @@
  *
  * Routing rules (in order):
  *
- *  1. streamtvdepot.com                  → SAAS platform (marketing + /admin panel)
+ *  1. streamtvdepot.com                    → SAAS platform (marketing + /admin panel)
  *  2. console.streamtvdepot.com            → admin panel (same app, /admin/* routes)
- *  3. admin.<anything>                → client admin panel, rewrites to /admin/*
- *                                       and injects X-Client-Domain header
- *  4. <anything else> (e.g. kalingo.tv) → client storefront, rewrites to /site/*
- *                                         and injects X-Client-Domain header
+ *  3. admin.<anything>                     → client admin panel, rewrites to /admin/*
+ *                                          and injects X-Client-Domain header
+ *  4. <anything else> (e.g. kalingo.tv)    → client storefront, rewrites to /site/*
+ *                                          and injects X-Client-Domain header
  *
  * The middleware only rewrites the URL internally — the browser URL stays unchanged.
  * Page components read the injected headers via `headers()` from next/headers.

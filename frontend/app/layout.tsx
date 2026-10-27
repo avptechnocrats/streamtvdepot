@@ -6,6 +6,9 @@ import Providers from "@/components/Providers";
 export const metadata: Metadata = {
     title: "StreamTVDepot",
     description: "Your premium streaming destination",
+    icons: {
+        icon: "/favicon.png",
+    },
 };
 
 export default function RootLayout({

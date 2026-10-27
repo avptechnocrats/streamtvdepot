@@ -1,5 +1,6 @@
 import re
 import uuid
+from typing import Literal
 from datetime import datetime
 from pathlib import Path
 
@@ -623,6 +624,67 @@ class EpisodeOut(BaseModel):
 
 # ─── Live Stream ─────────────────────────────────────────────────────────────
 
+class LiveOptionsIn(BaseModel):
+    """Per-channel options for the managed (AWS) live pipeline."""
+    ads_enabled: bool = False
+    ad_decision_server_url: str | None = Field(default=None, max_length=2000)
+    preroll_seconds: int = Field(default=0, ge=0, le=60)
+    record_vod: bool = True
+
+    @field_validator("ad_decision_server_url")
+    @classmethod
+    def _https_only(cls, v: str | None) -> str | None:
+        v = (v or "").strip() or None
+        if v and not v.lower().startswith("https://"):
+            raise ValueError("Ad decision server URL must use https")
+        return v
+
+
+class LiveAdBreakIn(BaseModel):
+    duration_seconds: int = Field(ge=1, le=600)
+
+
+class LiveAdBreakOut(BaseModel):
+    id: uuid.UUID
+    live_stream_id: uuid.UUID
+    duration_seconds: int
+    status: str
+    error_message: str | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class LiveVodExportIn(BaseModel):
+    start: datetime
+    end: datetime
+
+
+class LiveManagedOut(BaseModel):
+    status: str                      # provisioning | ready | error
+    error: str | None = None
+    channel_state: str | None = None  # IDLE | STARTING | RUNNING | STOPPING ...
+    options: dict = Field(default_factory=dict)
+    ingest_endpoints: list[dict] = Field(default_factory=list)  # [{server, stream_key}]
+    vod_status: str | None = None     # harvesting | complete | failed
+
+
+def _managed_view(aws_live: dict | None, rtmp_key: str | None) -> "LiveManagedOut | None":
+    if not aws_live or not aws_live.get("status"):
+        return None
+    from app.core import aws_live as aws
+
+    vod = aws_live.get("vod") or {}
+    return LiveManagedOut(
+        status=aws_live["status"],
+        error=aws_live.get("error"),
+        channel_state=aws_live.get("channel_state"),
+        options=aws_live.get("options") or {},
+        ingest_endpoints=aws.ingest_endpoints(aws_live, rtmp_key or "") if rtmp_key else [],
+        vod_status=vod.get("status"),
+    )
+
+
 class LiveStreamCreate(BaseModel):
     title: str
     slug: str
@@ -638,6 +700,20 @@ class LiveStreamCreate(BaseModel):
     geo_fencing: dict = {}
     access_type: str = "free"
     subscription_plan_ids: list[str] = []
+    # Streaming engine for RTMP channels; omitted → the server default (LIVE_PIPELINE if it can run).
+    pipeline: Literal["legacy", "aws"] | None = None
+    live_options: LiveOptionsIn | None = None
+
+
+class LivePipelineStatusOut(BaseModel):
+    available: bool
+    missing: list[str] = Field(default_factory=list)
+
+
+class LivePipelinesOut(BaseModel):
+    default: Literal["legacy", "aws"]
+    legacy: LivePipelineStatusOut
+    aws: LivePipelineStatusOut
 
 
 class LiveStreamUpdate(BaseModel):
@@ -683,6 +759,10 @@ class LiveStreamOut(BaseModel):
     geo_fencing: dict
     access_type: str
     subscription_plan_ids: list[str]
+    vod_video_id: uuid.UUID | None = None
+    aws_live: dict = Field(default_factory=dict, exclude=True)
+    managed: LiveManagedOut | None = None
+    pipeline: Literal["legacy", "aws"] | None = None  # streaming engine of an RTMP channel
     created_at: datetime
     updated_at: datetime
 
@@ -700,7 +780,12 @@ class LiveStreamOut(BaseModel):
     @model_validator(mode="after")
     def set_rtmp_ingest_url(self) -> "LiveStreamOut":
         from app.core.config import settings
-        if self.source == "rtmp" and settings.RTMP_SERVER_HOST:
+        self.managed = _managed_view(self.aws_live, self.rtmp_key)
+        if self.source == "rtmp":
+            self.pipeline = "aws" if self.managed else "legacy"
+        if self.managed and self.managed.ingest_endpoints:
+            self.rtmp_ingest_url = self.managed.ingest_endpoints[0]["server"]
+        elif self.source == "rtmp" and settings.RTMP_SERVER_HOST:
             self.rtmp_ingest_url = (
                 f"rtmp://{settings.RTMP_SERVER_HOST}/{settings.RTMP_APP_NAME}"
             )
@@ -743,6 +828,9 @@ class PublicLiveStreamOut(BaseModel):
     geo_fencing: dict
     access_type: str
     subscription_plan_ids: list[str]
+    aws_live: dict = Field(default_factory=dict, exclude=True)
+    # True when playback must be authorized via POST /auth/user/my-subscriptions/playback/live/{id}.
+    managed_playback: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -759,6 +847,7 @@ class PublicLiveStreamOut(BaseModel):
 
     @model_validator(mode="after")
     def refresh_thumbnail_presigned_urls(self) -> "PublicLiveStreamOut":
+        self.managed_playback = (self.aws_live or {}).get("status") == "ready"
         self.thumbnails = _refresh_thumbnail_urls(self.thumbnails)
         if self.recording_filename and not self.recording_url:
             from app.core.config import settings

@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import List, Literal
+from typing import Dict, List, Literal
 
 from pydantic_settings import BaseSettings
 
@@ -123,6 +123,45 @@ class Settings(BaseSettings):
     SSAI_BASE_URL: str = ""
     SSAI_ENABLED_FOR_VOD: bool = True
     SSAI_ENABLED_FOR_LIVE: bool = True
+
+    # ── Managed live pipeline: MediaLive → MediaPackage v2 → CloudFront (+ MediaTailor SSAI) ──
+    # "aws" provisions per-channel AWS resources for RTMP channels; "legacy" keeps nginx-rtmp.
+    LIVE_PIPELINE: Literal["legacy", "aws"] = "legacy"
+    LIVE_RESOURCE_PREFIX: str = "stv"
+    # Region for MediaLive/MediaPackage/MediaTailor and harvest S3 access; empty → AWS_REGION.
+    # Keep it equal to the region of the VOD bucket (MediaPackage exports straight into it).
+    LIVE_AWS_REGION: str = ""
+    MEDIALIVE_ROLE_ARN: str = ""                     # role MediaLive assumes (needs mediapackagev2:PutObject)
+    MEDIALIVE_CHANNEL_CLASS: Literal["STANDARD", "SINGLE_PIPELINE"] = "STANDARD"
+    # Existing input security group; when empty one is created from LIVE_INGEST_ALLOWED_CIDRS.
+    MEDIALIVE_INPUT_SECURITY_GROUP_ID: str = ""
+    # Encoder egress CIDRs allowed to push RTMP. No default: an open ingest must be an explicit choice.
+    LIVE_INGEST_ALLOWED_CIDRS: List[str] = []
+    LIVE_SEGMENT_SECONDS: int = 2
+    LIVE_DVR_WINDOW_SECONDS: int = 14_400            # MediaPackage start-over window (max 14 days)
+    MEDIAPACKAGE_CHANNEL_GROUP: str = "stv-live"
+    LIVE_HLS_AD_MARKER: Literal["DATERANGE", "SCTE35_ENHANCED"] = "DATERANGE"
+
+    # CloudFront in front of MediaPackage segments and MediaTailor manifests.
+    LIVE_CLOUDFRONT_DOMAIN: str = ""                 # e.g. live.streamtvdepot.com
+    LIVE_CLOUDFRONT_DISTRIBUTION_ARN: str = ""       # lets MediaPackage trust the distribution (OAC)
+    LIVE_CF_KEY_PAIR_ID: str = ""                    # CloudFront public key ID in the trusted key group
+    LIVE_CF_PRIVATE_KEY_PEM: str = ""                # matching RSA private key (PEM, \n-escaped allowed)
+    LIVE_CF_COOKIE_DOMAIN: str = ""                  # e.g. .streamtvdepot.com — must cover LIVE_CLOUDFRONT_DOMAIN
+    LIVE_CF_COOKIE_TTL_SECONDS: int = 900
+    # Tenant custom domain → its first-party video host (must be a subdomain of that domain), e.g.
+    # {"kalingo.tv": "live.kalingo.tv"}. Each host must also be an alias on the CloudFront distribution.
+    LIVE_TENANT_CDN_DOMAINS: Dict[str, str] = {}
+    # MediaTailor transcode profile used to condition ad creatives to the live ladder (account setup required).
+    LIVE_MEDIATAILOR_TRANSCODE_PROFILE: str = ""
+
+    # MediaTailor server-side ad insertion
+    LIVE_MEDIATAILOR_ENABLED: bool = True
+    # Default ad decision server; macros like [session.id] are expanded by MediaTailor.
+    # When empty the platform's own VAST endpoint (/public/playback/live-stream/{id}/vast.xml) is used.
+    LIVE_AD_DECISION_SERVER_URL: str = ""
+    LIVE_SLATE_AD_URL: str = ""
+    LIVE_AD_MAX_BREAK_SECONDS: int = 300
 
     # Stripe
     STRIPE_SECRET_KEY: str = ""

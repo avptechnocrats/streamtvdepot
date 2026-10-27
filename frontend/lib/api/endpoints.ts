@@ -110,9 +110,13 @@ export const ENDPOINTS = {
         ppvEventRegenerateKey: (id: string) => `/admin/content/ppv/${id}/regenerate-key`,
         ppvEventToggleLive: (id: string) => `/admin/content/ppv/${id}/toggle-live`,
         liveTvChannels: "/admin/content/live-streams",
+        liveTvPipelines: "/admin/content/live-streams/pipelines",
         liveTvChannel: (id: string) => `/admin/content/live-streams/${id}`,
         liveTvToggleLive: (id: string) => `/admin/content/live-streams/${id}/toggle-live`,
         liveTvRegenerateKey: (id: string) => `/admin/content/live-streams/${id}/regenerate-key`,
+        liveTvManaged: (id: string, action: "start" | "stop" | "provision" | "options" | "export-vod") =>
+            `/admin/content/live-streams/${id}/managed/${action}`,
+        liveTvAdBreaks: (id: string) => `/admin/content/live-streams/${id}/ad-breaks`,
         // EPG
         epgChannels: "/admin/content/epg/channels",
         epgPrograms: (channelId: string) => `/admin/content/epg/${channelId}/programs`,

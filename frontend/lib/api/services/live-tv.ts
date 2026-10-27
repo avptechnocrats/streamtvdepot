@@ -15,7 +15,49 @@ export const LIVE_TV_SOURCES = [
 
 export type LiveTvSource = (typeof LIVE_TV_SOURCES)[number]["value"];
 
+/** Streaming engine for RTMP channels: our own RTMP server, or AWS MediaLive. */
+export type LiveTvPipeline = "legacy" | "aws";
+
+export interface LiveTvPipelineStatus {
+    available: boolean;
+    /** Server settings still missing when unavailable. */
+    missing: string[];
+}
+
+export interface LiveTvPipelinesOut {
+    default: LiveTvPipeline;
+    legacy: LiveTvPipelineStatus;
+    aws: LiveTvPipelineStatus;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface LiveTvOptions {
+    ads_enabled: boolean;
+    ad_decision_server_url?: string | null;
+    preroll_seconds?: number;
+    record_vod: boolean;
+}
+
+export interface LiveTvManaged {
+    /** provisioning | ready | error */
+    status: "provisioning" | "ready" | "error";
+    error: string | null;
+    /** IDLE | STARTING | RUNNING | STOPPING … */
+    channel_state: string | null;
+    options: Partial<LiveTvOptions>;
+    ingest_endpoints: { server: string; stream_key: string }[];
+    vod_status: "harvesting" | "complete" | "failed" | null;
+}
+
+export interface LiveTvAdBreak {
+    id: string;
+    live_stream_id: string;
+    duration_seconds: number;
+    status: "requested" | "failed";
+    error_message: string | null;
+    created_at: string;
+}
 
 export interface LiveTvThumbnails {
     banner: string | null;    // 16:9
@@ -53,6 +95,11 @@ export interface LiveTvChannelOut {
     geo_fencing: { blocked_countries: string[] };
     access_type: "free" | "subscription" | "pay_per_view";
     subscription_plan_ids: string[];
+    /** Present when the channel runs on the managed AWS pipeline. */
+    managed?: LiveTvManaged | null;
+    /** Streaming engine of an RTMP channel. */
+    pipeline?: LiveTvPipeline | null;
+    vod_video_id?: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -72,6 +119,8 @@ export interface LiveTvChannelCreate {
     geo_fencing?: { blocked_countries: string[] };
     access_type?: "free" | "subscription" | "pay_per_view";
     subscription_plan_ids?: string[];
+    live_options?: LiveTvOptions;
+    pipeline?: LiveTvPipeline;
 }
 
 export interface LiveTvChannelUpdate extends Partial<LiveTvChannelCreate> { }
@@ -79,6 +128,11 @@ export interface LiveTvChannelUpdate extends Partial<LiveTvChannelCreate> { }
 const MAX_ADMIN_CONTENT_PAGE_SIZE = 100;
 
 // ─── Service functions ────────────────────────────────────────────────────────
+
+export async function getLiveTvPipelines(): Promise<LiveTvPipelinesOut> {
+    const res = await apiClient.get<LiveTvPipelinesOut>(ENDPOINTS.admin.liveTvPipelines);
+    return res.data;
+}
 
 export async function listLiveTvChannels(params?: {
     search?: string;
@@ -123,6 +177,46 @@ export async function toggleLiveTvLive(id: string, is_live: boolean): Promise<Li
     return res.data;
 }
 
+
+// ─── Managed pipeline ─────────────────────────────────────────────────────────
+
+export async function startLiveTvChannel(id: string): Promise<LiveTvChannelOut> {
+    const res = await apiClient.post<LiveTvChannelOut>(ENDPOINTS.admin.liveTvManaged(id, "start"));
+    return res.data;
+}
+
+export async function stopLiveTvChannel(id: string): Promise<LiveTvChannelOut> {
+    const res = await apiClient.post<LiveTvChannelOut>(ENDPOINTS.admin.liveTvManaged(id, "stop"));
+    return res.data;
+}
+
+export async function retryLiveTvProvisioning(id: string): Promise<LiveTvChannelOut> {
+    const res = await apiClient.post<LiveTvChannelOut>(ENDPOINTS.admin.liveTvManaged(id, "provision"));
+    return res.data;
+}
+
+export async function updateLiveTvOptions(id: string, options: LiveTvOptions): Promise<LiveTvChannelOut> {
+    const res = await apiClient.put<LiveTvChannelOut>(ENDPOINTS.admin.liveTvManaged(id, "options"), options);
+    return res.data;
+}
+
+export async function exportLiveTvVod(id: string, range: { start: string; end: string }): Promise<LiveTvChannelOut> {
+    const res = await apiClient.post<LiveTvChannelOut>(ENDPOINTS.admin.liveTvManaged(id, "export-vod"), range);
+    return res.data;
+}
+
+/** Interrupt the live feed with a server-side ad break of the given length. */
+export async function triggerLiveTvAdBreak(id: string, durationSeconds: number): Promise<LiveTvAdBreak> {
+    const res = await apiClient.post<LiveTvAdBreak>(ENDPOINTS.admin.liveTvAdBreaks(id), {
+        duration_seconds: durationSeconds,
+    });
+    return res.data;
+}
+
+export async function listLiveTvAdBreaks(id: string): Promise<LiveTvAdBreak[]> {
+    const res = await apiClient.get<LiveTvAdBreak[]>(ENDPOINTS.admin.liveTvAdBreaks(id));
+    return res.data;
+}
 export async function regenerateLiveTvKey(id: string): Promise<LiveTvChannelOut> {
     const res = await apiClient.post<LiveTvChannelOut>(ENDPOINTS.admin.liveTvRegenerateKey(id));
     return res.data;

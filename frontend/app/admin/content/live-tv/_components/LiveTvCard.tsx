@@ -1,11 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Pencil, Trash2, Tv2, Copy, Check, Radio, Square, RefreshCw, Play, X, KeyRound } from "lucide-react";
-import type { LiveTvChannelOut } from "@/lib/api";
-import { LIVE_TV_SOURCES, toggleLiveTvLive, regenerateLiveTvKey } from "@/lib/api";
+import { Pencil, Trash2, Tv2, Copy, Check, Radio, Square, RefreshCw, Play, X, KeyRound, Megaphone, Power } from "lucide-react";
+import type { LiveTvChannelOut, LiveTvManaged } from "@/lib/api";
+import {
+    LIVE_TV_SOURCES,
+    toggleLiveTvLive,
+    regenerateLiveTvKey,
+    getLiveTvChannel,
+    startLiveTvChannel,
+    stopLiveTvChannel,
+    retryLiveTvProvisioning,
+    triggerLiveTvAdBreak,
+} from "@/lib/api";
+
+const AD_BREAK_OPTIONS = [15, 30, 60, 90, 120] as const;
+const TRANSITIONAL_STATES = new Set(["STARTING", "STOPPING", "RECOVERING"]);
+
+function errorDetail(err: unknown, fallback: string): string {
+    const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+    return typeof detail === "string" ? detail : fallback;
+}
 
 const SOURCE_COLORS: Record<string, string> = {
     rtmp: "bg-blue-500/10 text-blue-400 border-blue-500/20",
@@ -55,6 +72,50 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
     );
     const [showCredentials, setShowCredentials] = useState(false);
     const [imgLoaded, setImgLoaded] = useState(false);
+
+    const [managed, setManaged] = useState<LiveTvManaged | null>(channel.managed ?? null);
+    const [managedBusy, setManagedBusy] = useState(false);
+    const [adBreakSeconds, setAdBreakSeconds] = useState<number>(30);
+    const [managedMessage, setManagedMessage] = useState<string | null>(null);
+
+    const applyManaged = (updated: LiveTvChannelOut) => {
+        setManaged(updated.managed ?? null);
+        setStreamStatus(updated.stream_status);
+        setRtmpKey(updated.rtmp_key);
+        setRtmpIngestUrl(updated.rtmp_ingest_url ?? rtmpIngestUrl);
+        onUpdate?.(updated);
+    };
+
+    // Provisioning and start/stop finish in the background — follow them until they settle.
+    const managedSettling =
+        managed?.status === "provisioning" ||
+        (managed?.channel_state != null && TRANSITIONAL_STATES.has(managed.channel_state)) ||
+        managed?.vod_status === "harvesting";
+    useEffect(() => {
+        if (!managedSettling) return;
+        const timer = setInterval(() => {
+            getLiveTvChannel(channel.id).then(applyManaged).catch(() => { /* retry on next tick */ });
+        }, 5000);
+        return () => clearInterval(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [managedSettling, channel.id]);
+
+    const runManaged = async (action: () => Promise<LiveTvChannelOut | void>, failure: string, success?: string) => {
+        setManagedBusy(true);
+        setManagedMessage(null);
+        try {
+            const result = await action();
+            if (result) applyManaged(result);
+            if (success) setManagedMessage(success);
+        } catch (err) {
+            setManagedMessage(errorDetail(err, failure));
+        } finally {
+            setManagedBusy(false);
+        }
+    };
+
+    const channelRunning = managed?.channel_state === "RUNNING";
+    const channelIdle = !managed?.channel_state || managed.channel_state === "IDLE";
 
     const handleToggleLive = async () => {
         setToggling(true);
@@ -160,6 +221,17 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
                             </div>
                         </div>
 
+                        {/* Backup ingest (second MediaLive pipeline) */}
+                        {managed && managed.ingest_endpoints.length > 1 && (
+                            <div>
+                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Backup RTMP Ingest URL (optional second encoder)</p>
+                                <div className="flex items-center gap-1.5 bg-muted/40 rounded-lg border border-border px-3 py-2">
+                                    <code className="flex-1 truncate font-mono text-[11px] text-foreground select-all">{managed.ingest_endpoints[1].server}</code>
+                                    <CopyButton value={managed.ingest_endpoints[1].server} label="backup RTMP URL" />
+                                </div>
+                            </div>
+                        )}
+
                         {/* HLS Playback URL */}
                         {streamUrl && (
                             <div>
@@ -226,6 +298,11 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
                     <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold ${SOURCE_COLORS[channel.source] ?? "bg-muted text-muted-foreground border-border"}`}>
                         {sourceLabel}
                     </span>
+                    {channel.source === "rtmp" && channel.pipeline && (
+                        <span className="px-2 py-0.5 rounded-full border border-border bg-muted text-[10px] font-semibold text-muted-foreground">
+                            {channel.pipeline === "aws" ? "AWS MediaLive" : "Legacy RTMP"}
+                        </span>
+                    )}
                     {channel.categories?.length > 0 && (
                         <span className="px-1.5 py-0.5 rounded bg-muted border border-border text-[11px] text-muted-foreground">
                             {channel.categories.join(", ")}
@@ -245,6 +322,92 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
 
                 {channel.description && (
                     <p className="text-xs text-muted-foreground line-clamp-2">{channel.description}</p>
+                )}
+
+                {/* Managed pipeline: channel power, server-side ad breaks, VOD export status */}
+                {managed && (
+                    <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2 text-[11px]">
+                            <span className="font-semibold text-foreground">Live pipeline</span>
+                            <span className={`px-2 py-0.5 rounded-full border font-semibold ${channelRunning ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : managed.status === "error" ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-blue-500/10 text-blue-400 border-blue-500/20"}`}>
+                                {managed.status === "ready" ? (managed.channel_state ?? "IDLE") : managed.status}
+                            </span>
+                        </div>
+
+                        {managed.status === "error" && (
+                            <>
+                                <p className="text-[11px] text-red-400 break-words">{managed.error}</p>
+                                <button
+                                    type="button"
+                                    disabled={managedBusy}
+                                    onClick={() => runManaged(() => retryLiveTvProvisioning(channel.id), "Could not retry provisioning")}
+                                    className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-amber-400 hover:bg-amber-500/10 transition-colors disabled:opacity-50"
+                                >
+                                    <RefreshCw size={12} className={managedBusy ? "animate-spin" : ""} /> Retry setup
+                                </button>
+                            </>
+                        )}
+
+                        {managed.status === "ready" && (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                {channelIdle ? (
+                                    <button
+                                        type="button"
+                                        disabled={managedBusy}
+                                        onClick={() => runManaged(() => startLiveTvChannel(channel.id), "Could not start channel")}
+                                        title="Start the encoder channel so OBS can connect (billed while running)"
+                                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+                                    >
+                                        <Power size={12} /> Start channel
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        disabled={managedBusy || managed.channel_state === "STOPPING"}
+                                        onClick={() => runManaged(() => stopLiveTvChannel(channel.id), "Could not stop channel")}
+                                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                                    >
+                                        <Power size={12} /> Stop channel
+                                    </button>
+                                )}
+
+                                {managed.options.ads_enabled && channelRunning && (
+                                    <>
+                                        <select
+                                            value={adBreakSeconds}
+                                            onChange={(e) => setAdBreakSeconds(Number(e.target.value))}
+                                            className="h-7 rounded-lg border border-border bg-background px-1.5 text-xs text-foreground"
+                                            aria-label="Ad break length"
+                                        >
+                                            {AD_BREAK_OPTIONS.map((s) => <option key={s} value={s}>{s}s</option>)}
+                                        </select>
+                                        <button
+                                            type="button"
+                                            disabled={managedBusy}
+                                            onClick={() => runManaged(
+                                                async () => { await triggerLiveTvAdBreak(channel.id, adBreakSeconds); },
+                                                "Could not start ad break",
+                                                `Ad break (${adBreakSeconds}s) sent`,
+                                            )}
+                                            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-amber-400 hover:bg-amber-500/10 transition-colors disabled:opacity-50"
+                                        >
+                                            <Megaphone size={12} /> Ad break
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        )}
+
+                        {managed.vod_status && (
+                            <p className="text-[11px] text-muted-foreground">
+                                VOD export: <span className="font-medium text-foreground">{managed.vod_status}</span>
+                                {channel.vod_video_id && managed.vod_status === "complete" && (
+                                    <> · <Link href={`/admin/content/videos/${channel.vod_video_id}/edit`} className="text-primary hover:underline">Open draft</Link></>
+                                )}
+                            </p>
+                        )}
+                        {managedMessage && <p className="text-[11px] text-muted-foreground break-words">{managedMessage}</p>}
+                    </div>
                 )}
 
                 {/* Actions */}

@@ -9,8 +9,8 @@ import { ChevronDown, Globe, Loader2, AlertTriangle, CheckCircle2, Upload, X, Tv
 import { LabeledSwitch } from "@/components/ui/labeled-switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-    createLiveTvChannel, updateLiveTvChannel,
-    type LiveTvChannelCreate,
+    createLiveTvChannel, updateLiveTvChannel, updateLiveTvOptions, getLiveTvPipelines,
+    type LiveTvChannelCreate, type LiveTvPipelinesOut,
     LIVE_TV_SOURCES,
     listCategories, type CategoryOut,
     listClientPlans, type ClientPricingPlanOut,
@@ -69,6 +69,11 @@ const schema = z.object({
     geo_fencing: z.object({ blocked_countries: z.array(z.string()) }),
     access_type: z.enum(["free", "subscription", "pay_per_view"]),
     subscription_plan_ids: z.array(z.string()),
+    // Managed live pipeline options (RTMP channels only)
+    pipeline: z.enum(["legacy", "aws"]),
+    ads_enabled: z.boolean(),
+    record_vod: z.boolean(),
+    managed: z.boolean(),
 }).refine((data) => data.source !== "external" || (!!data.stream_url && data.stream_url.trim().length > 0), {
     message: "Stream URL is required for External Live Feed",
     path: ["stream_url"],
@@ -381,6 +386,10 @@ export function liveTvChannelToFormValues(c: LiveTvChannelOut): FormValues {
         geo_fencing: c.geo_fencing ?? { blocked_countries: [] },
         access_type: (c.access_type as "free" | "subscription" | "pay_per_view") ?? "free",
         subscription_plan_ids: c.subscription_plan_ids ?? [],
+        pipeline: c.managed ? "aws" : "legacy",
+        ads_enabled: c.managed?.options.ads_enabled ?? false,
+        record_vod: c.managed?.options.record_vod ?? true,
+        managed: !!c.managed,
     };
 }
 
@@ -406,6 +415,10 @@ const DEFAULT_VALUES: FormValues = {
     banner: "",
     portrait: "",
     wide: "",
+    pipeline: "legacy",
+    ads_enabled: false,
+    record_vod: true,
+    managed: false,
     geo_fencing: { blocked_countries: [] },
     access_type: "free",
     subscription_plan_ids: [],
@@ -434,8 +447,17 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
     const source = watch("source");
     const blockedCountries = watch("geo_fencing.blocked_countries");
     const accessType = watch("access_type");
+    const pipeline = watch("pipeline");
     const slugSetByUser = useRef(false);
     const [plans, setPlans] = useState<ClientPricingPlanOut[]>([]);
+    const [pipelines, setPipelines] = useState<LiveTvPipelinesOut | null>(null);
+
+    useEffect(() => {
+        if (mode !== "create") return;
+        getLiveTvPipelines()
+            .then((p) => { setPipelines(p); setValue("pipeline", p.default); })
+            .catch(() => { /* keep the legacy default */ });
+    }, [mode, setValue]);
 
     useEffect(() => {
         listClientPlans().then(setPlans).catch(() => { /* ignore */ });
@@ -481,9 +503,15 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
             access_type: data.access_type,
             subscription_plan_ids: data.access_type === "subscription" ? [] : data.subscription_plan_ids,
         };
+        const liveOptions = { ads_enabled: data.ads_enabled, record_vod: data.record_vod };
+        if (mode === "create" && data.source === "rtmp") {
+            payload.pipeline = data.pipeline;
+            if (data.pipeline === "aws") payload.live_options = liveOptions;
+        }
         try {
             if (mode === "edit" && channelId) {
                 await updateLiveTvChannel(channelId, payload);
+                if (data.managed && data.source === "rtmp") await updateLiveTvOptions(channelId, liveOptions);
             } else {
                 await createLiveTvChannel(payload);
             }
@@ -613,6 +641,59 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                                     className={inputCls(!!errors.stream_url)}
                                 />
                                 <FieldError msg={errors.stream_url?.message} />
+                            </div>
+                        )}
+                        {/* Streaming engine — RTMP channels only; fixed once the channel exists */}
+                        {source === "rtmp" && (
+                            <div className="space-y-2">
+                                <label className="block text-xs font-semibold text-muted-foreground">Streaming engine</label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {([
+                                        { value: "legacy", label: "Legacy RTMP server", hint: "Our own RTMP server. Simple, limited audience size.", status: pipelines?.legacy },
+                                        { value: "aws", label: "AWS MediaLive", hint: "Managed, scalable to large audiences, with server-side ads and VOD recording.", status: pipelines?.aws },
+                                    ] as const).map((opt) => {
+                                        const unavailable = mode === "create" && pipelines != null && !opt.status?.available;
+                                        const selected = pipeline === opt.value;
+                                        const locked = mode === "edit";
+                                        return (
+                                            <button
+                                                key={opt.value}
+                                                type="button"
+                                                disabled={locked || unavailable}
+                                                onClick={() => setValue("pipeline", opt.value, { shouldDirty: true })}
+                                                className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-colors disabled:cursor-not-allowed ${selected
+                                                    ? "border-primary bg-primary/5 text-foreground"
+                                                    : "border-border text-muted-foreground"} ${locked || unavailable ? "opacity-60" : "hover:border-primary/40 hover:text-foreground"}`}
+                                            >
+                                                <span className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${selected ? "border-primary" : "border-muted-foreground/40"}`}>
+                                                    {selected && <span className="w-2 h-2 rounded-full bg-primary" />}
+                                                </span>
+                                                <span className="space-y-0.5">
+                                                    <span className="block text-sm font-medium leading-snug">{opt.label}</span>
+                                                    <span className="block text-[11px] font-normal text-muted-foreground">
+                                                        {unavailable ? `Not configured on this server (${opt.status?.missing.join(", ")})` : opt.hint}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {mode === "edit" && (
+                                    <p className="text-[11px] text-muted-foreground">The streaming engine can&apos;t be changed after the channel is created.</p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* AWS options — ads and VOD recording */}
+                        {source === "rtmp" && pipeline === "aws" && (mode === "create" || watch("managed")) && (
+                            <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
+                                <Controller name="ads_enabled" control={control} render={({ field }) => (
+                                    <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Server-side ads" description="Insert ad breaks into the live stream (seamless, ad-blocker proof)" />
+                                )} />
+                                <div className="border-t border-border" />
+                                <Controller name="record_vod" control={control} render={({ field }) => (
+                                    <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Save broadcast as VOD" description="When the channel stops, export the recording as a draft video" />
+                                )} />
                             </div>
                         )}
                     </section>

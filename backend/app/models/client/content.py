@@ -415,12 +415,37 @@ class LiveStream(Base, UUIDMixin, TimestampMixin):
     )
     access_type: Mapped[str] = mapped_column(String(20), nullable=False, default="free")
     subscription_plan_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    # Managed pipeline state: AWS resource IDs, ingest URLs, ads/VOD settings (see app.core.aws_live).
+    aws_live: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    # VOD asset created from the most recent broadcast recording.
+    vod_video_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_videos.id", ondelete="SET NULL"), nullable=True
+    )
     categories: Mapped[list["Category"]] = relationship(
         "Category",
         secondary="livestream_categories",
         back_populates="livestreams",
         lazy="selectin",
     )
+
+
+class LiveAdBreak(Base, UUIDMixin, TimestampMixin):
+    """Audit trail of SCTE-35 ad breaks signalled into a live channel."""
+
+    __tablename__ = "content_live_ad_breaks"
+
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    live_stream_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("content_live_streams.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    splice_event_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # requested | failed
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="requested")
+    error_message: Mapped[str | None] = mapped_column(Text)
+    requested_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
 
 # ─── PPV Events ──────────────────────────────────────────────────────────────

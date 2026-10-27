@@ -6,8 +6,12 @@ Used by:
 - Next.js middleware: determine tenant context from Host header
 """
 
+import asyncio
 import logging
+import random
+import time
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote_plus
 from xml.sax.saxutils import escape as xml_escape
@@ -1234,6 +1238,201 @@ async def get_video_vmap(
     )
 
 
+_EMPTY_VAST = '<?xml version="1.0" encoding="UTF-8"?>\n<VAST version="3.0"></VAST>'
+_LIVE_AD_PLACEMENTS = ("mid_roll", "pre_roll")
+
+
+@dataclass(frozen=True)
+class _LiveAd:
+    id: uuid.UUID
+    title: str
+    click_through_url: str | None
+    media_url: str
+    duration_seconds: int
+    priority: int
+
+
+_LIVE_POOL_TTL_SECONDS = 15
+# stream_id -> (expires_at, slug, client_id, candidates): one query serves the burst of ad requests at a break.
+_live_pool_cache: dict[uuid.UUID, tuple[float, str, uuid.UUID, list[_LiveAd]]] = {}
+_live_pool_locks: dict[uuid.UUID, asyncio.Lock] = {}
+
+
+async def _load_live_ad_candidates(stream_id: uuid.UUID, client_id: uuid.UUID, db: AsyncSession) -> list[_LiveAd]:
+    """Active video ads eligible for a live channel's ad breaks."""
+    now = datetime.now(timezone.utc)
+    spend = (
+        select(
+            AdvertisementEvent.advertisement_id.label("ad_id"),
+            func.coalesce(func.sum(AdvertisementEvent.billable_amount), 0).label("spend"),
+        )
+        .group_by(AdvertisementEvent.advertisement_id)
+        .subquery()
+    )
+    result = await db.execute(
+        select(Advertisement, AdPlacement.priority)
+        .join(AdPlacement, AdPlacement.ad_id == Advertisement.id)
+        .outerjoin(spend, spend.c.ad_id == Advertisement.id)
+        .where(
+            Advertisement.client_id == client_id,
+            Advertisement.status == AdStatus.ACTIVE,
+            Advertisement.ad_type == AdType.VIDEO,
+            Advertisement.media_url.is_not(None),
+            Advertisement.duration_seconds.is_not(None),
+            or_(Advertisement.starts_at.is_(None), Advertisement.starts_at <= now),
+            or_(Advertisement.ends_at.is_(None), Advertisement.ends_at > now),
+            or_(Advertisement.budget.is_(None), func.coalesce(spend.c.spend, 0) < Advertisement.budget),
+            AdPlacement.client_id == client_id,
+            AdPlacement.is_active.is_(True),
+            AdPlacement.placement_type.in_(_LIVE_AD_PLACEMENTS),
+            or_(AdPlacement.content_type.is_(None), AdPlacement.content_type.in_(["live_stream", "all"])),
+            or_(AdPlacement.content_id.is_(None), AdPlacement.content_id == str(stream_id)),
+        )
+    )
+    ads: list[_LiveAd] = []
+    seen: set[uuid.UUID] = set()
+    for ad, priority in result.all():
+        if ad.id not in seen:
+            seen.add(ad.id)
+            ads.append(_LiveAd(ad.id, ad.title, ad.click_through_url, ad.media_url, ad.duration_seconds, priority or 0))
+    return ads
+
+
+def _pick_live_pod(candidates: list[_LiveAd], avail_seconds: int, seed: str) -> list[_LiveAd]:
+    """Fill (never exceed) the avail duration: higher priority first, shuffled within a priority."""
+    by_priority: dict[int, list[_LiveAd]] = {}
+    for ad in candidates:
+        by_priority.setdefault(ad.priority, []).append(ad)
+
+    rng = random.Random(seed)
+    ordered: list[_LiveAd] = []
+    for priority in sorted(by_priority, reverse=True):
+        group = list(by_priority[priority])
+        rng.shuffle(group)
+        ordered.extend(group)
+
+    pod: list[_LiveAd] = []
+    remaining = avail_seconds
+    for ad in ordered:
+        if ad.duration_seconds <= remaining:
+            pod.append(ad)
+            remaining -= ad.duration_seconds
+    return pod
+
+
+async def _get_live_ad_pool(stream_id: uuid.UUID, slug: str, db: AsyncSession) -> tuple[uuid.UUID, list[_LiveAd]] | None:
+    """(client_id, candidate ads) for a stream, cached briefly; None when the stream is unknown."""
+    def cached():
+        entry = _live_pool_cache.get(stream_id)
+        return entry if entry and entry[0] > time.monotonic() and entry[1] == slug else None
+
+    entry = cached()
+    if entry:
+        return entry[2], entry[3]
+    async with _live_pool_locks.setdefault(stream_id, asyncio.Lock()):
+        entry = cached()
+        if entry:
+            return entry[2], entry[3]
+        client = await _resolve_client(slug, db)
+        exists = await db.scalar(select(LiveStream.id).where(
+            LiveStream.id == stream_id,
+            LiveStream.client_id == client.id,
+            LiveStream.is_active.is_(True),
+        ))
+        if not exists:
+            return None
+        candidates = await _load_live_ad_candidates(stream_id, client.id, db)
+        if len(_live_pool_cache) > 500:
+            now = time.monotonic()
+            for key in [k for k, v in _live_pool_cache.items() if v[0] <= now]:
+                _live_pool_cache.pop(key, None)
+        _live_pool_cache[stream_id] = (time.monotonic() + _LIVE_POOL_TTL_SECONDS, slug, client.id, candidates)
+        return client.id, candidates
+
+
+def _build_live_vast_xml(stream_id: uuid.UUID, ads: list[_LiveAd], session_id: str, tracking_token: str) -> str:
+    """VAST 3.0 document MediaTailor stitches into the live feed. Tracking is fired server-side by MediaTailor."""
+    ads_xml: list[str] = []
+    for index, ad in enumerate(ads, start=1):
+        ad_id = str(ad.id)
+        break_key = f"{ad_id}:live:{index}"
+
+        def beacon(event: str) -> str:
+            return _ad_beacon_url(stream_id, ad_id, event, "mid_roll", session_id, break_key, tracking_token)
+
+        tracking = "".join(
+            f'<Tracking event="{vast_evt}"><![CDATA[{beacon(beacon_evt)}]]></Tracking>'
+            for vast_evt, beacon_evt in _VAST_TRACKING_EVENTS
+        )
+        click_through = (
+            f"<ClickThrough><![CDATA[{_cdata_safe(ad.click_through_url)}]]></ClickThrough>"
+            if ad.click_through_url
+            else ""
+        )
+        ads_xml.append(f"""
+  <Ad id="{xml_escape(ad_id)}" sequence="{index}">
+    <InLine>
+      <AdSystem>StreamTVDepot</AdSystem>
+      <AdTitle><![CDATA[{_cdata_safe(ad.title)}]]></AdTitle>
+      <Impression><![CDATA[{beacon("impression")}]]></Impression>
+      <Creatives>
+        <Creative>
+          <Linear>
+            <Duration>{_format_vast_duration(ad.duration_seconds)}</Duration>
+            <TrackingEvents>{tracking}</TrackingEvents>
+            <VideoClicks>
+              {click_through}
+              <ClickTracking><![CDATA[{beacon("click")}]]></ClickTracking>
+            </VideoClicks>
+            <MediaFiles>
+              <MediaFile delivery="progressive" type="video/mp4" width="1280" height="720"><![CDATA[{_cdata_safe(ad.media_url)}]]></MediaFile>
+            </MediaFiles>
+          </Linear>
+        </Creative>
+      </Creatives>
+    </InLine>
+  </Ad>""")
+    return '<?xml version="1.0" encoding="UTF-8"?>\n<VAST version="3.0">' + "".join(ads_xml) + "\n</VAST>"
+
+
+@router.get(
+    "/playback/live-stream/{stream_id}/vast.xml",
+    summary="VAST ad pod for a live ad break — called by MediaTailor, not by players",
+)
+async def get_live_stream_vast(
+    stream_id: uuid.UUID,
+    slug: str = Query(..., description="Client platform slug"),
+    session_id: str = Query(..., max_length=128, description="MediaTailor session ID"),
+    avail_ms: str = Query("30000", max_length=12, description="Ad avail duration in ms (MediaTailor macro)"),
+    db: AsyncSession = Depends(get_db),
+):
+    pool = await _get_live_ad_pool(stream_id, slug, db)
+    # An unresolved macro or bad value falls back to a conservative 30s pod.
+    avail_seconds = int(avail_ms) // 1000 if avail_ms.isdigit() else 30
+    avail_seconds = max(1, min(avail_seconds, settings.LIVE_AD_MAX_BREAK_SECONDS))
+
+    body = _EMPTY_VAST
+    if pool:
+        client_id, candidates = pool
+        ads = _pick_live_pod(candidates, avail_seconds, seed=f"{session_id}:{int(time.time() // 30)}")
+        if ads:
+            tracking_token = create_ad_playback_token(
+                str(stream_id),
+                {
+                    "client_id": str(client_id),
+                    "session_id": session_id,
+                    "content_type": "live_stream",
+                    "advertisement_ids": [str(ad.id) for ad in ads],
+                },
+            )
+            body = _build_live_vast_xml(stream_id, ads, session_id, tracking_token)
+    return Response(
+        content=body,
+        media_type="application/xml; charset=utf-8",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @router.post("/ads/{ad_id}/events", status_code=status.HTTP_202_ACCEPTED)
 async def ingest_public_ad_event(
     ad_id: str,
@@ -1352,7 +1551,7 @@ async def ingest_ad_beacon(
         event_id=f"{session_id}:{ad_id}:{break_key}:{event}",
         event_type=event_type,
         session_id=session_id,
-        content_type="video",
+        content_type=claims.get("content_type") or "video",
         content_id=content_id,
         placement_type=placement_type,
         occurred_at=datetime.now(timezone.utc),
@@ -1490,6 +1689,18 @@ async def resolve_live_stream_playback(
     stream = result.scalar_one_or_none()
     if not stream:
         raise HTTPException(status_code=404, detail="Live stream not found.")
+
+    managed_state = stream.aws_live or {}
+    if managed_state.get("status") == "ready":
+        # Ads are stitched server-side (MediaTailor); the player gets its URL from the authorized
+        # playback endpoint, so no playback_url or client-side ad config is exposed here.
+        ads_on = bool((managed_state.get("options") or {}).get("ads_enabled"))
+        return PlaybackDecisionOut(
+            content_type="live_stream",
+            content_id=str(stream.id),
+            ad_mode="ssai" if ads_on else "none",
+            strategy="ssai" if ads_on else "none",
+        )
 
     chosen_strategy = _normalise_strategy(strategy or settings.AD_HYBRID_DEFAULT_MODE)
     recording_url = None
