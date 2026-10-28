@@ -79,8 +79,8 @@ export default function Navbar() {
     return (
         <>
             <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
-            <nav className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/60">
-                <div className="flex items-center justify-between gap-4 px-4 sm:px-6 lg:px-10 h-14">
+            <nav className="fixed top-0 left-0 right-0 py-2 z-50 bg-background/95 backdrop-blur-md border-b border-border/60">
+                <div className="flex items-center justify-between gap-4 px-4 sm:px-6 lg:px-14 h-14">
                     <div className="flex items-center gap-6 lg:gap-10 min-w-0">
                         <SiteLogo
                             className="flex items-center gap-2 shrink-0"
@@ -91,7 +91,7 @@ export default function Navbar() {
                             {visibleLinks.map((item) =>
                                 renderLink(
                                     item,
-                                    `relative px-3 py-4 text-[13px] font-medium transition-colors ${isActive(item.url)
+                                    `relative px-3 py-4 text-[14px] font-medium transition-colors ${isActive(item.url)
                                         ? "text-foreground after:absolute after:left-3 after:right-3 after:bottom-2 after:h-[2px] after:rounded-full after:bg-primary"
                                         : "text-muted-foreground hover:text-foreground"
                                     }`,
@@ -119,11 +119,10 @@ export default function Navbar() {
                     <div className="flex items-center gap-2 lg:gap-3">
                         <button
                             onClick={() => setSearchOpen(true)}
-                            className="hidden lg:flex items-center gap-2 w-72 xl:w-80 h-9 px-3 rounded-md border border-border bg-secondary/60 text-xs text-muted-foreground hover:border-primary/50 transition-colors"
+                            className="relative hidden lg:flex h-10 w-10 items-center justify-center rounded-lg  text-muted-foreground hover:text-black transition-colors before:absolute before:inset-1.5 before:rounded-full before:bg-transparent before:transition-colors hover:before:bg-foreground hover:text-background"
                             aria-label="Search"
                         >
-                            <Search size={15} />
-                            <span className="truncate">Search for movies, series, live TV...</span>
+                            <Search size={18} strokeWidth={2.8} className="relative z-10" />
                         </button>
                         <StorefrontActions
                             scrolled

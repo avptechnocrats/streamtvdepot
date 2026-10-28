@@ -135,36 +135,36 @@ export default function SearchOverlay({ open, onClose }: SearchOverlayProps) {
         <>
             {/* Backdrop */}
             <div
-                className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm"
+                className="fixed inset-0 z-[60] bg-black/75 backdrop-blur-md"
                 onClick={onClose}
             />
 
             {/* Panel */}
-            <div className="fixed top-0 left-0 right-0 z-[61] bg-background border-b border-border shadow-2xl">
+            <div className="fixed top-20 left-4 right-4 z-[61] mx-auto max-w-6xl rounded-2xl border border-border bg-card/95 p-5 shadow-2xl sm:top-24 sm:p-8">
                 {/* Search input row */}
-                <div className="flex items-center gap-3 px-6 lg:px-12 h-16">
-                    <Search size={20} className="text-muted-foreground shrink-0" />
+                <div className="flex h-16 items-center gap-3 rounded-xl border-2 border-foreground/90 bg-secondary/70 px-4 sm:h-20 sm:px-7">
+                    <Search size={28} className="text-muted-foreground shrink-0" />
                     <input
                         ref={inputRef}
                         type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Search movies, shows, channels…"
-                        className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground text-base outline-none"
+                        placeholder="Search"
+                        className="flex-1 bg-transparent text-lg font-medium text-foreground placeholder:text-muted-foreground outline-none sm:text-2xl"
                     />
-                    {isSearching && <Loader2 size={18} className="text-muted-foreground animate-spin shrink-0" />}
+                    {isSearching && <Loader2 size={20} className="text-muted-foreground animate-spin shrink-0" />}
                     <button
                         onClick={onClose}
-                        className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors shrink-0"
+                        className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors shrink-0"
                         aria-label="Close search"
                     >
-                        <X size={20} />
+                        <X size={22} />
                     </button>
                 </div>
 
                 {/* Results */}
                 {enabled && (
-                    <div className="px-6 lg:px-12 pb-4 max-h-[70vh] overflow-y-auto">
+                    <div className="max-h-[55vh] overflow-y-auto pt-5">
                         {showEmpty && (
                             <p className="text-sm text-muted-foreground py-6 text-center">
                                 No results for &ldquo;{debouncedQuery}&rdquo;
@@ -192,8 +192,8 @@ export default function SearchOverlay({ open, onClose }: SearchOverlayProps) {
                 )}
 
                 {!enabled && (
-                    <div className="px-6 lg:px-12 pb-4">
-                        <p className="text-xs text-muted-foreground py-3">Type at least 2 characters to search</p>
+                    <div className="pt-4">
+                        <p className="text-sm text-muted-foreground">Search movies, series, and live channels.</p>
                     </div>
                 )}
             </div>

@@ -154,6 +154,10 @@ export interface VideoPlayerProps {
      * known fast intranet, or 480p on a low-power device).
      */
     initialBandwidth?: number;
+    /** Send cookies on HLS requests (CloudFront signed cookies for managed live channels). */
+    withCredentials?: boolean;
+    /** Enable VHS low-latency HLS (LL-HLS) playback for live streams that publish it. */
+    lowLatency?: boolean;
     // ── Analytics callbacks ───────────────────────────────────────────────────
     onPlay?: () => void;
     onPause?: () => void;
@@ -266,6 +270,8 @@ export default function VideoPlayer({
     tracks = [],
     adConfig,
     initialBandwidth,
+    withCredentials = false,
+    lowLatency = false,
     title,
     onClose,
     onPlay,
@@ -537,7 +543,8 @@ export default function VideoPlayer({
                         // Falls back to device/network detection when no explicit
                         // value is provided by the caller.
                         bandwidth: initialBandwidth ?? detectInitialBandwidth(),
-                        withCredentials: false,
+                        withCredentials,
+                        experimentalLLHLS: lowLatency,
                     },
                     nativeAudioTracks: false,
                     nativeVideoTracks: false,
