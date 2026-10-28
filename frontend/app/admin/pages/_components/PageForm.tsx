@@ -110,7 +110,8 @@ const pageSchema = z.object({
         .string()
         .min(1, "Slug is required")
         .max(255)
-        .regex(/^[a-z0-9-]+$/, "Only lowercase letters, numbers and hyphens allowed"),
+        .regex(/^[a-z0-9-]+$/, "Only lowercase letters, numbers and hyphens allowed")
+        .refine((value) => !["contact-us", "faq"].includes(value), "This slug is reserved for a built-in page"),
     short_description: z.string().max(500).nullable().optional(),
     body: z.string().nullable().optional(),
     seo_title: z.string().max(255).nullable().optional(),

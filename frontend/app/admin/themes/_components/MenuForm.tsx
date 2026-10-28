@@ -22,6 +22,8 @@ const PREDEFINED_MENU_LINKS = [
     { label: "TV-Shows", url: "/tv-shows" },
     { label: "PPV Events", url: "/ppv-events" },
     { label: "Pricing", url: "/pricing" },
+    { label: "Contact Us", url: "/contact-us" },
+    { label: "FAQ", url: "/faq" },
 ] as const;
 
 const CUSTOM_LINK_OPTION = "__custom__";
@@ -197,7 +199,7 @@ export function MenuForm({ open, onClose, onSubmit, formType, position = "header
                     <DialogTitle>
                         {formType === "group"
                             ? `Add ${position.charAt(0).toUpperCase() + position.slice(1)} Menu Group`
-                            : "Add Link to Menu"}
+                            : initialData ? "Edit Menu Link" : "Add Link to Menu"}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -400,7 +402,7 @@ export function MenuForm({ open, onClose, onSubmit, formType, position = "header
                             Cancel
                         </Button>
                         <Button type="submit" disabled={loading}>
-                            {loading ? "Saving..." : "Add"}
+                            {loading ? "Saving..." : initialData ? "Save" : "Add"}
                         </Button>
                     </DialogFooter>
                 </form>

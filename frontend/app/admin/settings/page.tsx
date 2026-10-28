@@ -600,7 +600,7 @@ function ClientEmailTab({ data, onSaved, pushToast }: { data: SiteSettingsOut["e
                         </div>
                     )}
                     <div className="space-y-4">
-                        <FormField label="Administration Email Address" hint="System notifications and alerts are sent to this address.">
+                        <FormField label="Admin Email" hint="Contact Us form submissions and system notifications are sent to this address.">
                             <TextInput value={adminEmail} onChange={setAdminEmail} placeholder="admin@example.com" />
                             {adminEmailError && <p className="text-xs text-destructive">{adminEmailError}</p>}
                         </FormField>

@@ -3,6 +3,14 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
+RESERVED_SLUGS = {"contact-us", "faq"}
+
+
+def _reject_reserved(slug: str) -> str:
+    if slug.lower() in RESERVED_SLUGS:
+        raise ValueError(f"'{slug}' is reserved for a built-in page and cannot be used.")
+    return slug.lower()
+
 
 class PageBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
@@ -20,7 +28,7 @@ class PageBase(BaseModel):
     @field_validator("slug")
     @classmethod
     def slug_lowercase(cls, v: str) -> str:
-        return v.lower()
+        return _reject_reserved(v)
 
 
 class PageCreate(PageBase):
@@ -43,7 +51,7 @@ class PageUpdate(BaseModel):
     @field_validator("slug")
     @classmethod
     def slug_lowercase(cls, v: str | None) -> str | None:
-        return v.lower() if v else v
+        return _reject_reserved(v) if v else v
 
 
 class PageOut(BaseModel):

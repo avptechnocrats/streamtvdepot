@@ -8,6 +8,7 @@ Used by:
 
 import asyncio
 import logging
+import re
 import random
 import time
 import uuid
@@ -51,6 +52,9 @@ from app.schemas.client.page import PublicPageOut
 from app.schemas.client.menus import ActiveMenusOut, MenuGroupOut, MenuLinkOut
 from app.schemas.client.playback import PlaybackAdConfig, PlaybackCreative, PlaybackDecisionOut, PlaybackFallback
 from app.schemas.client.contact_submission import ContactSubmissionCreate, ContactSubmissionCreateResponse
+from app.schemas.client.contact_content import ContactFormField, PlatformContentOut
+from app.schemas.client.client_contact_submission import ClientContactSubmissionCreate, ClientContactSubmissionCreateResponse
+from app.models.client.client_contact_submission import ClientContactSubmission
 from app.schemas.client.advertisement import AdvertisementEventCreate
 from app.schemas.superadmin.demo_booking import DemoBookingCreate, DemoBookingCreateResponse
 from app.models.superadmin.demo_booking import DemoBookingRequest
@@ -605,6 +609,13 @@ async def get_public_site_settings(
         logo_url=logo_url,
         favicon_s3_key=favicon_s3_key,
         favicon_url=favicon_url,
+        address1=cfg.get("address1"),
+        address2=cfg.get("address2"),
+        phone=cfg.get("phone"),
+        contact_email=cfg.get("contact_email"),
+        youtube_url=cfg.get("youtube_url"),
+        instagram_url=cfg.get("instagram_url"),
+        facebook_url=cfg.get("facebook_url"),
     )
 
 
@@ -2144,6 +2155,22 @@ async def get_home_contents(
 # ─── Static Pages ─────────────────────────────────────────────────────────────
 
 @router.get(
+    "/platform-content",
+    response_model=PlatformContentOut,
+    summary="Get published contact and FAQ content for a client storefront",
+)
+async def get_platform_content(
+    slug: str = Query(..., description="Client platform slug, e.g. 'kalingo-tv'"),
+    db: AsyncSession = Depends(get_db),
+):
+    client = await _resolve_client(slug, db, enforce_plan=False)
+    site_config = dict(client.site_config or {})
+    return PlatformContentOut.model_validate({
+        "contact": site_config.get("contact_content", {}),
+        "faq": site_config.get("faq_content", {}),
+    })
+
+@router.get(
     "/pages",
     response_model=list[PublicPageOut],
     summary="List published static pages for a client storefront — no auth required",
@@ -2303,17 +2330,15 @@ async def create_contact_submission(
 ):
     client_slug = (payload.client_slug or x_client_slug or "").strip()
     client_id = None
-    
+
     # Only resolve client if slug is provided; otherwise, this is a main-site inquiry
     if client_slug:
         try:
             client = await _resolve_client(client_slug, db, enforce_plan=False)
             client_id = client.id
         except (HTTPException, Exception):
-            # Client not found or any error — allow submission as a general inquiry
-            # This handles both platform-not-found (HTTPException) and other errors
             client_id = None
-    
+
     submission = ContactSubmission(
         client_id=client_id,
         full_name=payload.full_name.strip(),
@@ -2373,3 +2398,69 @@ async def create_contact_submission(
         id=submission.id,
         message="Contact request submitted successfully.",
     )
+
+
+@router.post(
+    "/client-contact-submissions",
+    response_model=ClientContactSubmissionCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a tenant storefront Contact Us submission",
+)
+async def create_client_contact_submission(
+    payload: ClientContactSubmissionCreate,
+    slug: str = Query(..., description="Client platform slug, injected by the storefront proxy"),
+    db: AsyncSession = Depends(get_db),
+):
+    client = await _resolve_client(slug, db, enforce_plan=False)
+    site_config = client.site_config or {}
+    fields = [ContactFormField.model_validate(item) for item in site_config.get("contact_content", {}).get("fields", [])]
+    if not fields:
+        raise HTTPException(status_code=404, detail="Contact form is not configured.")
+
+    unknown = set(payload.form_data) - {field.id for field in fields}
+    if unknown:
+        raise HTTPException(status_code=422, detail="Submission contains unknown contact fields.")
+
+    answers: list[dict] = []
+    for field in fields:
+        value = payload.form_data.get(field.id)
+        if isinstance(value, str):
+            value = value.strip()
+        if value is None or value == "" or value == []:
+            if field.required:
+                raise HTTPException(status_code=422, detail=f"{field.label} is required.")
+            value = None
+        elif field.type in {"select", "radio"} and value not in field.options:
+            raise HTTPException(status_code=422, detail=f"Invalid value for {field.label}.")
+        elif field.type == "email" and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", str(value)):
+            raise HTTPException(status_code=422, detail=f"{field.label} must be a valid email address.")
+        elif isinstance(value, str) and len(value) > 5000:
+            raise HTTPException(status_code=422, detail=f"{field.label} is too long.")
+        answers.append({"id": field.id, "label": field.label, "type": field.type, "value": value})
+
+    submission = ClientContactSubmission(client_id=client.id, form_data=answers, status=ContactSubmissionStatus.UNREAD)
+    db.add(submission)
+    await db.flush()
+
+    # The submission is already stored; a mail failure must not lose it or fail the visitor's request.
+    admin_email = (site_config.get("admin_email") or "").strip() or await get_client_notification_email(db, client.id)
+    if admin_email:
+        lines = "\n".join(
+            f"{item['label']}: {', '.join(item['value']) if isinstance(item['value'], list) else (item['value'] or '-')}"
+            for item in answers
+        )
+        try:
+            await send_system_email(
+                db,
+                event_key="client_contact_submission_notification",
+                to_email=admin_email,
+                subject="New Contact Us submission",
+                body_text=f"A new Contact Us form was submitted.\n\n{lines}\n",
+                client_id=client.id,
+                metadata={"submission_id": str(submission.id)},
+            )
+        except Exception:
+            logger.exception("Contact submission notification failed", extra={"submission_id": str(submission.id)})
+
+    await db.commit()
+    return ClientContactSubmissionCreateResponse(id=submission.id, message="Thank you. Your message has been submitted.")

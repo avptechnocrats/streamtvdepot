@@ -23,6 +23,7 @@ from .pages import router as pages_router
 from .menus import router as menus_router
 from .roles import router as roles_router
 from .content_partners import router as content_partners_router
+from .contact_content import router as contact_content_router
 
 router = APIRouter(dependencies=[Depends(enforce_admin_route_permission)])
 
@@ -43,6 +44,7 @@ router.include_router(payment_gateways_router, prefix="/payment-gateways", tags=
 router.include_router(tickets_router, prefix="/tickets", tags=["Admin – End User Tickets"])
 router.include_router(support_router, prefix="/support", tags=["Admin – Help & Support"])
 router.include_router(contact_submissions_router, prefix="/contact-submissions", tags=["Admin – Contact Submissions"])
+router.include_router(contact_content_router, prefix="/contact-content", tags=["Admin – Contact Content"])
 router.include_router(pages_router, prefix="/pages", tags=["Admin – Pages"])
 router.include_router(menus_router, prefix="/menus", tags=["Admin – Menus"])
 router.include_router(roles_router, prefix="/roles", tags=["Admin – Roles & Access"])
