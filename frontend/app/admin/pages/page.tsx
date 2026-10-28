@@ -15,6 +15,8 @@ import {
     Globe,
     FileText,
     Grid,
+    Copy,
+    Check,
 } from "lucide-react";
 import { listPages, deletePage, updatePage, type PageOut, type PageStatus } from "@/lib/api";
 
@@ -101,6 +103,14 @@ function PageRow({
     onDelete: (p: PageOut) => void;
     onToggleStatus: (p: PageOut) => void;
 }) {
+    const [copied, setCopied] = useState(false);
+
+    const copyUrl = async () => {
+        await navigator.clipboard.writeText(`/${page.slug}`);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1800);
+    };
+
     return (
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card hover:bg-secondary/30 transition-colors group">
             <div className="min-w-0 flex-1">
@@ -109,7 +119,17 @@ function PageRow({
                     {statusBadge(page.status)}
                 </div>
                 <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground flex-wrap">
-                    <span className="font-mono">/{page.slug}</span>
+                    <span className="inline-flex items-center gap-1 font-mono">
+                        /{page.slug}
+                        <button
+                            type="button"
+                            onClick={copyUrl}
+                            title={copied ? "Copied" : "Copy URL"}
+                            className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        >
+                            {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                        </button>
+                    </span>
                     {page.short_description && (
                         <span className="truncate max-w-xs">{page.short_description}</span>
                     )}

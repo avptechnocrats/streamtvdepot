@@ -293,7 +293,7 @@ export function PageForm({ mode, initialData }: PageFormProps) {
                                         value={field.value ?? ""}
                                         onChange={field.onChange}
                                         placeholder="Write your page content here…"
-                                        minHeight={400}
+                                        height="clamp(20rem, 55vh, 40rem)"
                                     />
                                 )}
                             />

@@ -212,6 +212,7 @@ interface RichTextEditorProps {
     onChange: (html: string) => void;
     placeholder?: string;
     minHeight?: number;
+    height?: string;
     maxChars?: number;
     disabled?: boolean;
 }
@@ -221,6 +222,7 @@ export function RichTextEditor({
     onChange,
     placeholder = "Start writing...",
     minHeight = 320,
+    height,
     maxChars,
     disabled = false,
 }: RichTextEditorProps) {
@@ -251,8 +253,8 @@ export function RichTextEditor({
         },
         editorProps: {
             attributes: {
-                class: "prose prose-sm dark:prose-invert max-w-none focus:outline-none px-4 py-3",
-                style: `min-height: ${minHeight}px`,
+                class: `prose prose-sm dark:prose-invert max-w-none focus:outline-none px-4 py-3${height ? " overflow-y-auto" : ""}`,
+                style: height ? `height: ${height}` : `min-height: ${minHeight}px`,
             },
         },
         immediatelyRender: false,
@@ -274,7 +276,7 @@ export function RichTextEditor({
         return (
             <div
                 className="rounded-lg border border-border bg-secondary animate-pulse"
-                style={{ minHeight: minHeight }}
+                style={height ? { height } : { minHeight }}
             />
         );
     }
