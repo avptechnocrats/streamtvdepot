@@ -41,7 +41,7 @@ StreamTVDepot's theme system works on the same principle as WordPress themes:
 
 | Kind | What differs | Example |
 |---|---|---|
-| **Colour-only** | CSS variables only — layout is shared | Midnight, Sunset, Emerald, Cinema Red |
+| **Colour-only** | CSS variables only — layout is shared | Midnight, Sunset, Emerald, Ember |
 | **Full custom** | Its own React component files + CSS vars | Dark Gold, Neon City |
 
 ---
@@ -232,7 +232,7 @@ All six appearance preferences are editable here. Changes take effect instantly 
 | `sunset` | Sunset | Colour-only | `darkGoldComponents` | orange |
 | `emerald` | Emerald | Colour-only | `darkGoldComponents` | green |
 | `neon-city` | Neon City | Full custom | `neonCityComponents` | purple |
-| `cinema-red` | Cinema Red | Colour-only | `darkGoldComponents` | rose |
+| `ember` | Ember | Colour-only (admin) — full layout in the client app | `darkGoldComponents` | rose |
 
 ---
 

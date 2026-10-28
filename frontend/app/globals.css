@@ -363,55 +363,60 @@
     }
 }
 
-/* ─── Cinema Red (near-black + deep crimson spotlight) ────────────── */
+/* ─── Ember (deep navy-black + crimson / orange-magenta gradient) ──── */
 @layer base {
-    [data-theme="cinema-red"] {
-        --background: 0 20% 5%;
-        --foreground: 10 10% 92%;
+    /* Accent variables use !important so the runtime accent override in
+       use-user-prefs (inline style on <html>) cannot recolour this theme. */
+    [data-theme="ember"] {
+        --background: 230 25% 5%;
+        --foreground: 220 15% 94%;
 
-        --card: 0 15% 9%;
-        --card-foreground: 10 10% 92%;
+        --card: 230 20% 9%;
+        --card-foreground: 220 15% 94%;
 
-        --popover: 0 15% 9%;
-        --popover-foreground: 10 10% 92%;
+        --popover: 230 22% 8%;
+        --popover-foreground: 220 15% 94%;
 
-        --primary: 340 80% 55%;
-        --primary-foreground: 0 20% 5%;
+        --primary: 345 85% 55% !important;
+        --primary-foreground: 0 0% 100%;
 
-        --secondary: 0 12% 14%;
-        --secondary-foreground: 10 8% 82%;
+        --secondary: 230 16% 13%;
+        --secondary-foreground: 220 12% 85%;
 
-        --muted: 0 12% 12%;
-        --muted-foreground: 0 8% 52%;
+        --muted: 230 16% 11%;
+        --muted-foreground: 225 9% 58%;
 
-        --accent: 340 80% 55%;
-        --accent-foreground: 0 20% 5%;
+        --accent: 345 85% 55% !important;
+        --accent-foreground: 0 0% 100%;
 
         --destructive: 0 84.2% 60.2%;
         --destructive-foreground: 210 40% 98%;
 
-        --border: 0 12% 16%;
-        --input: 0 12% 16%;
-        --ring: 340 80% 55%;
+        --border: 230 14% 16%;
+        --input: 230 14% 16%;
+        --ring: 345 85% 55% !important;
 
-        --sidebar-background: 0 15% 7%;
-        --sidebar-foreground: 10 8% 82%;
-        --sidebar-primary: 340 80% 55%;
-        --sidebar-primary-foreground: 0 20% 5%;
-        --sidebar-accent: 0 12% 12%;
-        --sidebar-accent-foreground: 10 8% 82%;
-        --sidebar-border: 0 12% 16%;
-        --sidebar-ring: 340 80% 55%;
+        --sidebar-background: 230 22% 7%;
+        --sidebar-foreground: 220 12% 85%;
+        --sidebar-primary: 345 85% 55% !important;
+        --sidebar-primary-foreground: 0 0% 100%;
+        --sidebar-accent: 230 16% 11%;
+        --sidebar-accent-foreground: 220 12% 85%;
+        --sidebar-border: 230 14% 16%;
+        --sidebar-ring: 345 85% 55%;
 
-        --gold: 340 80% 55%;
-        --gold-dim: 340 55% 38%;
-        --surface-hover: 0 12% 16%;
+        --gold: 345 85% 55% !important;
+        --gold-dim: 345 60% 38%;
+        --surface-hover: 230 14% 15%;
 
-        --gradient-primary-1: hsl(340 80% 55%);
-        --gradient-primary-2: hsl(350 90% 68%);
-        --gradient-primary-3: hsl(330 75% 48%);
-        --banner-bg: hsl(0 20% 5%);
-        --banner-bg-overlay: hsl(0 20% 5% / 0.8);
+        --gradient-primary-1: hsl(345 85% 55%) !important;
+        --gradient-primary-2: hsl(8 95% 62%) !important;
+        --gradient-primary-3: hsl(335 80% 48%) !important;
+        --banner-bg: hsl(230 25% 5%);
+        --banner-bg-overlay: hsl(230 25% 5% / 0.8);
+
+        /* Signature orange → magenta used on primary call-to-action buttons */
+        --ember-gradient: linear-gradient(90deg, hsl(14 100% 58%), hsl(335 85% 52%));
     }
 }
 
@@ -513,13 +518,13 @@
         @apply text-red-600;
     }
 
-    /* Dark mode themes: gold, midnight, sunset, emerald, neon-city, cinema-red, apple-tv */
+    /* Dark mode themes: gold, midnight, sunset, emerald, neon-city, ember, apple-tv */
     [data-theme="gold"],
     [data-theme="midnight"],
     [data-theme="sunset"],
     [data-theme="emerald"],
     [data-theme="neon-city"],
-    [data-theme="cinema-red"],
+    [data-theme="ember"],
     [data-theme="apple-tv"] {
         & .billing-banner-urgent {
             @apply border-red-700/60 bg-red-900/40 text-red-100;

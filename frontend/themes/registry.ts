@@ -5,7 +5,6 @@ import appleTvComponents from "./apple-tv";
 import midnightComponents from "./midnight";
 import sunsetComponents from "./sunset";
 import emeraldComponents from "./emerald";
-import cinemaRedComponents from "./cinema-red";
 
 /**
  * Central theme registry.
@@ -91,16 +90,18 @@ export const THEMES: ThemeDefinition[] = [
         components: neonCityComponents,
     },
     {
-        id: "cinema-red",
-        name: "Cinema Red",
-        description: "Bold near-black stage with deep crimson spotlight",
-        dataTheme: "cinema-red",
-        previewBg: "hsl(0 20% 5%)",
-        previewCard: "hsl(0 15% 9%)",
-        previewAccent: "hsl(340 80% 55%)",
+        id: "ember",
+        name: "Ember",
+        description: "Streaming-portal look — navy-black base, crimson accents and poster rails",
+        dataTheme: "ember",
+        previewBg: "hsl(230 25% 5%)",
+        previewCard: "hsl(230 20% 9%)",
+        previewAccent: "hsl(345 85% 55%)",
         nativeAccent: "rose",
-        previewImage: "/assets/themes/cinema-red.png",
-        components: cinemaRedComponents,
+        defaultPrefs: { bannerStyle: "slider" },
+        previewImage: "/assets/themes/ember.png",
+        // Full Ember layout lives in the client app; the admin only needs the colours
+        components: darkGoldComponents,
     },
     {
         id: "apple-tv",
