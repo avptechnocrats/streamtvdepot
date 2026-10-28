@@ -10,6 +10,7 @@ export interface PublicMenuLink {
     sort_order: number;
     description?: string | null;
     target?: MenuLinkTarget;
+    column_index?: number;
 }
 
 export interface PublicMenuGroup {
@@ -18,6 +19,7 @@ export interface PublicMenuGroup {
     position: MenuPosition;
     is_active: boolean;
     sort_order: number;
+    footer_columns?: number;
     max_menu_display?: number | null;
     links: PublicMenuLink[];
 }

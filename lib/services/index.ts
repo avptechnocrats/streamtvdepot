@@ -19,3 +19,5 @@ export * from "./user-profile";
 export * from "./watchlist";
 export * from "./checkout";
 export * from "./support";
+export * from "./platform-content";
+export * from "./contact-submission";
