@@ -14,5 +14,6 @@ export const ENDPOINTS = {
         video: (videoId: string) => `/auth/user/my-subscriptions/playback/videos/${videoId}`,
         channelProgram: (channelId: string, videoId: string) =>
             `/auth/user/my-subscriptions/playback/channels/${channelId}/videos/${videoId}`,
+        live: (channelId: string) => `/auth/user/my-subscriptions/playback/live/${channelId}`,
     },
 } as const;

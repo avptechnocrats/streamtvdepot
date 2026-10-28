@@ -33,6 +33,8 @@ export interface LiveTvChannelOut {
     source: LiveTvSource;
     stream_url: string | null;
     stream_status: "idle" | "live" | "error";
+    /** True when playback must go through authorizeLivePlayback (signed CDN cookies, server-side ads). */
+    managed_playback?: boolean;
     thumbnails: LiveTvThumbnails;
     is_active: boolean;
     is_featured: boolean;

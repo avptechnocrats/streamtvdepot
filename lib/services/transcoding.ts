@@ -19,6 +19,28 @@ export interface PlaybackAuthorizationResponse {
     stream_url: string;
 }
 
+export interface LivePlaybackAuthorization {
+    stream_url: string;
+    ads_enabled: boolean;
+    low_latency: boolean;
+    cdn: {
+        /** Cookie Domain attribute — must cover the CDN host. */
+        domain: string;
+        /** Unix seconds; renew before this. */
+        expires: number;
+        cookies: Record<string, string>;
+    };
+}
+
+/**
+ * Authorize a managed live channel. Returns the CDN playback URL plus short-lived
+ * signed cookies the browser must hold before requesting any segment.
+ */
+export async function authorizeLivePlayback(channelId: string): Promise<LivePlaybackAuthorization> {
+    const { data } = await apiClient.post<LivePlaybackAuthorization>(ENDPOINTS.playback.live(channelId));
+    return data;
+}
+
 export async function getDrmKeyToken(
     videoId: string,
 ): Promise<KeyTokenResponse> {

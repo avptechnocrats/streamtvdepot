@@ -63,7 +63,7 @@ export default function Navbar() {
                         <StorefrontActions
                             scrolled={false}
                             className="flex items-center gap-1"
-                            buttonClassName="p-2.5 text-white/60 hover:text-white transition-colors rounded-lg"
+                            buttonClassName="flex h-8 w-8 items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105"
                             accountClassName="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors text-white"
                         />
                         <button

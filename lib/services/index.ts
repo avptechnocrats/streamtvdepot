@@ -9,6 +9,7 @@ export * from "./videos";
 export * from "./live-tv";
 export * from "./ppv-events";
 export * from "./home-contents";
+export * from "./pages";
 export * from "./theme-settings";
 export * from "./site-settings";
 export * from "./menus";

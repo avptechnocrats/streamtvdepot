@@ -48,7 +48,7 @@ export default function Footer() {
     return (
         <footer>
             {!user && (
-                <section className="mx-4 sm:mx-6 lg:mx-10 mb-8 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-card to-card px-6 py-6 flex flex-col lg:flex-row lg:items-center gap-6">
+                <section className="mx-4 sm:mx-6 lg:mx-10 my-8  border border-primary/30 bg-gradient-to-r from-primary/10 via-card to-card px-6 py-6 flex flex-col lg:flex-row lg:items-center gap-6">
                     <div className="lg:w-1/4 space-y-1">
                         <h3 className="text-xl font-display font-800 text-gradient-gold leading-tight">
                             Unlimited Entertainment On Your Terms
@@ -79,7 +79,7 @@ export default function Footer() {
                 </section>
             )}
 
-            <div className="border-t border-border/60 px-4 sm:px-6 lg:px-10 py-8">
+            <div className="border-t border-border/60 px-4 sm:px-6 lg:px-14 py-8">
                 <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
                     <SiteLogo
                         className="flex items-center gap-2"

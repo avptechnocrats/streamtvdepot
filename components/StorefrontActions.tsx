@@ -89,8 +89,8 @@ export default function StorefrontActions({
                     </DropdownMenu>
                 ) : (
                     <Link href="/login" className={accountClassName} aria-label="Sign in">
-                        <User size={16} />
-                        <span className="hidden md:block">Sign In</span>
+                        <User size={18} />
+                        <span className="hidden md:block text-[14px]">Sign In</span>
                     </Link>
                 )}
             </div>

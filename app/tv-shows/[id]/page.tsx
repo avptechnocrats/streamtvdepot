@@ -26,6 +26,7 @@ import EpgGuide from "../_components/EpgGuide";
 // VideoPlayer uses video.js which requires browser APIs — disable SSR
 const VideoPlayer = dynamic(() => import("@/components/VideoPlayer"), { ssr: false });
 const ManagedVideoPlayer = dynamic(() => import("@/components/ManagedVideoPlayer"), { ssr: false });
+const ManagedLivePlayer = dynamic(() => import("@/components/ManagedLivePlayer"), { ssr: false });
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
@@ -279,7 +280,9 @@ export default function ChannelDetailPage() {
     const isFree = channel.access_type === "free";
     const canPlay = isFree || isPlaying;
     const playbackSrc = scheduledVideoPlaybackSrc || channel.stream_url;
-    const hasPlayableUrl = !!playbackSrc;
+    // Managed channels have no public URL; the player obtains an authorized CDN URL itself.
+    const managedLive = !!channel.managed_playback && !scheduledVideoPlaybackSrc;
+    const hasPlayableUrl = !!playbackSrc || managedLive;
     // External HLS links can be attempted directly. RTMP/SRT channels should be
     // attempted only when backend marks the ingest as currently live, unless
     // an EPG-linked uploaded video is currently active.
@@ -308,7 +311,14 @@ export default function ChannelDetailPage() {
                     {canPlay ? (
                         /* Free content or a paid channel with verified access */
                         canAttemptPlayback && !playbackError ? (
-                            playbackVideoId ? (
+                            managedLive ? (
+                                <ManagedLivePlayer
+                                    channelId={channel.id}
+                                    poster={poster}
+                                    className="w-full"
+                                    onError={(message) => setPlaybackError(message || "Playback failed")}
+                                />
+                            ) : playbackVideoId ? (
                                 <ManagedVideoPlayer
                                     fallbackSrc={playbackSrc as string}
                                     videoId={playbackVideoId}
