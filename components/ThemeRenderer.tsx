@@ -126,6 +126,7 @@ export default function ThemeRenderer() {
                                 key={row.category_id}
                                 title={row.category_name}
                                 movies={mapRowMovies(row)}
+                                href={`/categories/${row.category_slug}`}
                             />
                         ))}
                         {rows.length >= 1 && <CategoryGrid type="video" showName={false} />}
@@ -134,6 +135,7 @@ export default function ThemeRenderer() {
                                 key={row.category_id}
                                 title={row.category_name}
                                 movies={mapRowMovies(row)}
+                                href={`/categories/${row.category_slug}`}
                             />
                         ))}
                         {/* Infinite scroll sentinel */}

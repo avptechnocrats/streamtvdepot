@@ -15,4 +15,6 @@ export interface Movie {
 export interface ContentRowProps {
     title: string;
     movies: Movie[];
+    /** Optional link to the full category page (used by themes that render a "View All" action). */
+    href?: string;
 }
