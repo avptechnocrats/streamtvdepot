@@ -2,7 +2,7 @@
  * dark-gold/index.ts
  *
  * The "Dark Gold" theme component set — and the shared base for all
- * colour-only themes (Midnight, Sunset, Emerald, Cinema Red).
+ * colour-only themes (Midnight, Sunset, Emerald).
  *
  * These themes look different from each other only through CSS variable
  * overrides defined in globals.css. Their HTML structure and layout are
