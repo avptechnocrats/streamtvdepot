@@ -34,6 +34,7 @@ export * from "./services/advertisements";
 export * from "./services/demo-bookings";
 export * from "./services/public-demo-bookings";
 export * from "./services/contact-submissions";
+export * from "./services/contact-content";
 export * from "./services/public-contact-submissions";
 export * from "./services/billing";
 export * from "./services/mail-logs";

@@ -36,7 +36,7 @@ class ContactSubmissionSummary(BaseModel):
 
 class ContactSubmissionDetail(BaseModel):
     id: uuid.UUID
-    client_id: uuid.UUID
+    client_id: uuid.UUID | None
     full_name: str
     work_email: str
     company: str | None

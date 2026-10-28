@@ -27,6 +27,31 @@ export interface ContactSubmissionDetail extends ContactSubmissionSummary {
     message: string;
 }
 
+export interface ClientContactSubmissionSummary {
+    id: string;
+    status: ContactSubmissionStatus;
+    created_at: string;
+}
+
+export interface ClientContactSubmissionAnswer {
+    id: string;
+    label: string;
+    type: string;
+    value: string | string[] | null;
+}
+
+export interface ClientContactSubmissionDetail extends ClientContactSubmissionSummary {
+    form_data: ClientContactSubmissionAnswer[];
+}
+
+export interface ClientContactSubmissionListResponse {
+    items: ClientContactSubmissionSummary[];
+    total: number;
+    page: number;
+    page_size: number;
+    counts: ContactSubmissionListCounts;
+}
+
 export interface SuperAdminContactSubmissionSummary extends ContactSubmissionSummary {
     client_id: string | null;
     client_name: string;
@@ -58,18 +83,18 @@ export async function listContactSubmissions(params?: {
     tab?: ContactSubmissionTab;
     page?: number;
     page_size?: number;
-}): Promise<ContactSubmissionListResponse> {
-    const res = await apiClient.get<ContactSubmissionListResponse>("/admin/contact-submissions", { params });
+}): Promise<ClientContactSubmissionListResponse> {
+    const res = await apiClient.get<ClientContactSubmissionListResponse>("/admin/contact-submissions", { params });
     return res.data;
 }
 
-export async function getContactSubmission(id: string): Promise<ContactSubmissionDetail> {
-    const res = await apiClient.get<ContactSubmissionDetail>(`/admin/contact-submissions/${id}`);
+export async function getContactSubmission(id: string): Promise<ClientContactSubmissionDetail> {
+    const res = await apiClient.get<ClientContactSubmissionDetail>(`/admin/contact-submissions/${id}`);
     return res.data;
 }
 
-export async function archiveContactSubmission(id: string): Promise<ContactSubmissionDetail> {
-    const res = await apiClient.patch<ContactSubmissionDetail>(`/admin/contact-submissions/${id}/archive`);
+export async function archiveContactSubmission(id: string): Promise<ClientContactSubmissionDetail> {
+    const res = await apiClient.patch<ClientContactSubmissionDetail>(`/admin/contact-submissions/${id}/archive`);
     return res.data;
 }
 

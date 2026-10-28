@@ -81,6 +81,7 @@ def load_models() -> None:
     import app.models.superadmin.scheduler_job_run  # noqa
     import app.models.client.user  # noqa
     import app.models.client.contact_submission  # noqa
+    import app.models.client.client_contact_submission  # noqa
     import app.models.client.content  # noqa
     import app.models.client.subscription  # noqa
     import app.models.client.payment  # noqa

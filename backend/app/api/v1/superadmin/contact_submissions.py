@@ -52,22 +52,15 @@ class ContactSubmissionSummaryWithClient:
         }
 
 
-@router.get("", summary="List all contact submissions (main-site + client-specific)")
+@router.get("", summary="List main-site contact submissions")
 async def list_all_contact_submissions(
     tab: str = Query("all", description="all | unread | read | archived"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    client_id: uuid.UUID | None = Query(None, description="Filter by specific client (optional)"),
-    include_main_site: bool = Query(True, description="Include main-site submissions (null client_id)"),
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_superadmin),
 ):
-    """
-    Returns all contact submissions across the platform.
-    - Main-site inquiries have `client_id` = null and `client_name` = "[Main Site Inquiry]"
-    - Client-specific submissions show the client name and slug
-    - Optionally filter by specific client or exclude main-site submissions
-    """
+    """Main-site inquiries only (client_id is null); tenant storefront submissions belong to each client admin."""
     tab_key = (tab or "all").strip().lower()
     if tab_key not in {"all", "unread", "read", "archived"}:
         raise HTTPException(status_code=422, detail="Invalid tab filter")
@@ -79,15 +72,7 @@ async def list_all_contact_submissions(
     }
 
     # Build base query
-    base = select(ContactSubmission)
-
-    if client_id:
-        # Filter by specific client
-        base = base.where(ContactSubmission.client_id == client_id)
-    elif not include_main_site:
-        # Exclude main-site inquiries (only show client-specific)
-        base = base.where(ContactSubmission.client_id.isnot(None))
-    # else: include all (both main-site and client-specific)
+    base = select(ContactSubmission).where(ContactSubmission.client_id.is_(None))
 
     if tab_key in status_map:
         base = base.where(ContactSubmission.status == status_map[tab_key])
@@ -124,8 +109,7 @@ async def list_all_contact_submissions(
     # Get status counts
     grouped_result = await db.execute(
         select(ContactSubmission.status, func.count())
-        .where(*([ContactSubmission.client_id == client_id] if client_id else []))
-        .where(*([ContactSubmission.client_id.isnot(None)] if not include_main_site else []))
+        .where(ContactSubmission.client_id.is_(None))
         .group_by(ContactSubmission.status)
     )
     grouped = {k.value if hasattr(k, "value") else str(k): v for k, v in grouped_result.all()}
@@ -155,7 +139,7 @@ async def get_contact_submission(
 ):
     """Returns submission details along with associated client info (if applicable)"""
     result = await db.execute(
-        select(ContactSubmission).where(ContactSubmission.id == submission_id)
+        select(ContactSubmission).where(ContactSubmission.id == submission_id, ContactSubmission.client_id.is_(None))
     )
     submission = result.scalar_one_or_none()
     if not submission:
@@ -187,7 +171,7 @@ async def archive_contact_submission(
 ):
     """Mark a submission as archived"""
     result = await db.execute(
-        select(ContactSubmission).where(ContactSubmission.id == submission_id)
+        select(ContactSubmission).where(ContactSubmission.id == submission_id, ContactSubmission.client_id.is_(None))
     )
     submission = result.scalar_one_or_none()
     if not submission:
@@ -217,7 +201,7 @@ async def mark_as_read(
 ):
     """Mark a submission as read"""
     result = await db.execute(
-        select(ContactSubmission).where(ContactSubmission.id == submission_id)
+        select(ContactSubmission).where(ContactSubmission.id == submission_id, ContactSubmission.client_id.is_(None))
     )
     submission = result.scalar_one_or_none()
     if not submission:

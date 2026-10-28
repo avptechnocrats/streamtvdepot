@@ -11,6 +11,7 @@ import {
     ChevronRight,
     Link2,
     GripVertical,
+    Pencil,
 } from "lucide-react";
 import {
     DndContext,
@@ -35,6 +36,7 @@ import {
     deleteMenuGroup,
     setActiveMenuGroup,
     addMenuLink,
+    updateMenuLink,
     deleteMenuLink,
     reorderMenuLinks,
     updateMenuGroup,
@@ -64,10 +66,12 @@ function SortableMenuLinkItem({
     link,
     group,
     onDelete,
+    onEdit,
 }: {
     link: MenuLink;
     group: MenuGroup;
     onDelete: (groupId: string, link: MenuLink) => void;
+    onEdit: (group: MenuGroup, link: MenuLink) => void;
 }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: link.id });
 
@@ -123,6 +127,15 @@ function SortableMenuLinkItem({
             <Button
                 size="sm"
                 variant="ghost"
+                onClick={() => onEdit(group, link)}
+                className="h-7 w-7 p-0"
+                title="Edit"
+            >
+                <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+                size="sm"
+                variant="ghost"
                 onClick={() => onDelete(group.id, link)}
                 className="h-7 w-7 p-0 hover:bg-red-500/10 hover:text-red-400"
                 title="Delete"
@@ -149,6 +162,7 @@ export function MenuManager() {
     const [selectedPosition, setSelectedPosition] = useState<MenuPosition>("header");
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
     const [selectedGroup, setSelectedGroup] = useState<MenuGroup | null>(null);
+    const [editingLink, setEditingLink] = useState<MenuLink | null>(null);
 
     const [deleteConfirm, setDeleteConfirm] = useState<{ type: "group" | "link"; data: any } | null>(null);
     const [deleteBusy, setDeleteBusy] = useState(false);
@@ -204,7 +218,16 @@ export function MenuManager() {
         }
 
         setFormType("link");
+        setEditingLink(null);
         setSelectedGroupId(groupId);
+        setSelectedGroup(group);
+        setFormOpen(true);
+    };
+
+    const handleEditLink = (group: MenuGroup, link: MenuLink) => {
+        setFormType("link");
+        setEditingLink(link);
+        setSelectedGroupId(group.id);
         setSelectedGroup(group);
         setFormOpen(true);
     };
@@ -215,8 +238,13 @@ export function MenuManager() {
             toast("Menu group created successfully");
         } else {
             if (!selectedGroupId) throw new Error("Group not selected");
-            await addMenuLink(selectedGroupId, payload as MenuLinkPayload);
-            toast("Menu item added successfully");
+            if (editingLink) {
+                await updateMenuLink(selectedGroupId, editingLink.id, payload as MenuLinkPayload);
+                toast("Menu item updated successfully");
+            } else {
+                await addMenuLink(selectedGroupId, payload as MenuLinkPayload);
+                toast("Menu item added successfully");
+            }
         }
         await loadMenus();
     };
@@ -498,6 +526,7 @@ export function MenuManager() {
                                                         key={link.id}
                                                         link={link}
                                                         group={group}
+                                                        onEdit={handleEditLink}
                                                         onDelete={(groupId, item) =>
                                                             handleDeleteClick("link", { ...item, groupId })
                                                         }
@@ -635,11 +664,13 @@ export function MenuManager() {
                     setFormOpen(false);
                     setSelectedGroupId(null);
                     setSelectedGroup(null);
+                    setEditingLink(null);
                 }}
                 onSubmit={handleFormSubmit}
                 formType={formType}
                 position={selectedPosition}
                 selectedGroup={selectedGroup}
+                initialData={editingLink}
             />
         </div>
     );

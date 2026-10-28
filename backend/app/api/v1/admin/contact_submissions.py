@@ -1,5 +1,5 @@
 """
-Client admin contact submissions management.
+Client admin contact submissions (storefront Contact Us form).
 Routes live under /admin/contact-submissions.
 """
 import uuid
@@ -10,18 +10,38 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_client_admin
-from app.models.client.contact_submission import ContactSubmission, ContactSubmissionStatus
-from app.schemas.client.contact_submission import (
-    ContactSubmissionDetail,
-    ContactSubmissionListCounts,
-    ContactSubmissionListResponse,
-    ContactSubmissionSummary,
+from app.models.client.client_contact_submission import ClientContactSubmission
+from app.models.client.contact_submission import ContactSubmissionStatus
+from app.schemas.client.client_contact_submission import (
+    ClientContactSubmissionCounts,
+    ClientContactSubmissionDetail,
+    ClientContactSubmissionListResponse,
+    ClientContactSubmissionSummary,
 )
 
 router = APIRouter()
 
+_STATUS_BY_TAB = {
+    "unread": ContactSubmissionStatus.UNREAD,
+    "read": ContactSubmissionStatus.READ,
+    "archived": ContactSubmissionStatus.ARCHIVED,
+}
 
-@router.get("", response_model=ContactSubmissionListResponse)
+
+async def _get_or_404(submission_id: uuid.UUID, client_id: uuid.UUID, db: AsyncSession) -> ClientContactSubmission:
+    result = await db.execute(
+        select(ClientContactSubmission).where(
+            ClientContactSubmission.id == submission_id,
+            ClientContactSubmission.client_id == client_id,
+        )
+    )
+    submission = result.scalar_one_or_none()
+    if not submission:
+        raise HTTPException(status_code=404, detail="Contact submission not found")
+    return submission
+
+
+@router.get("", response_model=ClientContactSubmissionListResponse)
 async def list_contact_submissions(
     tab: str = Query("all", description="all | unread | read | archived"),
     page: int = Query(1, ge=1),
@@ -30,93 +50,58 @@ async def list_contact_submissions(
     admin=Depends(get_current_client_admin),
 ):
     tab_key = (tab or "all").strip().lower()
-    if tab_key not in {"all", "unread", "read", "archived"}:
+    if tab_key != "all" and tab_key not in _STATUS_BY_TAB:
         raise HTTPException(status_code=422, detail="Invalid tab filter")
 
-    status_map = {
-        "unread": ContactSubmissionStatus.UNREAD,
-        "read": ContactSubmissionStatus.READ,
-        "archived": ContactSubmissionStatus.ARCHIVED,
-    }
+    base = select(ClientContactSubmission).where(ClientContactSubmission.client_id == admin._client_id)
+    if tab_key in _STATUS_BY_TAB:
+        base = base.where(ClientContactSubmission.status == _STATUS_BY_TAB[tab_key])
 
-    base = select(ContactSubmission).where(ContactSubmission.client_id == admin._client_id)
-    if tab_key in status_map:
-        base = base.where(ContactSubmission.status == status_map[tab_key])
-
-    total_result = await db.execute(select(func.count()).select_from(base.subquery()))
-    total = total_result.scalar_one()
-
-    items_result = await db.execute(
-        base.order_by(ContactSubmission.created_at.desc())
+    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
+    items = (await db.execute(
+        base.order_by(ClientContactSubmission.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
-    )
-    items = items_result.scalars().all()
+    )).scalars().all()
 
     grouped_result = await db.execute(
-        select(ContactSubmission.status, func.count())
-        .where(ContactSubmission.client_id == admin._client_id)
-        .group_by(ContactSubmission.status)
+        select(ClientContactSubmission.status, func.count())
+        .where(ClientContactSubmission.client_id == admin._client_id)
+        .group_by(ClientContactSubmission.status)
     )
     grouped = {k.value if hasattr(k, "value") else str(k): v for k, v in grouped_result.all()}
-    unread_count = int(grouped.get("unread", 0))
-    read_count = int(grouped.get("read", 0))
-    archived_count = int(grouped.get("archived", 0))
+    unread, read, archived = (int(grouped.get(key, 0)) for key in ("unread", "read", "archived"))
 
-    return ContactSubmissionListResponse(
-        items=[ContactSubmissionSummary.model_validate(item) for item in items],
+    return ClientContactSubmissionListResponse(
+        items=[ClientContactSubmissionSummary.model_validate(item) for item in items],
         total=total,
         page=page,
         page_size=page_size,
-        counts=ContactSubmissionListCounts(
-            all=unread_count + read_count + archived_count,
-            unread=unread_count,
-            read=read_count,
-            archived=archived_count,
-        ),
+        counts=ClientContactSubmissionCounts(all=unread + read + archived, unread=unread, read=read, archived=archived),
     )
 
 
-@router.get("/{submission_id}", response_model=ContactSubmissionDetail)
+@router.get("/{submission_id}", response_model=ClientContactSubmissionDetail)
 async def get_contact_submission(
     submission_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     admin=Depends(get_current_client_admin),
 ):
-    result = await db.execute(
-        select(ContactSubmission).where(
-            ContactSubmission.id == submission_id,
-            ContactSubmission.client_id == admin._client_id,
-        )
-    )
-    submission = result.scalar_one_or_none()
-    if not submission:
-        raise HTTPException(status_code=404, detail="Contact submission not found")
-
+    submission = await _get_or_404(submission_id, admin._client_id, db)
     if submission.status == ContactSubmissionStatus.UNREAD:
         submission.status = ContactSubmissionStatus.READ
         await db.commit()
         await db.refresh(submission)
-
     return submission
 
 
-@router.patch("/{submission_id}/archive", response_model=ContactSubmissionDetail)
+@router.patch("/{submission_id}/archive", response_model=ClientContactSubmissionDetail)
 async def archive_contact_submission(
     submission_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     admin=Depends(get_current_client_admin),
 ):
-    result = await db.execute(
-        select(ContactSubmission).where(
-            ContactSubmission.id == submission_id,
-            ContactSubmission.client_id == admin._client_id,
-        )
-    )
-    submission = result.scalar_one_or_none()
-    if not submission:
-        raise HTTPException(status_code=404, detail="Contact submission not found")
-
+    submission = await _get_or_404(submission_id, admin._client_id, db)
     submission.status = ContactSubmissionStatus.ARCHIVED
     await db.commit()
     await db.refresh(submission)

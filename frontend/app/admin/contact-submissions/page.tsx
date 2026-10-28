@@ -14,11 +14,8 @@ import {
     Inbox,
 } from "lucide-react";
 import {
-    archiveContactSubmission,
     archiveSuperAdminContactSubmission,
-    getContactSubmission,
     getSuperAdminContactSubmission,
-    listContactSubmissions,
     listSuperAdminContactSubmissions,
     type ContactSubmissionDetail,
     type ContactSubmissionListCounts,
@@ -27,6 +24,7 @@ import {
     type ContactSubmissionTab,
 } from "@/lib/api";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import ClientContactSubmissions from "./_components/ClientContactSubmissions";
 
 type ContactSubmissionSummaryWithClient = ContactSubmissionSummary & {
     client_name?: string;
@@ -103,9 +101,7 @@ function SubmissionDetail({
         setLoading(true);
         setError(null);
         try {
-            const data = isSuperAdmin
-                ? await getSuperAdminContactSubmission(submissionId)
-                : await getContactSubmission(submissionId);
+            const data = await getSuperAdminContactSubmission(submissionId);
             setSubmission(data);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load submission details");
@@ -123,11 +119,7 @@ function SubmissionDetail({
         setArchiving(true);
         setError(null);
         try {
-            if (isSuperAdmin) {
-                await archiveSuperAdminContactSubmission(submission.id);
-            } else {
-                await archiveContactSubmission(submission.id);
-            }
+            await archiveSuperAdminContactSubmission(submission.id);
             await load();
             onUpdated();
         } catch (err) {
@@ -161,9 +153,9 @@ function SubmissionDetail({
         <div className="bg-card border border-border rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-border flex items-start justify-between gap-4">
                 <div>
-                    <h3 className="text-base font-semibold text-foreground">{submission.full_name}</h3>
+                    <h3 className="text-base font-semibold text-foreground">{submission.full_name || "Website visitor"}</h3>
                     <p className="text-xs text-muted-foreground mt-1">
-                        {submission.work_email}
+                        {submission.work_email || "No email provided"}
                         {submission.company ? ` · ${submission.company}` : ""}
                     </p>
                     <div className="mt-2 flex items-center gap-2 flex-wrap">
@@ -212,15 +204,14 @@ function SubmissionDetail({
 
             <div className="px-6 py-4">
                 <p className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Message</p>
-                <p className="text-sm text-foreground/85 whitespace-pre-wrap">{submission.message}</p>
+                <p className="text-sm text-foreground/85 whitespace-pre-wrap">{submission.message || "-"}</p>
             </div>
         </div>
     );
 }
 
-export default function ContactSubmissionsPage() {
-    const { role } = useAdminAuth();
-    const isSuperAdmin = role === "superadmin";
+function SuperAdminContactSubmissions() {
+    const isSuperAdmin = true;
 
     const [items, setItems] = useState<ContactSubmissionSummaryWithClient[]>([]);
     const [counts, setCounts] = useState<ContactSubmissionListCounts>({ all: 0, unread: 0, read: 0, archived: 0 });
@@ -234,9 +225,7 @@ export default function ContactSubmissionsPage() {
         setLoading(true);
         setError(null);
         try {
-            const res = isSuperAdmin
-                ? await listSuperAdminContactSubmissions({ tab })
-                : await listContactSubmissions({ tab });
+            const res = await listSuperAdminContactSubmissions({ tab });
             setItems(res.items as ContactSubmissionSummaryWithClient[]);
             setCounts(res.counts);
         } catch (err) {
@@ -254,11 +243,7 @@ export default function ContactSubmissionsPage() {
         setArchivingId(id);
         setError(null);
         try {
-            if (isSuperAdmin) {
-                await archiveSuperAdminContactSubmission(id);
-            } else {
-                await archiveContactSubmission(id);
-            }
+            await archiveSuperAdminContactSubmission(id);
             if (selectedId === id) {
                 setSelectedId(null);
             }
@@ -404,4 +389,8 @@ export default function ContactSubmissionsPage() {
             )}
         </div>
     );
+}
+export default function ContactSubmissionsPage() {
+    const { role } = useAdminAuth();
+    return role === "superadmin" ? <SuperAdminContactSubmissions /> : <ClientContactSubmissions />;
 }
