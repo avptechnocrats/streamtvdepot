@@ -16,6 +16,9 @@ export interface PublicSiteSettings {
     youtube_url: string | null;
     instagram_url: string | null;
     facebook_url: string | null;
+    address1?: string | null;
+    address2?: string | null;
+    phone?: string | null;
 }
 
 export interface SocialAuthConfigOut {
