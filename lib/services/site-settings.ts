@@ -13,11 +13,14 @@ export interface PublicSiteSettings {
     logo_s3_key: string | null;
     logo_url: string | null;
     contact_email: string | null;
+    contact_name?: string | null;
     youtube_url: string | null;
     instagram_url: string | null;
     facebook_url: string | null;
     address1?: string | null;
     address2?: string | null;
+    state?: string | null;
+    zip_code?: string | null;
     phone?: string | null;
 }
 
