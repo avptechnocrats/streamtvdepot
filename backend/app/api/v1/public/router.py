@@ -500,6 +500,10 @@ def _normalize_public_menu_groups(raw_groups: list[dict] | None) -> list[dict]:
                 "is_active": bool(group.get("is_active", False)),
                 "sort_order": int(group.get("sort_order") or 1),
                 "footer_columns": int(group.get("footer_columns") or 1),
+                "footer_column_headers": [
+                    str(header or "").strip()[:80]
+                    for header in (group.get("footer_column_headers") or [])[:12]
+                ],
                 "max_menu_display": max_menu_display,
                 "links": links,
             }
@@ -517,6 +521,7 @@ def _to_menu_group_out(group: dict) -> MenuGroupOut:
         is_active=group["is_active"],
         sort_order=group["sort_order"],
         footer_columns=max(1, int(group.get("footer_columns") or 1)),
+        footer_column_headers=group.get("footer_column_headers") or [],
         max_menu_display=group.get("max_menu_display"),
         links=[MenuLinkOut(**link) for link in group["links"]],
     )

@@ -12,6 +12,7 @@ import {
     Link2,
     GripVertical,
     Pencil,
+    Save,
 } from "lucide-react";
 import {
     DndContext,
@@ -146,6 +147,64 @@ function SortableMenuLinkItem({
     );
 }
 
+function FooterColumnHeadersEditor({
+    group,
+    saving,
+    onSave,
+}: {
+    group: MenuGroup;
+    saving: boolean;
+    onSave: (headers: string[]) => void;
+}) {
+    const [headers, setHeaders] = useState(() =>
+        Array.from({ length: group.footerColumns }, (_, index) => group.footerColumnHeaders?.[index] ?? ""),
+    );
+
+    useEffect(() => {
+        setHeaders(Array.from(
+            { length: group.footerColumns },
+            (_, index) => group.footerColumnHeaders?.[index] ?? "",
+        ));
+    }, [group.id, group.footerColumns, group.footerColumnHeaders]);
+
+    return (
+        <div className="ml-8 rounded-lg border border-border/60 bg-secondary/20 p-3 space-y-3">
+            <div>
+                <p className="text-xs font-medium text-foreground">Column Headers</p>
+                <p className="text-[11px] text-muted-foreground">Optional headings shown above each footer link column.</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {headers.map((header, index) => (
+                    <label key={index} className="space-y-1 text-[11px] text-muted-foreground">
+                        Column {index + 1}
+                        <input
+                            type="text"
+                            maxLength={80}
+                            value={header}
+                            onChange={(event) => setHeaders((current) => current.map((value, i) => i === index ? event.target.value : value))}
+                            placeholder="No heading"
+                            className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground/60"
+                        />
+                    </label>
+                ))}
+            </div>
+            <div className="flex justify-end">
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onSave(headers)}
+                    disabled={saving}
+                    className="h-8 gap-1.5"
+                >
+                    <Save className="h-3.5 w-3.5" />
+                    {saving ? "Saving..." : "Save Headers"}
+                </Button>
+            </div>
+        </div>
+    );
+}
+
 export function MenuManager() {
     const [headerGroups, setHeaderGroups] = useState<MenuGroup[]>([]);
     const [footerGroups, setFooterGroups] = useState<MenuGroup[]>([]);
@@ -163,6 +222,7 @@ export function MenuManager() {
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
     const [selectedGroup, setSelectedGroup] = useState<MenuGroup | null>(null);
     const [editingLink, setEditingLink] = useState<MenuLink | null>(null);
+    const [savingHeaders, setSavingHeaders] = useState<string | null>(null);
 
     const [deleteConfirm, setDeleteConfirm] = useState<{ type: "group" | "link"; data: any } | null>(null);
     const [deleteBusy, setDeleteBusy] = useState(false);
@@ -300,6 +360,23 @@ export function MenuManager() {
         } catch (err) {
             toast(err instanceof Error ? err.message : "Failed to update footer columns", false);
             await loadMenus();
+        }
+    };
+
+    const handleFooterColumnHeadersSave = async (group: MenuGroup, draft: string[]) => {
+        const footerColumnHeaders = Array.from(
+            { length: group.footerColumns },
+            (_, index) => (draft[index] ?? "").trim(),
+        );
+        setSavingHeaders(group.id);
+        try {
+            await updateMenuGroup(group.id, { footerColumnHeaders });
+            toast("Footer column headers saved");
+            await loadMenus();
+        } catch (err) {
+            toast(err instanceof Error ? err.message : "Failed to save footer column headers", false);
+        } finally {
+            setSavingHeaders(null);
         }
     };
 
@@ -491,6 +568,13 @@ export function MenuManager() {
 
                 {isExpanded && (
                     <div className="space-y-2 mt-4 pt-4 border-t border-border">
+                        {group.position === "footer" && (
+                            <FooterColumnHeadersEditor
+                                group={group}
+                                saving={savingHeaders === group.id}
+                                onSave={(headers) => handleFooterColumnHeadersSave(group, headers)}
+                            />
+                        )}
                         {group.links.length === 0 ? (
                             <div className="text-center py-4">
                                 <p className="text-xs text-muted-foreground mb-2">No menu items added yet</p>
