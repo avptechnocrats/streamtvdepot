@@ -112,7 +112,7 @@ export default function ThemeRenderer() {
     return (
         <>
             <Banner />
-            <div className="space-y-10 py-10">
+            <div className="space-y-10 py-10 lg:px-8">
                 {rows.length === 0 && loading ? (
                     <>
                         <ContentRowSkeleton />

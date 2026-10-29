@@ -86,7 +86,7 @@ function FooterLink({ item }: { item: PublicMenuLink }) {
 
 export default function Footer() {
     const { user } = useAuth();
-    const { copyright_text, youtube_url, instagram_url, facebook_url, address1, address2, phone, contact_email } = useSiteSettings();
+    const { copyright_text, youtube_url, instagram_url, facebook_url, contact_name, address1, address2, state, zip_code, phone, contact_email } = useSiteSettings();
     const label = useTenantName();
 
     const { data: menus } = useQuery({
@@ -120,7 +120,7 @@ export default function Footer() {
     ].filter((s) => s.url);
 
     const contactLines = [
-        { icon: MapPin, text: [address1, address2].filter(Boolean).join(", ") },
+        { icon: MapPin, text: [contact_name, address1, [address2, [state, zip_code].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter(Boolean).join("\n") },
         { icon: Phone, text: phone },
         { icon: Mail, text: contact_email },
     ].filter((line) => line.text);
@@ -128,7 +128,7 @@ export default function Footer() {
     return (
         <footer>
             {!user && (
-                <section className="mx-4 sm:mx-6 lg:mx-10 my-8  border border-primary/30 bg-gradient-to-r from-primary/10 via-card to-card px-6 py-6 flex flex-col lg:flex-row lg:items-center gap-6">
+                <section className="mx-4 sm:mx-6 lg:ml-[4.5rem] lg:mr-10 my-8 border border-primary/30 bg-gradient-to-r from-primary/10 via-card to-card px-6 py-6 flex flex-col lg:flex-row lg:items-center gap-6">
                     <div className="lg:w-1/4 space-y-1">
                         <h3 className="text-xl font-display font-800 text-gradient-gold leading-tight">
                             Unlimited Entertainment On Your Terms
@@ -183,7 +183,7 @@ export default function Footer() {
                                 {contactLines.map(({ icon: Icon, text }) => (
                                     <li key={text} className="flex items-start gap-3 text-sm text-muted-foreground">
                                         <Icon size={15} className="mt-0.5 shrink-0 text-primary" />
-                                        <span className="break-words">{text}</span>
+                                        <span className="break-words whitespace-pre-line">{text}</span>
                                     </li>
                                 ))}
                             </ul>
@@ -205,7 +205,7 @@ export default function Footer() {
                         <div className="space-y-4">
                             {PLATFORM_GROUPS.map((group) => (
                                 <div key={group.label} className="space-y-2">
-                                    <p className="text-[10px] font-semibold uppercase tracking-widest text-foreground/60">{group.label}</p>
+                                    <p className="text-xs font-semibold uppercase tracking-widest text-foreground/70">{group.label}</p>
                                     <div className="grid w-full max-w-[19rem] grid-cols-2 gap-2">
                                         {group.items.map((item) => <PlatformMark key={item.label} item={item} />)}
                                     </div>

@@ -265,7 +265,7 @@ export default function MoviesClient() {
             {bannerReady && rows.length > 0 && <HeroBanner rows={rows} />}
 
             {/* Content rows */}
-            <div className="space-y-10 py-10">
+            <div className="space-y-10 py-10 lg:px-8">
                 {isInitialLoad ? (
                     <>
                         <ContentRowSkeleton />
