@@ -128,7 +128,7 @@ export default function Footer() {
     return (
         <footer>
             {!user && (
-                <section className="mx-4 sm:mx-6 lg:ml-[4.5rem] lg:mr-10 my-8 border border-primary/30 bg-gradient-to-r from-primary/10 via-card to-card px-6 py-6 flex flex-col lg:flex-row lg:items-center gap-6">
+                <section className="mx-4 sm:mx-6 lg:mx-20 my-8 border border-primary/30 bg-gradient-to-r from-primary/10 via-card to-card px-6 py-6 flex flex-col lg:flex-row lg:items-center gap-6">
                     <div className="lg:w-1/4 space-y-1">
                         <h3 className="text-xl font-display font-800 text-gradient-gold leading-tight">
                             Unlimited Entertainment On Your Terms
@@ -204,7 +204,7 @@ export default function Footer() {
                     <div className="space-y-4 sm:pt-1">
                         <div className="space-y-4">
                             {PLATFORM_GROUPS.map((group) => (
-                                <div key={group.label} className="space-y-2">
+                                <div key={group.label} className="space-y-4">
                                     <p className="text-xs font-semibold uppercase tracking-widest text-foreground/70">{group.label}</p>
                                     <div className="grid w-full max-w-[19rem] grid-cols-2 gap-2">
                                         {group.items.map((item) => <PlatformMark key={item.label} item={item} />)}
