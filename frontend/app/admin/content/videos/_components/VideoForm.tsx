@@ -1500,7 +1500,12 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
             toast({ title: "Draft saved", description: `“${draft.title}” was saved before upload.` });
             return true;
         } catch (err: unknown) {
-            setError("root", { message: getApiErrorMessage(err, "Failed to save draft") });
+            const message = getApiErrorMessage(err, "Failed to save draft");
+            setError("root", { message });
+            if (message.toLowerCase().includes("video with slug")) {
+                setError("slug", { message });
+            }
+            toast({ title: "Could not create video draft", description: message, variant: "destructive" });
             return false;
         } finally {
             draftCreationPromiseRef.current = null;
