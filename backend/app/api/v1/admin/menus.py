@@ -70,6 +70,13 @@ def _normalize_groups(raw_groups: list[dict] | None) -> list[dict]:
             footer_columns = 1
         if footer_columns > 12:
             footer_columns = 12
+        raw_column_headers = group.get("footer_column_headers")
+        if not isinstance(raw_column_headers, list):
+            raw_column_headers = []
+        footer_column_headers = [
+            str(raw_column_headers[index] or "").strip()[:80] if index < len(raw_column_headers) else ""
+            for index in range(footer_columns)
+        ]
         if max_menu_display is not None and max_menu_display < 1:
             max_menu_display = 1
         if max_menu_display is not None and max_menu_display > 12:
@@ -82,6 +89,7 @@ def _normalize_groups(raw_groups: list[dict] | None) -> list[dict]:
                 "is_active": bool(group.get("is_active", False)),
                 "sort_order": int(group.get("sort_order") or idx + 1),
                 "footer_columns": footer_columns,
+                "footer_column_headers": footer_column_headers,
                 "max_menu_display": max_menu_display,
                 "links": _normalize_links(group.get("links") or []),
             }
@@ -139,6 +147,7 @@ def _to_group_out(group: dict) -> MenuGroupOut:
         is_active=group["is_active"],
         sort_order=group["sort_order"],
         footer_columns=group.get("footer_columns", 1),
+        footer_column_headers=group.get("footer_column_headers", []),
         max_menu_display=group.get("max_menu_display", 12),
         links=[MenuLinkOut(**link) for link in sorted(group["links"], key=lambda l: l["sort_order"])],
     )
@@ -189,6 +198,7 @@ async def create_menu_group(
         "is_active": not any(g["is_active"] for g in pos_groups),
         "sort_order": len(pos_groups) + 1,
         "footer_columns": payload.footer_columns or (4 if payload.position == "footer" else 1),
+        "footer_column_headers": [""] * (payload.footer_columns or (4 if payload.position == "footer" else 1)),
         "max_menu_display": payload.max_menu_display,
         "links": [],
     }
@@ -213,6 +223,8 @@ async def update_menu_group(
         group["name"] = updates["name"].strip()
     if "footer_columns" in updates and updates["footer_columns"] is not None:
         group["footer_columns"] = updates["footer_columns"]
+    if "footer_column_headers" in updates and updates["footer_column_headers"] is not None:
+        group["footer_column_headers"] = updates["footer_column_headers"]
     if "max_menu_display" in updates:
         group["max_menu_display"] = updates["max_menu_display"]
     groups[group_idx] = group

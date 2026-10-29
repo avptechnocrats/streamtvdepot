@@ -1,11 +1,14 @@
 from typing import Literal
 
+from typing import Annotated
+
 from pydantic import BaseModel, Field
 
 
 MenuPosition = Literal["header", "footer"]
 MenuLinkTarget = Literal["_self", "_blank"]
 MenuItemType = Literal["name", "icon"]
+MenuColumnHeader = Annotated[str, Field(max_length=80)]
 
 
 class MenuLinkCreate(BaseModel):
@@ -44,12 +47,14 @@ class MenuGroupCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     position: MenuPosition
     footer_columns: int | None = Field(None, ge=1, le=12)
+    footer_column_headers: list[MenuColumnHeader] | None = Field(None, max_length=12)
     max_menu_display: int | None = Field(None, ge=1, le=12)
 
 
 class MenuGroupUpdate(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=120)
     footer_columns: int | None = Field(None, ge=1, le=12)
+    footer_column_headers: list[MenuColumnHeader] | None = Field(None, max_length=12)
     max_menu_display: int | None = Field(None, ge=1, le=12)
 
 
@@ -60,6 +65,7 @@ class MenuGroupOut(BaseModel):
     is_active: bool
     sort_order: int
     footer_columns: int = 1
+    footer_column_headers: list[str] = Field(default_factory=list)
     max_menu_display: int | None = Field(None, ge=1, le=12)
     links: list[MenuLinkOut] = Field(default_factory=list)
 
