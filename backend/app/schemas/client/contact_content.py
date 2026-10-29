@@ -28,6 +28,11 @@ class FAQItem(BaseModel):
     answer: str = Field(..., min_length=1, max_length=10000)
 
 
+class FAQGroup(BaseModel):
+    label: str = Field("", max_length=255)
+    items: list[FAQItem] = Field(default_factory=list, max_length=100)
+
+
 class ContactContentIn(BaseModel):
     body: str | None = Field(None, max_length=100000)
     fields: list[ContactFormField] = Field(default_factory=list, max_length=50)
@@ -35,7 +40,14 @@ class ContactContentIn(BaseModel):
 
 class FAQContentIn(BaseModel):
     body: str | None = Field(None, max_length=100000)
-    items: list[FAQItem] = Field(default_factory=list, max_length=100)
+    groups: list[FAQGroup] = Field(default_factory=list, max_length=100)
+
+    @model_validator(mode="before")
+    @classmethod
+    def support_legacy_items(cls, value):
+        if isinstance(value, dict) and "groups" not in value and "items" in value:
+            value = {**value, "groups": [{"label": "", "items": value.get("items") or []}]}
+        return value
 
 
 class ContactContentOut(ContactContentIn):

@@ -21,9 +21,14 @@ export interface FAQItem {
     answer: string;
 }
 
+export interface FAQGroup {
+    label: string;
+    items: FAQItem[];
+}
+
 export interface FAQContent {
     body: string | null;
-    items: FAQItem[];
+    groups: FAQGroup[];
 }
 
 export interface PlatformContent {
