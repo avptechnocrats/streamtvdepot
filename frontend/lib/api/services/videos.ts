@@ -17,7 +17,7 @@ export const VIDEO_CATEGORIES = [
 ] as const;
 export type VideoCategory = (typeof VIDEO_CATEGORIES)[number];
 
-export const AGE_RATINGS = ["G", "PG", "PG-13", "R", "NC-17", "TV-Y", "TV-G", "TV-PG", "TV-14", "TV-MA"] as const;
+export const AGE_RATINGS = ["UA 13+", "UA 16+", "U", "A"] as const;
 export type AgeRating = (typeof AGE_RATINGS)[number];
 
 export const CONTENT_CLASSIFICATIONS = ["Movie", "Short Film", "Documentary", "Web Series", "Episode", "Clip", "Trailer"] as const;

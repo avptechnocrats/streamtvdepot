@@ -147,8 +147,11 @@ def _build_response(cfg: dict, client_name: str | None = None) -> SiteSettingsOu
             logo_url=logo_url,
             favicon_s3_key=favicon_s3_key,
             favicon_url=favicon_url,
+            contact_name=cfg.get("contact_name"),
             address1=cfg.get("address1"),
             address2=cfg.get("address2"),
+            state=cfg.get("state"),
+            zip_code=cfg.get("zip_code"),
             phone=cfg.get("phone"),
             contact_email=cfg.get("contact_email"),
             youtube_url=cfg.get("youtube_url"),
@@ -211,7 +214,7 @@ async def save_site_settings(
         # (including null = "clear"), write/remove it; if absent, leave alone.
         _GENERAL_TEXT_KEYS = (
             "site_title", "site_url", "tagline", "site_language", "copyright_text",
-            "address1", "address2", "phone", "contact_email",
+            "contact_name", "address1", "address2", "state", "zip_code", "phone", "contact_email",
             "youtube_url", "instagram_url", "facebook_url",
         )
         for key in _GENERAL_TEXT_KEYS:

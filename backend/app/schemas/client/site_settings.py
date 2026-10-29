@@ -15,8 +15,11 @@ class GeneralSettingsIn(BaseModel):
     clear_logo: bool = Field(False, description="Set to true to remove the current logo")
     favicon_s3_key: Optional[str] = Field(None, description="S3 key of the uploaded favicon")
     clear_favicon: bool = Field(False, description="Set to true to remove the current favicon")
+    contact_name: Optional[str] = Field(None, max_length=255)
     address1: Optional[str] = Field(None, max_length=255)
     address2: Optional[str] = Field(None, max_length=255)
+    state: Optional[str] = Field(None, max_length=100)
+    zip_code: Optional[str] = Field(None, max_length=20)
     phone: Optional[str] = Field(None, max_length=50)
     contact_email: Optional[str] = Field(None, max_length=255)
     youtube_url: Optional[str] = Field(None, max_length=500)
@@ -48,8 +51,11 @@ class GeneralSettingsOut(BaseModel):
     logo_url: Optional[str] = None  # Presigned GET URL, generated on read
     favicon_s3_key: Optional[str] = None
     favicon_url: Optional[str] = None  # Presigned GET URL, generated on read
+    contact_name: Optional[str] = None
     address1: Optional[str] = None
     address2: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
     phone: Optional[str] = None
     contact_email: Optional[str] = None
     youtube_url: Optional[str] = None

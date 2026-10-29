@@ -44,7 +44,7 @@ const CAT_CONTENT_TYPES = [
     { value: "audio", label: "Audio" },
     { value: "video", label: "Video" },
 ];
-const AGE_RATINGS = ["U", "U/A 7+", "U/A 13+", "U/A 16+", "A", "S"];
+const AGE_RATINGS = ["UA 13+", "UA 16+", "U", "A"];
 const PAGE_SIZE = 20;
 
 const LANGUAGES = ["English", "Hindi", "Tamil", "Telugu", "Kannada", "Malayalam", "Bengali", "Marathi", "Gujarati", "Punjabi", "Urdu"];
