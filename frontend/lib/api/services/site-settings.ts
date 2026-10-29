@@ -21,8 +21,11 @@ export interface GeneralSettingsOut {
     logo_url: string | null;
     favicon_s3_key: string | null;
     favicon_url: string | null;
+    contact_name: string | null;
     address1: string | null;
     address2: string | null;
+    state: string | null;
+    zip_code: string | null;
     phone: string | null;
     contact_email: string | null;
     youtube_url: string | null;
@@ -67,8 +70,11 @@ export interface GeneralSettingsIn {
     clear_logo?: boolean;
     favicon_s3_key?: string | null;
     clear_favicon?: boolean;
+    contact_name?: string | null;
     address1?: string | null;
     address2?: string | null;
+    state?: string | null;
+    zip_code?: string | null;
     phone?: string | null;
     contact_email?: string | null;
     youtube_url?: string | null;

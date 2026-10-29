@@ -278,8 +278,11 @@ function ClientGeneralTab({ data, onSaved, pushToast }: { data: SiteSettingsOut[
     const [tagline, setTagline] = useState(data.tagline ?? "");
     const [language, setLanguage] = useState(data.site_language ?? "en");
     const [copyrightText, setCopyrightText] = useState(data.copyright_text ?? "");
+    const [contactName, setContactName] = useState(data.contact_name ?? "");
     const [address1, setAddress1] = useState(data.address1 ?? "");
     const [address2, setAddress2] = useState(data.address2 ?? "");
+    const [state, setState] = useState(data.state ?? "");
+    const [zipCode, setZipCode] = useState(data.zip_code ?? "");
     const [phone, setPhone] = useState(data.phone ?? "");
     const [contactEmail, setContactEmail] = useState(data.contact_email ?? "");
     const [youtubeUrl, setYoutubeUrl] = useState(data.youtube_url ?? "");
@@ -302,7 +305,9 @@ function ClientGeneralTab({ data, onSaved, pushToast }: { data: SiteSettingsOut[
 
     useEffect(() => {
         setSiteTitle(data.site_title ?? ""); setSiteUrl(data.site_url ?? ""); setTagline(data.tagline ?? ""); setLanguage(data.site_language ?? "en");
-        setCopyrightText(data.copyright_text ?? ""); setAddress1(data.address1 ?? ""); setAddress2(data.address2 ?? "");
+        setCopyrightText(data.copyright_text ?? ""); setContactName(data.contact_name ?? "");
+        setAddress1(data.address1 ?? ""); setAddress2(data.address2 ?? "");
+        setState(data.state ?? ""); setZipCode(data.zip_code ?? "");
         setPhone(data.phone ?? ""); setContactEmail(data.contact_email ?? ""); setYoutubeUrl(data.youtube_url ?? "");
         setInstagramUrl(data.instagram_url ?? ""); setFacebookUrl(data.facebook_url ?? "");
         setLogoUrl(data.logo_url); setLogoS3Key(data.logo_s3_key);
@@ -382,12 +387,12 @@ function ClientGeneralTab({ data, onSaved, pushToast }: { data: SiteSettingsOut[
     const handleSave = useCallback(async () => {
         setSaving(true);
         try {
-            const payload: GeneralSettingsIn = { site_title: siteTitle || null, site_url: siteUrl || null, tagline: tagline || null, site_language: language, copyright_text: copyrightText || null, address1: address1 || null, address2: address2 || null, phone: phone || null, contact_email: contactEmail || null, youtube_url: youtubeUrl || null, instagram_url: instagramUrl || null, facebook_url: facebookUrl || null };
+            const payload: GeneralSettingsIn = { site_title: siteTitle || null, site_url: siteUrl || null, tagline: tagline || null, site_language: language, copyright_text: copyrightText || null, contact_name: contactName || null, address1: address1 || null, address2: address2 || null, state: state || null, zip_code: zipCode || null, phone: phone || null, contact_email: contactEmail || null, youtube_url: youtubeUrl || null, instagram_url: instagramUrl || null, facebook_url: facebookUrl || null };
             const saved = await saveSiteSettings({ general: payload });
             onSaved(saved.general); pushToast("General settings saved.");
         } catch { pushToast("Failed to save settings.", "error"); }
         finally { setSaving(false); }
-    }, [siteTitle, siteUrl, tagline, language, copyrightText, address1, address2, phone, contactEmail, youtubeUrl, instagramUrl, facebookUrl, onSaved, pushToast]);
+    }, [siteTitle, siteUrl, tagline, language, copyrightText, contactName, address1, address2, state, zipCode, phone, contactEmail, youtubeUrl, instagramUrl, facebookUrl, onSaved, pushToast]);
 
     return (
         <div className="space-y-6">
@@ -455,8 +460,13 @@ function ClientGeneralTab({ data, onSaved, pushToast }: { data: SiteSettingsOut[
                 <div className="flex h-full flex-col gap-6">
                     <SectionCard className="flex-1">
                         <SectionHeading>Contact</SectionHeading>
+                        <Field label="Name"><input type="text" value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Contact name" className={inputCls} /></Field>
                         <Field label="Address 1"><input type="text" value={address1} onChange={(e) => setAddress1(e.target.value)} placeholder="123 Main Street" className={inputCls} /></Field>
                         <Field label="Address 2"><input type="text" value={address2} onChange={(e) => setAddress2(e.target.value)} placeholder="Suite 100, Building A" className={inputCls} /></Field>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Field label="State"><input type="text" value={state} onChange={(e) => setState(e.target.value)} placeholder="State" className={inputCls} /></Field>
+                            <Field label="Zip Code"><input type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} placeholder="ZIP Code" className={inputCls} /></Field>
+                        </div>
                         <div className="grid grid-cols-2 gap-4">
                             <Field label="Phone"><input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 (555) 000-0000" className={inputCls} /></Field>
                             <Field label="Email"><input type="text" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="contact@example.com" className={inputCls} /></Field>
