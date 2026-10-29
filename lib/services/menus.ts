@@ -20,6 +20,7 @@ export interface PublicMenuGroup {
     is_active: boolean;
     sort_order: number;
     footer_columns?: number;
+    footer_column_headers?: string[];
     max_menu_display?: number | null;
     links: PublicMenuLink[];
 }

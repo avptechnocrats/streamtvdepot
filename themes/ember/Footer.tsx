@@ -10,6 +10,7 @@
 import { Crown, Facebook, Instagram, Mail, MapPin, Phone, Play, ShoppingCart, Youtube } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { siAndroid, siApple, siAppletv, siRoku } from "simple-icons";
 import SiteLogo from "@/components/SiteLogo";
 import { useAuth } from "@/hooks/use-auth";
 import { useSiteSettings } from "@/hooks/use-site-settings";
@@ -29,6 +30,49 @@ const PERKS = [
 
 const MAX_COLUMNS = 6;
 const linkClass = "text-sm text-muted-foreground hover:text-primary transition-colors";
+const PLATFORM_GROUPS = [
+    {
+        label: "Mobile Apps",
+        items: [
+            { label: "Android", wordmark: "android", icon: siAndroid, background: "linear-gradient(135deg, #073247, #0d526d)", color: "#3DDC84" },
+            { label: "iOS", wordmark: "iOS", icon: siApple, background: "linear-gradient(135deg, #17191d, #303238)", color: "#ffffff" },
+        ],
+    },
+    {
+        label: "TV Apps",
+        items: [
+            { label: "Android TV", wordmark: "tv", icon: siAndroid, background: "linear-gradient(135deg, #073247, #0d526d)", color: "#3DDC84"},
+            { label: "Apple TV", wordmark: "", icon: siAppletv, background: "linear-gradient(135deg, #101114, #25272c)", color: "#ffffff" },
+            { label: "Fire TV", wordmark: "", icon: null, background: "linear-gradient(135deg, #f64c2e, #ff743b)", color: "#ffffff", image: "/assets/amazon-fire-tv.svg" },
+            { label: "Roku", wordmark: "Roku", icon: null, background: "linear-gradient(135deg, #48216e, #6e35a0)", color: "#ffffff" },
+        ],
+    },
+];
+
+function PlatformMark({ item }: { item: (typeof PLATFORM_GROUPS)[number]["items"][number] }) {
+    return (
+        <span
+            className="flex h-[3.75rem] min-w-0 items-center justify-center gap-2 rounded-lg border border-white/10 px-2 text-white shadow-sm transition-transform hover:-translate-y-0.5"
+            style={{ background: item.background }}
+            role="img"
+            aria-label={`${item.label} app`}
+            title={`${item.label} app`}
+        >
+            {"image" in item && item.image ? (
+                <img src={item.image} alt="" aria-hidden="true" className="h-8 w-[5.5rem] object-contain brightness-0 invert" />
+            ) : item.icon ? (
+                <svg viewBox="0 0 24 24" className={`shrink-0 ${item.label === "Apple TV" ? "h-8 w-8" : "h-6 w-6"}`} aria-hidden="true">
+                    <path d={item.icon.path} fill={item.color} />
+                </svg>
+            ) : null}
+            {item.wordmark && (
+                <span className={`min-w-0 truncate ${item.label === "Roku" ? "text-2xl font-extrabold" : item.label === "Android TV" ? "text-lg font-semibold" : "text-sm font-semibold"}`}>
+                    {item.wordmark}
+                </span>
+            )}
+        </span>
+    );
+}
 
 function FooterLink({ item }: { item: PublicMenuLink }) {
     return item.url.startsWith("/") ? (
@@ -115,11 +159,11 @@ export default function Footer() {
                 </section>
             )}
 
-            <div className="border-t border-border/60 bg-card/40 px-4 sm:px-6 lg:px-14 pt-12 pb-6">
+            <div className="border-t border-border/60 bg-card/40 px-4 py-10 sm:px-6 lg:px-14 lg:py-12">
                 <div
-                    className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:[grid-template-columns:var(--footer-cols)]"
+                    className="mx-auto grid max-w-[100rem] grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:[grid-template-columns:var(--footer-cols)]"
                     style={{
-                        ["--footer-cols" as string]: `minmax(220px,1.5fr) repeat(${columnCount}, minmax(0,1fr)) minmax(150px,auto)`,
+                        ["--footer-cols" as string]: `minmax(180px,1fr) repeat(${columnCount}, minmax(0,.78fr)) minmax(0,19rem) minmax(120px,.7fr)`,
                     }}
                 >
                     <div className="space-y-5">
@@ -128,6 +172,12 @@ export default function Footer() {
                             imageSize={44}
                             labelClassName="text-2xl font-display font-800 italic text-gradient-gold tracking-tight"
                         />
+                        <p className="mt-0.5 shrink-0 text-sm text-muted-foreground">
+                            We are creating the Movie Industry of Guyana - Gollywood
+                        </p>
+                        <p className="shrink-0 text-sm text-muted-foreground">
+                            Join us in this venture as we bring Hollywood - Bollywood to create Gollywood.
+                        </p>
                         {contactLines.length > 0 && (
                             <ul className="space-y-3">
                                 {contactLines.map(({ icon: Icon, text }) => (
@@ -142,11 +192,29 @@ export default function Footer() {
 
                     {columns.map((column, index) => (
                         <nav key={index} aria-label={`Footer links ${index + 1}`} className="flex flex-col gap-3 sm:pt-1">
+                            {footerMenu?.footer_column_headers?.[index]?.trim() && (
+                                <h2 className="mb-1 text-xs font-semibold uppercase tracking-widest text-foreground/70">
+                                    {footerMenu.footer_column_headers[index]}
+                                </h2>
+                            )}
                             {column.map((item) => <FooterLink key={item.id} item={item} />)}
                         </nav>
                     ))}
 
-                    <div className="space-y-4 sm:pt-1 lg:justify-self-end">
+                    <div className="space-y-4 sm:pt-1">
+                        <div className="space-y-4">
+                            {PLATFORM_GROUPS.map((group) => (
+                                <div key={group.label} className="space-y-2">
+                                    <p className="text-[10px] font-semibold uppercase tracking-widest text-foreground/60">{group.label}</p>
+                                    <div className="grid w-full max-w-[19rem] grid-cols-2 gap-2">
+                                        {group.items.map((item) => <PlatformMark key={item.label} item={item} />)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 sm:pt-1">
                         {socials.length > 0 && (
                             <>
                                 <p className="text-xs font-semibold uppercase tracking-widest text-foreground/70">Follow Us</p>
@@ -169,7 +237,7 @@ export default function Footer() {
                     </div>
                 </div>
 
-                <p className="mt-10 border-t border-border/40 pt-5 text-center text-[11px] text-muted-foreground">
+                <p className="mx-auto mt-10 max-w-[90rem] border-t border-border/40 pt-5 text-center text-[11px] text-muted-foreground">
                     {copyright_text || `© ${new Date().getFullYear()} ${label}. All rights reserved.`}
                 </p>
             </div>
