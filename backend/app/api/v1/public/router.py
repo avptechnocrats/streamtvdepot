@@ -749,7 +749,7 @@ async def list_public_subscription_plans(
 )
 async def list_public_categories(
     slug: str = Query(..., description="Client platform slug, e.g. 'kalingo-tv'"),
-    content_type: str | None = Query(None, description="Filter by content type (video|livestream|series|channel|audio)"),
+    content_type: str | None = Query(None, description="Filter by content type (video|livestream|series|audio)"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),

@@ -48,6 +48,7 @@ const COUNTRIES = [
 
 const COUNTRY_OPTIONS = COUNTRIES.map((c) => ({ value: c.code, label: c.name }));
 const LANGUAGE_OPTIONS = VIDEO_LANGUAGES.map((l) => ({ value: l, label: l }));
+const REGIONS = ["Caribbean", "South America", "North America", "Europe", "Asia", "Africa", "Middle East", "Australia"] as const;
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,7 @@ const schema = z.object({
     title: z.string().min(1, "Title is required"),
     slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9-]+$/, "Only lowercase, numbers, hyphens"),
     description: z.string().optional(),
+    region: z.array(z.enum(REGIONS)),
     categories: z.array(z.string()),  // category slugs
     language: z.array(z.string()).optional(),
     // SRT will implement in future.
@@ -373,6 +375,7 @@ export function liveTvChannelToFormValues(c: LiveTvChannelOut): FormValues {
         title: c.title,
         slug: c.slug,
         description: c.description ?? "",
+        region: c.region ?? [],
         categories: c.categories ?? [],
         language: c.language ?? [],
         source: c.source as "rtmp" | "external",
@@ -405,6 +408,7 @@ const DEFAULT_VALUES: FormValues = {
     title: "",
     slug: "",
     description: "",
+    region: [],
     categories: [],
     language: [],
     source: "rtmp",
@@ -487,6 +491,7 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
             title: data.title,
             slug: data.slug,
             description: data.description || null,
+            region: data.region,
             categories: data.categories,
             language: data.language ?? [],
             source: data.source,
@@ -580,6 +585,16 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                                         onChange={field.onChange}
                                     />
                                 )}
+                            />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="block text-xs font-semibold text-muted-foreground">Region</label>
+                            <CheckboxDropdown
+                                selected={watch("region")}
+                                onChange={(value) => setValue("region", value as FormValues["region"])}
+                                placeholder="+ Select regions"
+                                options={REGIONS.map((region) => ({ value: region, label: region }))}
                             />
                         </div>
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Plus, Search, LayoutList, AlertTriangle, CheckCircle2, GripVertical, Grid3X3, Video, Music, Zap, Layers, Grid, RefreshCw } from "lucide-react";
+import { Plus, Search, LayoutList, AlertTriangle, CheckCircle2, GripVertical, Grid3X3, Video, Music, Zap, Layers, RefreshCw } from "lucide-react";
 import { listCategories, reorderCategories, deleteCategory, type CategoryOut, CATEGORY_CONTENT_TYPES } from "@/lib/api";
 import {
     Pagination,
@@ -18,7 +18,7 @@ import { CategoryCard } from "./_components/CategoryCard";
 import { CategoryRowSkeleton } from "./_components/Skeletons";
 import { DeleteCategoryConfirm } from "./_components/DeleteCategoryConfirm";
 
-type ContentTypeFilter = "all" | "video" | "series" | "audio" | "livestream" | "channel";
+type ContentTypeFilter = "all" | "video" | "series" | "audio" | "livestream";
 
 const PAGE_SIZE = 10;
 
@@ -34,7 +34,6 @@ function getContentTypeIcon(type: ContentTypeFilter): React.ElementType {
         series: Layers,
         audio: Music,
         livestream: Zap,
-        channel: Grid,
     };
     return iconMap[type] || Grid3X3;
 }

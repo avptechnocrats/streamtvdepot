@@ -121,7 +121,7 @@ class MediaAssetOut(BaseModel):
 
 # ─── Category ────────────────────────────────────────────────────────────────
 
-CATEGORY_CONTENT_TYPES = ["video", "audio", "livestream", "series", "channel"]
+CATEGORY_CONTENT_TYPES = ["video", "audio", "livestream", "series"]
 
 
 class CategoryCreate(BaseModel):
@@ -689,6 +689,7 @@ class LiveStreamCreate(BaseModel):
     title: str
     slug: str
     description: str | None = None
+    region: list[Literal["Caribbean", "South America", "North America", "Europe", "Asia", "Africa", "Middle East", "Australia"]] = Field(default_factory=list)
     categories: list[str] = Field(default_factory=list)  # category slugs
     language: list[str] = []
     source: str = "external"
@@ -720,6 +721,7 @@ class LiveStreamUpdate(BaseModel):
     title: str | None = None
     slug: str | None = None
     description: str | None = None
+    region: list[Literal["Caribbean", "South America", "North America", "Europe", "Asia", "Africa", "Middle East", "Australia"]] | None = None
     categories: list[str] | None = None  # category slugs
     language: list[str] | None = None
     source: str | None = None
@@ -739,6 +741,7 @@ class LiveStreamOut(BaseModel):
     title: str
     slug: str
     description: str | None
+    region: list[Literal["Caribbean", "South America", "North America", "Europe", "Asia", "Africa", "Middle East", "Australia"]] = Field(default_factory=list)
     categories: list[str] = Field(default_factory=list)  # category slugs
     language: list[str]
     source: str

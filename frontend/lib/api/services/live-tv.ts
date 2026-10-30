@@ -14,6 +14,7 @@ export const LIVE_TV_SOURCES = [
 ] as const;
 
 export type LiveTvSource = (typeof LIVE_TV_SOURCES)[number]["value"];
+export type LiveTvRegion = "Caribbean" | "South America" | "North America" | "Europe" | "Asia" | "Africa" | "Middle East" | "Australia";
 
 /** Streaming engine for RTMP channels: our own RTMP server, or AWS MediaLive. */
 export type LiveTvPipeline = "legacy" | "aws";
@@ -71,6 +72,7 @@ export interface LiveTvChannelOut {
     title: string;
     slug: string;
     description: string | null;
+    region: LiveTvRegion[];
     categories: string[];  // category slugs
     language: string[];
     source: LiveTvSource;
@@ -108,6 +110,7 @@ export interface LiveTvChannelCreate {
     title: string;
     slug: string;
     description?: string | null;
+    region?: LiveTvRegion[];
     categories?: string[];  // category slugs
     language?: string[];
     source: LiveTvSource;
