@@ -1,15 +1,19 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Play, Plus, Info, ChevronLeft, ChevronRight, Tv, Radio } from "lucide-react";
+import { CalendarDays, Globe2, Heart, MapPin, Play, Plus, Info, ChevronLeft, ChevronRight, Share2, ShoppingCart, Tv, Radio, WifiOff } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
-import { useUserPrefs } from "@/hooks/use-user-prefs";
-import { listLiveTvChannels, type LiveTvChannelOut } from "@/lib/services";
+import { listLiveTvChannels, listPpvEvents, type LiveTvChannelOut, type PublicPpvEvent } from "@/lib/services";
 import { Button } from "@/components/ui/button";
 import { BannerSkeleton } from "@/components/BannerSkeleton";
 import EpgGuide from "./EpgGuide";
+
+const VideoPlayer = dynamic(() => import("@/components/VideoPlayer"), { ssr: false });
+const ManagedLivePlayer = dynamic(() => import("@/components/ManagedLivePlayer"), { ssr: false });
+const REGIONS = ["All Channels", "Caribbean", "South America", "North America", "Europe", "Asia", "Africa", "Middle East", "Australia"] as const;
 
 // ─── Banner helpers ───────────────────────────────────────────────────────────
 
@@ -348,90 +352,128 @@ function TVShowsSkeleton() {
 
 // ─── Rendered content (once data is ready) ───────────────────────────────────
 
+function channelImage(channel: LiveTvChannelOut): string {
+    return channel.thumbnails.portrait || channel.thumbnails.wide || channel.thumbnails.banner || "/images/movie-1.jpg";
+}
+
+function ChannelPlayer({ channel }: { channel: LiveTvChannelOut }) {
+    const poster = channel.thumbnails.banner || channel.thumbnails.wide || channel.thumbnails.portrait || undefined;
+    if (channel.managed_playback) return <ManagedLivePlayer key={channel.id} channelId={channel.id} poster={poster} className="h-full w-full" />;
+    if (channel.stream_url) return <VideoPlayer key={channel.id} src={channel.stream_url} poster={poster} autoPlay muted allowSeeking={false} className="h-full w-full" />;
+    return <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-zinc-950 text-white/60"><WifiOff size={32} /><p className="text-sm">This channel is currently unavailable.</p></div>;
+}
+
+function ChannelTile({ channel, selected, onSelect }: { channel: LiveTvChannelOut; selected: boolean; onSelect: () => void }) {
+    return (
+        <button type="button" onClick={onSelect} className={`relative h-[72px] w-[116px] shrink-0 overflow-hidden rounded border transition-colors ${selected ? "border-primary ring-1 ring-primary" : "border-white/10 hover:border-white/50"}`} aria-label={`Watch ${channel.title}`}>
+            <img src={channelImage(channel)} alt="" className="h-full w-full object-cover" loading="lazy" />
+            <span className="absolute inset-x-0 bottom-0 bg-black/75 px-1.5 py-1 text-left text-[10px] font-medium text-white truncate">{channel.title}</span>
+            {channel.is_live && <span className="absolute left-1 top-1 rounded bg-red-600 px-1 py-0.5 text-[8px] font-bold text-white">LIVE</span>}
+        </button>
+    );
+}
+
+function PpvBanner({ event }: { event: PublicPpvEvent }) {
+    const image = event.thumbnails.banner || event.thumbnails.wide || event.thumbnails.portrait;
+    return (
+        <section className="relative min-h-[260px] overflow-hidden border border-primary/60 bg-zinc-950">
+            {image && <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70" />}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#080b12] via-[#080b12]/90 to-[#080b12]/20" />
+            <div className="relative flex min-h-[260px] max-w-xl flex-col justify-center px-6 py-8 sm:px-10">
+                <span className="w-fit rounded bg-primary px-2 py-1 text-xs font-bold uppercase tracking-wide text-primary-foreground">PPV</span>
+                <h2 className="mt-3 font-display text-3xl font-bold text-white sm:text-4xl">{event.title}</h2>
+                {event.category && <p className="mt-1 text-sm font-medium text-primary">{event.category}</p>}
+                <div className="mt-4 flex items-center gap-2 text-sm text-white/80"><CalendarDays size={16} /> {event.is_live ? "Live now" : "Available soon"}</div>
+                {event.description && <p className="mt-3 max-w-lg text-sm leading-relaxed text-white/70">{event.description}</p>}
+                <Button asChild className="mt-6 w-fit gap-2 bg-primary px-6 font-semibold text-primary-foreground hover:bg-primary/90"><Link href={`/checkout?type=ppv&contentId=${encodeURIComponent(event.id)}`}><ShoppingCart size={16} /> Buy Now PPV</Link></Button>
+            </div>
+        </section>
+    );
+}
+
 function TVShowsContent({
     channels,
-    bannerStyle,
+    ppvEvents,
 }: {
     channels: LiveTvChannelOut[];
-    bannerStyle: string;
+    ppvEvents: PublicPpvEvent[];
 }) {
-    const effectiveStyle = bannerStyle === "video" ? "slider" : bannerStyle;
-
-    const sortedChannels = [
-        ...channels.filter((c) => c.is_featured || c.is_live),
-        ...channels.filter((c) => !c.is_featured && !c.is_live),
-    ];
-    const slides = sortedChannels.map(channelToSlide);
-
-    const categoryMap = new Map<string, LiveTvChannelOut[]>();
-    for (const ch of channels) {
-        const categories = ch.categories?.filter(Boolean) ?? [];
-        for (const key of categories.length > 0 ? categories : ["Uncategorized"]) {
-            if (!categoryMap.has(key)) categoryMap.set(key, []);
-            categoryMap.get(key)!.push(ch);
+    const [activeRegion, setActiveRegion] = useState<(typeof REGIONS)[number]>("All Channels");
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const regionChannels = activeRegion === "All Channels" ? channels : channels.filter((channel) => channel.region?.includes(activeRegion));
+    const playableChannels = regionChannels.filter((channel) => channel.managed_playback || channel.stream_url);
+    const selected = channels.find((channel) => channel.id === selectedId)
+        ?? playableChannels.find((channel) => channel.is_live && channel.access_type === "free")
+        ?? playableChannels[0]
+        ?? regionChannels[0]
+        ?? channels[0];
+    const liveChannels = channels.filter((channel) => channel.source === "rtmp" || channel.source === "srt");
+    const ppvEvent = ppvEvents.find((event) => event.is_live) ?? ppvEvents[0];
+    const shareSelectedChannel = () => {
+        const url = `${window.location.origin}/tv-shows/${selected?.id}`;
+        if (navigator.share) {
+            void navigator.share({ title: selected?.title, text: selected?.description ?? undefined, url });
+            return;
         }
-    }
-    const categoryRows = Array.from(categoryMap.entries());
+        void navigator.clipboard?.writeText(url);
+    };
+
+    if (!selected) return <div className="flex min-h-[55vh] flex-col items-center justify-center gap-3 text-muted-foreground"><Tv size={44} className="opacity-40" /><p>No TV channels available yet.</p></div>;
 
     return (
-        <>
-            {slides.length > 0 &&
-                (effectiveStyle === "slider" ? (
-                    <SliderBanner slides={slides} />
-                ) : (
-                    <StaticBanner slides={slides} />
-                ))}
-
-            <div className="w-full max-w-[1536px] mx-auto min-w-0 px-4 sm:px-6 lg:px-10 py-10 space-y-10">
-                {channels.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-4 px-6">
-                        <Tv size={56} className="opacity-30" />
-                        <p className="text-lg font-medium">No TV channels available yet</p>
-                        <p className="text-sm opacity-70">Check back soon for new content.</p>
+        <main className="bg-[#080b12] pb-12 pt-16 text-white">
+            <div className="mx-auto max-w-[1536px] px-4 sm:px-6 lg:px-14">
+                <section className="grid min-h-[440px] grid-cols-1 border-b border-white/10 lg:grid-cols-[minmax(330px,0.82fr)_minmax(0,1.5fr)]">
+                <div className="flex h-full flex-col justify-center bg-[#080b12] py-8">
+                    <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/70"><span className={`rounded px-2 py-1 text-[10px] text-white ${selected.is_live ? "bg-red-600" : "bg-white/15"}`}>{selected.is_live ? "Live" : "Channel"}</span><span className="truncate">Channel: {selected.title}</span></div>
+                    <h1 className="font-display text-3xl font-bold leading-tight sm:text-4xl">{selected.title}</h1>
+                    {selected.description && <p className="mt-3 max-w-md text-sm leading-relaxed text-white/72">{selected.description}</p>}
+                    <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-white/75">
+                        {selected.language?.[0] && <span className="flex items-center gap-1.5"><Globe2 size={14} /> {selected.language[0]}</span>}
+                        {selected.categories?.[0] && <span className="flex items-center gap-1.5"><Tv size={14} /> {categoryLabel(selected.categories[0])}</span>}
+                        <span className="flex items-center gap-1.5"><MapPin size={14} /> Region: {selected.region?.join(", ") || "Not specified"}</span>
                     </div>
-                ) : (
-                    <>
-                        {/* EPG Guide — only for RTMP/SRT channels that have schedulable programs */}
-                        {(() => {
-                            const liveChannels = channels.filter(
-                                (c) => c.source === "rtmp" || c.source === "srt",
-                            );
-                            return liveChannels.length > 0 ? (
-                                <EpgGuide channels={liveChannels} embedded />
-                            ) : null;
-                        })()}
-                        {categoryRows.map(([category, items]) => (
-                            <ChannelRow key={category} title={category === "Uncategorized" ? category : categoryLabel(category)} items={items} />
-                        ))}
-                    </>
-                )}
+                    <Button className="mt-6 h-11 w-full max-w-[260px] gap-2 bg-primary font-semibold text-primary-foreground hover:bg-primary/90"><Play size={16} fill="currentColor" /> Watch Now Live</Button>
+                    <div className="mt-3 flex w-full max-w-[260px] gap-2">
+                        <Button variant="outline" className="h-10 flex-1 gap-2 border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"><Heart size={15} /> Favourite</Button>
+                        <Button variant="outline" onClick={shareSelectedChannel} className="h-10 flex-1 gap-2 border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"><Share2 size={15} /> Share</Button>
+                    </div>
+                </div>
+                <div className="min-h-[270px] bg-black lg:min-h-0"><ChannelPlayer channel={selected} /></div>
+                </section>
             </div>
-        </>
+
+            <div className="mx-auto max-w-[1536px] space-y-9 px-4 py-8 sm:px-6 lg:px-14">
+                <section>
+                    <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="flex items-center gap-2"><Radio size={18} className="text-primary" /><h2 className="text-xl font-semibold">Watch Live TV by Region</h2></div><p className="mt-1 text-xs text-white/55">Explore channels from around the world.</p></div></div>
+                    <div className="flex gap-2 overflow-x-auto pb-2">{REGIONS.map((region) => <button key={region} type="button" onClick={() => setActiveRegion(region)} className={`h-9 shrink-0 border px-3 text-xs font-medium transition-colors ${activeRegion === region ? "border-primary bg-primary text-primary-foreground" : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"}`}>{region}</button>)}</div>
+                    {regionChannels.length > 0 ? <div className="mt-3 flex gap-3 overflow-x-auto pb-2">{regionChannels.map((channel) => <ChannelTile key={channel.id} channel={channel} selected={channel.id === selected.id} onSelect={() => setSelectedId(channel.id)} />)}</div> : <p className="py-5 text-sm text-white/50">No channels available in this region yet.</p>}
+                </section>
+
+                {liveChannels.length > 0 && <EpgGuide channels={liveChannels} embedded />}
+                {ppvEvent && <PpvBanner event={ppvEvent} />}
+            </div>
+        </main>
     );
 }
 
 // ─── Page entry point ─────────────────────────────────────────────────────────
 
 export default function TvShowsPage() {
-    const { prefs, prefsReady } = useUserPrefs();
-
     const { data: channelsData, isLoading: channelsLoading } = useQuery({
-        queryKey: ["live-tv-channels-banner"],
+        queryKey: ["live-tv-channels-watch-regions"],
         queryFn: () => listLiveTvChannels({ page_size: 100 }),
+        staleTime: 0,
+        refetchOnMount: "always",
+        retry: 1,
+    });
+    const { data: ppvData } = useQuery({
+        queryKey: ["ppv-events-watch"],
+        queryFn: () => listPpvEvents({ page_size: 10 }),
         staleTime: 5 * 60 * 1000,
         retry: 1,
     });
 
-    return (
-        <>
-            {(!prefsReady || channelsLoading) ? (
-                <TVShowsSkeleton />
-            ) : (
-                <TVShowsContent
-                    channels={channelsData ?? []}
-                    bannerStyle={prefs.bannerStyle}
-                />
-            )}
-        </>
-    );
+    if (channelsLoading) return <BannerSkeleton />;
+    return <TVShowsContent channels={channelsData ?? []} ppvEvents={ppvData ?? []} />;
 }
