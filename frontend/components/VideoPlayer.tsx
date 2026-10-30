@@ -141,6 +141,8 @@ export interface VideoPlayerProps {
      * buffering, and suppresses the "ended" event on stream stop.
      */
     isLive?: boolean;
+    /** Prefer the browser's native HLS implementation when it is available. */
+    preferNativeHls?: boolean;
     /** IMA3 / VAST / VPAID / VMAP ad configuration. Omit to skip ads entirely. */
     adConfig?: AdConfig;
     /**
@@ -262,6 +264,7 @@ export default function VideoPlayer({
     autoPlay = false,
     muted = false,
     isLive = false,
+    preferNativeHls = false,
     className = "",
     style,
     tracks = [],
@@ -350,7 +353,7 @@ export default function VideoPlayer({
                 liveui: isLive,
                 html5: {
                     vhs: {
-                        overrideNative: true,
+                        overrideNative: !preferNativeHls,
                         smoothQualityChange: true,
                         enableLowInitialPlaylist: isLive ? true : false,
                         bandwidth: initialBandwidth ?? detectInitialBandwidth(),
