@@ -52,7 +52,7 @@ const PLATFORM_GROUPS = [
 function PlatformMark({ item }: { item: (typeof PLATFORM_GROUPS)[number]["items"][number] }) {
     return (
         <span
-            className="flex h-[3.75rem] min-w-0 items-center justify-center gap-2 rounded-lg border border-white/10 px-2 text-white shadow-sm transition-transform hover:-translate-y-0.5"
+            className="flex h-[3.75rem] w-full max-w-[8.125rem] min-w-0 items-center justify-center gap-2 rounded-lg border border-white/10 px-2 text-white shadow-sm transition-transform hover:-translate-y-0.5"
             style={{ background: item.background }}
             role="img"
             aria-label={`${item.label} app`}
@@ -120,7 +120,7 @@ export default function Footer() {
     ].filter((s) => s.url);
 
     const contactLines = [
-        { icon: MapPin, text: [contact_name, address1, [address2, [state, zip_code].filter(Boolean).join(" ")].filter(Boolean).join(", ")].filter(Boolean).join("\n") },
+        { icon: MapPin, text: [contact_name, address1, address2, [state, zip_code].filter(Boolean).join(" ")].filter(Boolean).join("\n") },
         { icon: Phone, text: phone },
         { icon: Mail, text: contact_email },
     ].filter((line) => line.text);
@@ -161,9 +161,10 @@ export default function Footer() {
 
             <div className="border-t border-border/60 bg-card/40 px-4 py-10 sm:px-6 lg:px-14 lg:py-12">
                 <div
-                    className="mx-auto grid max-w-[100rem] grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:[grid-template-columns:var(--footer-cols)]"
+                    className="mx-auto grid max-w-[100rem] grid-cols-1 gap-x-[clamp(1.5rem,3vw,4rem)] gap-y-10 sm:grid-cols-2 lg:[grid-template-columns:var(--footer-cols-lg)] xl:justify-between xl:[grid-template-columns:var(--footer-cols-xl)]"
                     style={{
-                        ["--footer-cols" as string]: `minmax(180px,1fr) repeat(${columnCount}, minmax(0,.78fr)) minmax(0,19rem) minmax(120px,.7fr)`,
+                        ["--footer-cols-lg" as string]: `repeat(${columnCount + 3}, minmax(0, 1fr))`,
+                        ["--footer-cols-xl" as string]: `fit-content(22rem) repeat(${columnCount}, max-content) minmax(0, 19rem) max-content`,
                     }}
                 >
                     <div className="space-y-5">
@@ -173,9 +174,7 @@ export default function Footer() {
                             labelClassName="text-2xl font-display font-800 italic text-gradient-gold tracking-tight"
                         />
                         <p className="mt-0.5 shrink-0 text-sm text-muted-foreground">
-                            We are creating the Movie Industry of Guyana - Gollywood
-                        </p>
-                        <p className="shrink-0 text-sm text-muted-foreground">
+                            We are creating the Movie Industry of Guyana - Gollywood <br />
                             Join us in this venture as we bring Hollywood - Bollywood to create Gollywood.
                         </p>
                         {contactLines.length > 0 && (
@@ -206,7 +205,7 @@ export default function Footer() {
                             {PLATFORM_GROUPS.map((group) => (
                                 <div key={group.label} className="space-y-4">
                                     <p className="text-xs font-semibold uppercase tracking-widest text-foreground/70">{group.label}</p>
-                                    <div className="grid w-full max-w-[19rem] grid-cols-2 gap-2">
+                                    <div className="grid w-full max-w-[16.75rem] grid-cols-2 gap-2">
                                         {group.items.map((item) => <PlatformMark key={item.label} item={item} />)}
                                     </div>
                                 </div>
@@ -226,7 +225,7 @@ export default function Footer() {
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             aria-label={name}
-                                            className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-secondary/60 text-foreground/80 transition-colors hover:border-primary/60 hover:bg-primary/10 hover:text-primary"
+                                            className="flex h-10 w-10 items-center justify-center border border-border/60 bg-secondary/60 text-foreground/80 transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
                                         >
                                             <Icon size={17} />
                                         </a>

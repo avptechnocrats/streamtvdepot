@@ -28,7 +28,7 @@ function ContactForm({ fields }: { fields: ContactFormField[] }) {
     if (fields.length === 0) return null;
 
     return (
-        <form onSubmit={submit} className="space-y-6 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)] sm:p-7 lg:p-8">
+        <form onSubmit={submit} className="space-y-6 border border-slate-200 bg-white p-5 shadow-[0_12px_40px_rgba(15,23,42,0.06)] sm:p-7 lg:p-8">
             <div className="border-b border-slate-200 pb-5">
                 <p className="text-xs font-semibold uppercase tracking-widest text-primary">Contact Form</p>
                 <h2 className="mt-2 text-xl font-semibold text-slate-950">Send us a message</h2>
