@@ -13,6 +13,7 @@ interface VideoPreviewModalProps {
     poster?: string | null;
     onClose: () => void;
     onRegenerateHls?: () => void | Promise<void>;
+    isExternalLive?: boolean;
 }
 
 export default function VideoPreviewModal({
@@ -24,6 +25,7 @@ export default function VideoPreviewModal({
     poster,
     onClose,
     onRegenerateHls,
+    isExternalLive = false,
 }: VideoPreviewModalProps) {
     const overlayRef = useRef<HTMLDivElement>(null);
     const [copied, setCopied] = useState(false);
@@ -120,8 +122,9 @@ export default function VideoPreviewModal({
                                     This video could not be played
                                 </p>
                                 <p className="text-xs text-center opacity-60 max-w-xs">
-                                    The HLS stream may be missing or corrupted. Regenerating will re-submit
-                                    a MediaConvert job and rebuild the HLS output.
+                                    {isExternalLive
+                                        ? "The provider feed could not be played. Check that the M3U8 URL is reachable and allows playback from this admin domain."
+                                        : "The HLS stream may be missing or corrupted. Regenerating will re-submit a MediaConvert job and rebuild the HLS output."}
                                 </p>
                                 {onRegenerateHls && (
                                     <button
@@ -148,6 +151,8 @@ export default function VideoPreviewModal({
                                 drmKeyToken={drmKeyToken}
                                 poster={poster ?? undefined}
                                 autoPlay={false}
+                                isLive={isExternalLive}
+                                preferNativeHls={isExternalLive}
                                 onError={(msg) => setPlayError(msg)}
                                 skipSeconds={10}
                             />

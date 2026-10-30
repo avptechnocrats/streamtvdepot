@@ -3,7 +3,18 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Pencil, Trash2, Tv2, Copy, Check, Radio, Square, RefreshCw, Play, X, KeyRound, Megaphone, Power, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Tv2, Copy, Check, Radio, Square, RefreshCw, Play, X, KeyRound, Megaphone, Power, Loader2, AlertTriangle } from "lucide-react";
+import VideoPreviewModal from "@/app/admin/content/videos/_components/VideoPreviewModal";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { LiveTvChannelOut, LiveTvManaged } from "@/lib/api";
 import {
     LIVE_TV_SOURCES,
@@ -71,10 +82,12 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
         channel.rtmp_ingest_url ?? (channel.managed ? "" : "rtmp://<server>/live")
     );
     const [showCredentials, setShowCredentials] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
     const [imgLoaded, setImgLoaded] = useState(false);
 
     const [managed, setManaged] = useState<LiveTvManaged | null>(channel.managed ?? null);
     const [managedBusy, setManagedBusy] = useState(false);
+    const [confirmStart, setConfirmStart] = useState(false);
     const [adBreakSeconds, setAdBreakSeconds] = useState<number>(30);
     const [managedMessage, setManagedMessage] = useState<string | null>(null);
 
@@ -156,6 +169,30 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
 
     return (
         <>
+        <AlertDialog open={confirmStart} onOpenChange={setConfirmStart}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/10 text-amber-500">
+                            <AlertTriangle size={16} />
+                        </span>
+                        Start channel?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                        AWS MediaLive bills for every hour the channel runs, even when no video is being sent.
+                        Stop it when you are done; it also stops automatically after a period without video.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={() => runManaged(() => startLiveTvChannel(channel.id), "Could not start channel")}
+                    >
+                        Start channel
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
         {/* ── Credentials Modal ─────────────────────────────────────────── */}
         {showCredentials && rtmpKey && createPortal(
             <div
@@ -256,10 +293,22 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
             document.body
         )}
 
+        {showPreview && streamUrl && (
+            <VideoPreviewModal
+                videoId={channel.id}
+                title={channel.title}
+                hlsUrl={streamUrl}
+                drmEnabled={false}
+                poster={thumb}
+                isExternalLive
+                onClose={() => setShowPreview(false)}
+            />
+        )}
+
         {/* ── Card ─────────────────────────────────────────────────────── */}
-        <div className="rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/30 transition-colors">
+        <div className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg">
             {/* Thumbnail */}
-            <div className="relative h-36 bg-muted/40 overflow-hidden">
+            <div className="relative aspect-video overflow-hidden bg-gradient-to-br from-muted/70 to-muted/20">
                 {thumb ? (
                     <>
                         {!imgLoaded && <div className="absolute inset-0 bg-muted animate-pulse" />}
@@ -276,23 +325,21 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
                         <Tv2 size={36} className="text-muted-foreground/20" />
                     </div>
                 )}
-                {/* Live badge */}
-                <span className={`absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${isLive ? "bg-red-500/90 text-white" : "bg-muted/80 text-muted-foreground"}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${isLive ? "bg-white animate-pulse" : "bg-muted-foreground"}`} />
-                    {isLive ? "LIVE" : "OFF"}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/40 to-transparent" />
+                <span className={`absolute left-3 top-3 flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm ${isLive ? "bg-red-600 text-white shadow-sm" : "bg-black/50 text-white/80"}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${isLive ? "animate-pulse bg-white" : "bg-white/60"}`} />
+                    {isLive ? "Live" : "Offline"}
+                </span>
+                <span className={`absolute right-3 top-3 rounded-md px-2 py-1 text-[10px] font-semibold backdrop-blur-sm ${channel.is_active ? "bg-emerald-500/90 text-white" : "bg-black/50 text-white/80"}`}>
+                    {channel.is_active ? "Active" : "Inactive"}
                 </span>
             </div>
 
-            <div className="p-4 flex flex-col gap-3">
+            <div className="flex flex-1 flex-col gap-3.5 p-4">
                 {/* Title */}
-                <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-foreground text-sm leading-snug line-clamp-2">{channel.title}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5 font-mono truncate">{channel.slug}</p>
-                    </div>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${channel.is_active ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-muted text-muted-foreground border-border"}`}>
-                        {channel.is_active ? "Active" : "Inactive"}
-                    </span>
+                <div className="min-w-0">
+                    <p className="line-clamp-2 text-[15px] font-semibold leading-snug text-foreground">{channel.title}</p>
+                    <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">{channel.slug}</p>
                 </div>
 
                 {/* Source + category badges */}
@@ -322,20 +369,34 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
                     )}
                 </div>
 
-                {channel.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-2">{channel.description}</p>
+                {channel.description && channel.description.trim() !== channel.title.trim() && (
+                    <p className="text-xs leading-relaxed text-muted-foreground line-clamp-2">{channel.description}</p>
                 )}
 
                 {/* Managed pipeline: channel power, server-side ad breaks, VOD export status */}
                 {managed && (
-                    <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-                        <div className="flex items-center justify-between gap-2 text-[11px]">
-                            <span className="font-semibold text-foreground">Live pipeline</span>
-                            <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full border font-semibold ${channelRunning ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : managed.status === "error" ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-blue-500/10 text-blue-400 border-blue-500/20"}`}>
-                                {managedSettling && <Loader2 size={10} className="animate-spin" />}
+                    <div className="flex min-h-[176px] flex-col gap-3 rounded-xl border border-border bg-muted/30 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Live pipeline</span>
+                            <span className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide ${channelRunning ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : managed.status === "error" ? "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400" : managedSettling ? "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400" : "border-border bg-background text-muted-foreground"}`}>
+                                {managedSettling
+                                    ? <Loader2 size={10} className="animate-spin" />
+                                    : <span className={`h-1.5 w-1.5 rounded-full ${channelRunning ? "animate-pulse bg-emerald-500" : managed.status === "error" ? "bg-red-500" : "bg-muted-foreground/60"}`} />}
                                 {managed.status === "ready" ? (managed.channel_state ?? "IDLE") : managed.status}
                             </span>
                         </div>
+
+                        {managed.status === "ready" && (
+                            <p className="text-[11px] leading-relaxed text-muted-foreground">
+                                {channelStarting
+                                    ? "Starting up — this usually takes 1–2 minutes."
+                                    : channelStopping
+                                        ? "Shutting down the channel…"
+                                        : channelRunning
+                                            ? "Ready for your encoder. Billed while running."
+                                            : "Channel is stopped and not billed. Start it to connect OBS."}
+                            </p>
+                        )}
 
                         {managed.status === "error" && (
                             <>
@@ -352,19 +413,16 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
                         )}
 
                         {managed.status === "ready" && (
-                            <div className="flex flex-wrap items-center gap-1.5">
+                            <div className="mt-auto flex flex-wrap items-center gap-1.5">
                                 {channelIdle || channelStarting ? (
                                     <button
                                         type="button"
                                         disabled={managedBusy || channelStarting}
-                                        onClick={() => {
-                                            if (!confirm("Start the channel? AWS MediaLive bills for every hour the channel runs, even when no video is being sent. Stop it when you are done; it also stops automatically after a period without video.")) return;
-                                            runManaged(() => startLiveTvChannel(channel.id), "Could not start channel");
-                                        }}
+                                        onClick={() => setConfirmStart(true)}
                                         title="Start the encoder channel so OBS can connect (billed while running)"
-                                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
+                                        className="flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-60"
                                     >
-                                        {managedBusy || channelStarting ? <Loader2 size={12} className="animate-spin" /> : <Power size={12} />}
+                                        {managedBusy || channelStarting ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />}
                                         {channelStarting ? "Starting channel…" : "Start channel"}
                                     </button>
                                 ) : (
@@ -372,9 +430,9 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
                                         type="button"
                                         disabled={managedBusy || channelStopping}
                                         onClick={() => runManaged(() => stopLiveTvChannel(channel.id), "Could not stop channel")}
-                                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                                        className="flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-red-500/40 bg-red-500/5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-500/10 disabled:opacity-60 dark:text-red-400"
                                     >
-                                        {managedBusy || channelStopping ? <Loader2 size={12} className="animate-spin" /> : <Power size={12} />}
+                                        {managedBusy || channelStopping ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />}
                                         {channelStopping ? "Stopping channel…" : "Stop channel"}
                                     </button>
                                 )}
@@ -418,39 +476,97 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
                     </div>
                 )}
 
+                {channel.source === "rtmp" && !managed && (
+                    <div className="flex min-h-[176px] flex-col gap-3 rounded-xl border border-border bg-muted/30 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Live stream</span>
+                            <span className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide ${isLive ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "border-border bg-background text-muted-foreground"}`}>
+                                <span className={`h-1.5 w-1.5 rounded-full ${isLive ? "animate-pulse bg-emerald-500" : "bg-muted-foreground/60"}`} />
+                                {isLive ? "LIVE" : "READY"}
+                            </span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed text-muted-foreground">
+                            {isLive
+                                ? "Your stream is available to viewers."
+                                : "Use the stream credentials to connect your encoder, then go live when you are ready."}
+                        </p>
+                        <div className="mt-auto divide-y divide-border rounded-lg border border-border bg-background text-[11px]">
+                            <div className="flex items-center justify-between gap-3 px-3 py-2">
+                                <span className="text-muted-foreground">Encoder</span>
+                                <span className="flex items-center gap-1.5 font-medium text-foreground">
+                                    <Radio size={12} className="text-primary" /> {rtmpKey ? "Credentials ready" : "Preparing"}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {channel.source === "external" && (
+                    <div className="flex min-h-[176px] flex-col gap-3 rounded-xl border border-border bg-muted/30 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">External feed</span>
+                            <span className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide ${streamUrl ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400"}`}>
+                                <span className={`h-1.5 w-1.5 rounded-full ${streamUrl ? "bg-emerald-500" : "bg-red-500"}`} />
+                                {streamUrl ? "CONFIGURED" : "MISSING"}
+                            </span>
+                        </div>
+                        <p className="text-[11px] leading-relaxed text-muted-foreground">
+                            {streamUrl ? "Playback is supplied by the connected provider feed." : "Add an HLS source URL to make this channel available."}
+                        </p>
+                        <div className="mt-auto divide-y divide-border rounded-lg border border-border bg-background text-[11px]">
+                            <div className="flex items-center justify-between gap-3 px-3 py-2">
+                                <span className="text-muted-foreground">Source</span>
+                                <span className="font-medium text-foreground">M3U8 / HLS</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Actions */}
-                <div className="flex items-center gap-1.5 pt-1 border-t border-border mt-auto">
-                    <Link
-                        href={`/admin/content/live-tv/${channel.id}/edit`}
-                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-secondary hover:bg-primary/10 hover:text-primary text-xs font-medium text-foreground transition-colors"
-                    >
-                        <Pencil size={12} /> Edit
-                    </Link>
-
-                    {/* Credentials button — RTMP only */}
-                    {channel.source === "rtmp" && rtmpKey && (
-                        <button
-                            onClick={() => setShowCredentials(true)}
-                            title="View stream credentials"
-                            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors"
-                        >
-                            <KeyRound size={12} /> Info
-                        </button>
-                    )}
-
-                    {/* Start / Stop — RTMP channels only */}
-                    {channel.source === "rtmp" && (
+                <div className="mt-auto flex items-center gap-1.5 border-t border-border pt-3">
+                    {channel.source === "rtmp" ? (
                         <button
                             onClick={handleToggleLive}
                             disabled={toggling}
-                            title={isLive ? "Stop stream" : "Start stream"}
-                            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${isLive ? "text-red-400 hover:bg-red-500/10" : "text-emerald-400 hover:bg-emerald-500/10"}`}
+                            title={isLive ? "Take the channel offline for viewers" : "Show the channel to viewers"}
+                            className={`flex h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-xs font-semibold transition-colors disabled:opacity-60 ${isLive ? "border border-red-500/40 bg-red-500/5 text-red-600 hover:bg-red-500/10 dark:text-red-400" : "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"}`}
                         >
                             {toggling
-                                ? <RefreshCw size={12} className="animate-spin" />
+                                ? <RefreshCw size={14} className="animate-spin" />
                                 : isLive
-                                    ? <><Square size={12} /> Stop</>
-                                    : <><Play size={12} /> Go Live</>}
+                                    ? <><Square size={13} /> End broadcast</>
+                                    : <><Play size={13} /> Go Live</>}
+                        </button>
+                    ) : streamUrl ? (
+                        <button
+                            type="button"
+                            onClick={() => setShowPreview(true)}
+                            title="Preview external feed"
+                            className="flex h-9 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                        >
+                            <Play size={13} /> Preview
+                        </button>
+                    ) : (
+                        <div className="flex h-9 flex-1 items-center justify-center rounded-lg border border-dashed border-border text-[11px] font-medium text-muted-foreground">
+                            Feed unavailable
+                        </div>
+                    )}
+
+                    <Link
+                        href={`/admin/content/live-tv/${channel.id}/edit`}
+                        title="Edit channel"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                    >
+                        <Pencil size={14} />
+                    </Link>
+
+                    {channel.source === "rtmp" && rtmpKey && (
+                        <button
+                            onClick={() => setShowCredentials(true)}
+                            title="Stream credentials"
+                            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                        >
+                            <KeyRound size={14} />
                         </button>
                     )}
 
@@ -459,18 +575,18 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
                             href={recordingUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                            title="Watch recording"
+                            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
                         >
-                            <Play size={12} /> Replay
+                            <Play size={14} />
                         </a>
                     )}
 
-                    {/* Delete */}
                     <button
                         type="button"
                         onClick={onDelete}
-                        className="ml-auto p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/8 transition-colors"
-                        title="Delete"
+                        title="Delete channel"
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-500"
                     >
                         <Trash2 size={14} />
                     </button>
