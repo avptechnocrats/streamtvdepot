@@ -272,6 +272,7 @@ Resources:
               - medialive:StartChannel
               - medialive:StopChannel
               - medialive:BatchUpdateSchedule
+              - cloudwatch:GetMetricData
               - medialive:CreateTags
               - mediapackagev2:*
               - mediatailor:PutPlaybackConfiguration

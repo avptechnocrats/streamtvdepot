@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Pencil, Trash2, Tv2, Copy, Check, Radio, Square, RefreshCw, Play, X, KeyRound, Megaphone, Power } from "lucide-react";
+import { Pencil, Trash2, Tv2, Copy, Check, Radio, Square, RefreshCw, Play, X, KeyRound, Megaphone, Power, Loader2 } from "lucide-react";
 import type { LiveTvChannelOut, LiveTvManaged } from "@/lib/api";
 import {
     LIVE_TV_SOURCES,
@@ -68,7 +68,7 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
     const [streamUrl, setStreamUrl] = useState(channel.stream_url);
     const [recordingUrl, setRecordingUrl] = useState(channel.recording_url);
     const [rtmpIngestUrl, setRtmpIngestUrl] = useState(
-        channel.rtmp_ingest_url ?? "rtmp://<server>/live"
+        channel.rtmp_ingest_url ?? (channel.managed ? "" : "rtmp://<server>/live")
     );
     const [showCredentials, setShowCredentials] = useState(false);
     const [imgLoaded, setImgLoaded] = useState(false);
@@ -82,7 +82,7 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
         setManaged(updated.managed ?? null);
         setStreamStatus(updated.stream_status);
         setRtmpKey(updated.rtmp_key);
-        setRtmpIngestUrl(updated.rtmp_ingest_url ?? rtmpIngestUrl);
+        setRtmpIngestUrl(updated.rtmp_ingest_url ?? (updated.managed ? "" : rtmpIngestUrl));
         onUpdate?.(updated);
     };
 
@@ -116,6 +116,8 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
 
     const channelRunning = managed?.channel_state === "RUNNING";
     const channelIdle = !managed?.channel_state || managed.channel_state === "IDLE";
+    const channelStarting = managed?.channel_state === "STARTING";
+    const channelStopping = managed?.channel_state === "STOPPING";
 
     const handleToggleLive = async () => {
         setToggling(true);
@@ -199,8 +201,8 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
                         <div>
                             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">RTMP Ingest URL</p>
                             <div className="flex items-center gap-1.5 bg-muted/40 rounded-lg border border-border px-3 py-2">
-                                <code className="flex-1 truncate font-mono text-[11px] text-foreground select-all">{rtmpIngestUrl}</code>
-                                <CopyButton value={rtmpIngestUrl} label="RTMP URL" />
+                                <code className="flex-1 truncate font-mono text-[11px] text-foreground select-all">{rtmpIngestUrl || "Available once AWS setup completes"}</code>
+                                {rtmpIngestUrl && <CopyButton value={rtmpIngestUrl} label="RTMP URL" />}
                             </div>
                         </div>
 
@@ -329,7 +331,8 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
                     <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
                         <div className="flex items-center justify-between gap-2 text-[11px]">
                             <span className="font-semibold text-foreground">Live pipeline</span>
-                            <span className={`px-2 py-0.5 rounded-full border font-semibold ${channelRunning ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : managed.status === "error" ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-blue-500/10 text-blue-400 border-blue-500/20"}`}>
+                            <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full border font-semibold ${channelRunning ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : managed.status === "error" ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-blue-500/10 text-blue-400 border-blue-500/20"}`}>
+                                {managedSettling && <Loader2 size={10} className="animate-spin" />}
                                 {managed.status === "ready" ? (managed.channel_state ?? "IDLE") : managed.status}
                             </span>
                         </div>
@@ -350,24 +353,29 @@ export function LiveTvCard({ channel, onDelete, onUpdate }: LiveTvCardProps) {
 
                         {managed.status === "ready" && (
                             <div className="flex flex-wrap items-center gap-1.5">
-                                {channelIdle ? (
+                                {channelIdle || channelStarting ? (
                                     <button
                                         type="button"
-                                        disabled={managedBusy}
-                                        onClick={() => runManaged(() => startLiveTvChannel(channel.id), "Could not start channel")}
+                                        disabled={managedBusy || channelStarting}
+                                        onClick={() => {
+                                            if (!confirm("Start the channel? AWS MediaLive bills for every hour the channel runs, even when no video is being sent. Stop it when you are done; it also stops automatically after a period without video.")) return;
+                                            runManaged(() => startLiveTvChannel(channel.id), "Could not start channel");
+                                        }}
                                         title="Start the encoder channel so OBS can connect (billed while running)"
                                         className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors disabled:opacity-50"
                                     >
-                                        <Power size={12} /> Start channel
+                                        {managedBusy || channelStarting ? <Loader2 size={12} className="animate-spin" /> : <Power size={12} />}
+                                        {channelStarting ? "Starting channel…" : "Start channel"}
                                     </button>
                                 ) : (
                                     <button
                                         type="button"
-                                        disabled={managedBusy || managed.channel_state === "STOPPING"}
+                                        disabled={managedBusy || channelStopping}
                                         onClick={() => runManaged(() => stopLiveTvChannel(channel.id), "Could not stop channel")}
                                         className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
                                     >
-                                        <Power size={12} /> Stop channel
+                                        {managedBusy || channelStopping ? <Loader2 size={12} className="animate-spin" /> : <Power size={12} />}
+                                        {channelStopping ? "Stopping channel…" : "Stop channel"}
                                     </button>
                                 )}
 

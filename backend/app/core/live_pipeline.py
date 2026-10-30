@@ -22,6 +22,7 @@ from app.models.superadmin.client import Client
 logger = logging.getLogger(__name__)
 
 POLL_INTERVAL = 20  # seconds between reconciliation sweeps
+INPUT_CHECK_INTERVAL = 60  # seconds between CloudWatch input checks of a running channel
 _ACTIVE_STATES = {"STARTING", "RUNNING", "RECOVERING", "STOPPING"}
 _LIVE_STATES = {"RUNNING", "RECOVERING"}
 
@@ -158,6 +159,55 @@ async def _finish_harvest(db: AsyncSession, state: dict) -> dict:
 
 # ─── Reconciliation ─────────────────────────────────────────────────────────
 
+async def _auto_stop_if_idle(stream: LiveStream, state: dict) -> dict:
+    """MediaLive bills while RUNNING even with no encoder; stop channels that have had no input for too long."""
+    limit = settings.LIVE_AUTO_STOP_IDLE_MINUTES
+    now = _now()
+    checked = state.get("input_checked_at")
+    if limit <= 0 or (checked and (now - datetime.fromisoformat(checked)).total_seconds() < INPUT_CHECK_INTERVAL):
+        return state
+    state = {**state, "input_checked_at": _iso(now)}
+    has_input = await asyncio.to_thread(aws_live.has_recent_input, state)
+    if has_input:
+        return {**state, "last_input_at": _iso(now)}
+    if has_input is None:
+        return state
+    idle_since = datetime.fromisoformat(state.get("last_input_at") or state.get("broadcast_started_at") or _iso(now))
+    if now - idle_since < timedelta(minutes=limit):
+        return state
+    try:
+        await asyncio.to_thread(aws_live.stop_channel, state)
+    except aws_live.LiveAwsError:
+        logger.exception("Auto-stop failed for stream %s", stream.id)
+        return state
+    logger.warning("Auto-stopped stream %s: no encoder input for %d min", stream.id, limit)
+    stream.is_live = False
+    return {**state, "channel_state": "STOPPING"}
+
+
+PROVISIONING_TIMEOUT = timedelta(minutes=10)
+
+
+async def _fail_stale_provisioning() -> None:
+    """Provisioning runs in-process; a restart mid-way would leave the card spinning forever."""
+    async with AsyncSessionLocal() as db:
+        stale = (await db.execute(
+            select(LiveStream)
+            .where(
+                LiveStream.aws_live["status"].astext == "provisioning",
+                LiveStream.updated_at < _now() - PROVISIONING_TIMEOUT,
+            )
+            .with_for_update(skip_locked=True)
+        )).scalars().all()
+        for stream in stale:
+            stream.aws_live = {
+                **(stream.aws_live or {}),
+                "status": "error",
+                "error": "Setup was interrupted (for example by a server restart). Press Retry setup.",
+            }
+        if stale:
+            await db.commit()
+
 async def _reconcile_stream(stream_id: uuid.UUID) -> None:
     async with AsyncSessionLocal() as db:
         loaded = await _load(db, stream_id, lock=True)  # skip rows another worker is handling
@@ -175,6 +225,8 @@ async def _reconcile_stream(stream_id: uuid.UUID) -> None:
                 if observed == "RUNNING" and not state.get("broadcast_started_at"):
                     state["broadcast_started_at"] = _iso(now - timedelta(seconds=POLL_INTERVAL))
                 elif observed == "IDLE":
+                    state.pop("last_input_at", None)
+                    state.pop("input_checked_at", None)
                     started = state.pop("broadcast_started_at", None)
                     if started and (state.get("options") or {}).get("record_vod"):
                         try:
@@ -185,6 +237,9 @@ async def _reconcile_stream(stream_id: uuid.UUID) -> None:
                             logger.exception("Could not start VOD export for stream %s", stream_id)
                             state["vod"] = {"status": "failed", "error": str(exc)[:300]}
 
+            if state.get("channel_state") == "RUNNING":
+                state = await _auto_stop_if_idle(stream, state)
+
         if (state.get("vod") or {}).get("status") == "harvesting":
             state = await _finish_harvest(db, state)
 
@@ -193,6 +248,7 @@ async def _reconcile_stream(stream_id: uuid.UUID) -> None:
 
 
 async def reconcile_once() -> None:
+    await _fail_stale_provisioning()
     async with AsyncSessionLocal() as db:
         ids = (await db.execute(
             select(LiveStream.id).where(

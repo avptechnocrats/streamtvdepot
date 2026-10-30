@@ -137,6 +137,7 @@ class Settings(BaseSettings):
     MEDIALIVE_INPUT_SECURITY_GROUP_ID: str = ""
     # Encoder egress CIDRs allowed to push RTMP. No default: an open ingest must be an explicit choice.
     LIVE_INGEST_ALLOWED_CIDRS: List[str] = []
+    LIVE_AUTO_STOP_IDLE_MINUTES: int = 15            # stop a RUNNING channel with no encoder input this long (0 = off)
     LIVE_SEGMENT_SECONDS: int = 2
     LIVE_DVR_WINDOW_SECONDS: int = 14_400            # MediaPackage start-over window (max 14 days)
     MEDIAPACKAGE_CHANNEL_GROUP: str = "stv-live"

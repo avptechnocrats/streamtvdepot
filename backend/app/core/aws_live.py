@@ -17,7 +17,7 @@ import logging
 import secrets
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Any
 from urllib.parse import urlparse
@@ -352,15 +352,19 @@ def _encoder_settings() -> dict:
                     "Scte35Type": "SCTE_35_WITHOUT_SEGMENTATION",
                 }
             },
+            # CMAF ingest outputs hold exactly one stream each: one per video rung, plus one audio output.
             "Outputs": [
                 {
                     "OutputName": rung["name"],
                     "VideoDescriptionName": f"video_{rung['name']}",
-                    "AudioDescriptionNames": [_AUDIO_NAME],
                     "OutputSettings": {"CmafIngestOutputSettings": {"NameModifier": f"_{rung['name']}"}},
                 }
                 for rung in _LADDER
-            ],
+            ] + [{
+                "OutputName": "audio",
+                "AudioDescriptionNames": [_AUDIO_NAME],
+                "OutputSettings": {"CmafIngestOutputSettings": {"NameModifier": "_audio"}},
+            }],
         }],
     }
 
@@ -493,7 +497,7 @@ def provision(
             mediatailor = _upsert_mediatailor_hosts(mt, name, stream_id, client_slug, options, tenant_domain)
 
         ml.get_waiter("channel_created").wait(
-            ChannelId=ml_channel["Id"], WaiterConfig={"Delay": 5, "MaxAttempts": 24}
+            ChannelId=ml_channel["Id"], WaiterConfig={"Delay": 5, "MaxAttempts": 60}
         )
     except (BotoCoreError, ClientError) as exc:
         _rollback(ml, created)
@@ -571,6 +575,37 @@ def stop_channel(state: dict) -> None:
             raise LiveAwsError(f"Could not stop channel: {exc}") from exc
     except BotoCoreError as exc:
         raise LiveAwsError(f"Could not stop channel: {exc}") from exc
+
+
+def has_recent_input(state: dict, window_minutes: int = 5) -> bool | None:
+    """True if either pipeline received video recently; None when CloudWatch can't answer."""
+    now = datetime.now(timezone.utc)
+    queries = [
+        {
+            "Id": f"p{pipeline}",
+            "MetricStat": {
+                "Metric": {
+                    "Namespace": "AWS/MediaLive",
+                    "MetricName": "InputVideoFrameRate",
+                    "Dimensions": [
+                        {"Name": "ChannelId", "Value": state["medialive_channel_id"]},
+                        {"Name": "Pipeline", "Value": str(pipeline)},
+                    ],
+                },
+                "Period": 60,
+                "Stat": "Maximum",
+            },
+        }
+        for pipeline in (0, 1)
+    ]
+    try:
+        result = _client("cloudwatch").get_metric_data(
+            MetricDataQueries=queries, StartTime=now - timedelta(minutes=window_minutes), EndTime=now
+        )
+    except (BotoCoreError, ClientError) as exc:
+        logger.warning("Could not read MediaLive input metrics: %s", exc)
+        return None
+    return any(value > 0 for series in result["MetricDataResults"] for value in series["Values"])
 
 
 def describe_channel_state(state: dict) -> str:

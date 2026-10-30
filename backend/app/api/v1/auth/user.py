@@ -21,6 +21,7 @@ from app.core.end_user_avatar import load_avatar_asset_map, resolve_avatar_asset
 from app.core.security import (
     create_access_token,
     create_refresh_token,
+    decode_token,
     hash_password,
     verify_password,
 )
