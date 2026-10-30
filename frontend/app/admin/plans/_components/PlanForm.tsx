@@ -605,7 +605,7 @@ export function PlanForm({ mode, planId, defaultValues }: PlanFormProps) {
                             <div>
                                 <p className="text-xs font-semibold text-muted-foreground mb-3">Allowed Content Types</p>
                                 <div className="flex flex-wrap gap-3">
-                                    {["video", "audio", "livestream", "series", "channel"].map((type) => (
+                                    {["video", "audio", "livestream", "series"].map((type) => (
                                         <Controller
                                             key={type}
                                             name="allowed_content_types"

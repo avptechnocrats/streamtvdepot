@@ -393,6 +393,7 @@ class LiveStream(Base, UUIDMixin, TimestampMixin):
     title: Mapped[str] = mapped_column(String(500), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text)
+    region: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     language: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     source: Mapped[str] = mapped_column(String(20), nullable=False, default="external")
     stream_url: Mapped[str | None] = mapped_column(Text)  # HLS playback URL (external) or auto-generated HLS URL (rtmp)

@@ -6,12 +6,11 @@ import { ENDPOINTS } from "../endpoints";
 export const CATEGORY_CONTENT_TYPES = [
     { value: "video", label: "Video" },
     { value: "series", label: "Series" },
-    { value: "audio", label: "Audio" }, 
-    { value: "live_stream", label: "Live Stream" },
-    { value: "channel", label: "TV Channel" },
+    { value: "audio", label: "Audio" },
+    { value: "livestream", label: "Live Stream" },
 ] as const;
 
-export type CategoryContentType = "audio" | "video" | "series" | "live_stream" | "channel";
+export type CategoryContentType = "audio" | "video" | "series" | "livestream";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
