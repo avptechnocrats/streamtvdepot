@@ -28,7 +28,7 @@ export interface LiveTvChannelOut {
     title: string;
     slug: string;
     description: string | null;
-    category: string | null;
+    categories: string[];
     language: string[];
     source: LiveTvSource;
     stream_url: string | null;

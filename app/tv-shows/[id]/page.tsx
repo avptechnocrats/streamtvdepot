@@ -22,6 +22,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import EpgGuide from "../_components/EpgGuide";
 
+function categoryLabel(slug: string): string {
+    return slug.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 
 // VideoPlayer uses video.js which requires browser APIs — disable SSR
 const VideoPlayer = dynamic(() => import("@/components/VideoPlayer"), { ssr: false });
@@ -103,7 +107,7 @@ function RelatedChannelCard({ channel }: { channel: LiveTvChannelOut }) {
                 <p className="text-sm font-medium text-foreground truncate">{channel.title}</p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     {channel.language?.[0] && <span>{channel.language[0]}</span>}
-                    {channel.category && <span className="text-primary truncate">{channel.category}</span>}
+                    {channel.categories?.length > 0 && <span className="text-primary truncate">{channel.categories.map(categoryLabel).join(", ")}</span>}
                 </div>
             </div>
         </Link>
@@ -263,15 +267,20 @@ export default function ChannelDetailPage() {
         channel.thumbnails.wide ||
         channel.thumbnails.portrait ||
         undefined;
+    const categorySlugs = channel.categories ?? [];
+    const categoryLabels = categorySlugs.map(categoryLabel);
+    const primaryCategory = categoryLabels[0];
+    const sharesCategory = (other: LiveTvChannelOut) =>
+        other.categories?.some((category) => categorySlugs.includes(category));
 
     // Channels in the same category (excluding current)
     const relatedChannels = (allChannels ?? [])
-        .filter((c) => c.id !== channel.id && !!channel.category && c.category === channel.category)
+        .filter((c) => c.id !== channel.id && categorySlugs.length > 0 && sharesCategory(c))
         .slice(0, 12);
 
     // Other channels (different category or no category)
     const otherChannels = (allChannels ?? [])
-        .filter((c) => c.id !== channel.id && (!channel.category || c.category !== channel.category))
+        .filter((c) => c.id !== channel.id && !sharesCategory(c))
         .slice(0, 12);
     const guideChannels = (allChannels ?? []).filter(
         (c) => c.source === "rtmp" || c.source === "srt",
@@ -419,11 +428,11 @@ export default function ChannelDetailPage() {
                                 Subscription
                             </span>
                         )}
-                        {channel.category && (
+                        {categoryLabels.map((category) => (
                             <span className="px-2.5 py-1 text-[11px] font-medium bg-secondary text-muted-foreground border border-border/40 rounded-full">
-                                {channel.category}
+                                {category}
                             </span>
-                        )}
+                        ))}
                     </div>
                     <h1 className="text-3xl md:text-4xl font-display font-800 text-foreground">
                         {channel.title}
@@ -456,12 +465,12 @@ export default function ChannelDetailPage() {
                         </div>
                     )}
 
-                    {channel.category && (
+                    {categoryLabels.length > 0 && (
                         <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-secondary/60 border border-border/40">
                             <Tag size={18} className="text-primary" />
                             <div>
-                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Category</p>
-                                <p className="text-sm font-semibold text-foreground">{channel.category}</p>
+                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Categories</p>
+                                <p className="text-sm font-semibold text-foreground">{categoryLabels.join(", ")}</p>
                             </div>
                         </div>
                     )}
@@ -489,7 +498,7 @@ export default function ChannelDetailPage() {
                 {relatedChannels.length > 0 && (
                     <section className="space-y-4 pt-4 border-t border-border/40">
                         <h2 className="text-xl font-semibold text-foreground">
-                            More in {channel.category}
+                            More in {primaryCategory}
                         </h2>
                         <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
                             {relatedChannels.map((c) => (

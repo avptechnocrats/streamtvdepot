@@ -563,9 +563,9 @@ function ContentDetailPanel({
                             <Globe size={11} /> {channel.language.join(", ")}
                         </span>
                     )}
-                    {channel?.category && (
+                    {channel?.categories?.length > 0 && (
                         <span className="text-xs text-muted-foreground bg-secondary/60 border border-border/40 px-2.5 py-1 rounded-full">
-                            {channel.category}
+                            {channel.categories.map((category) => category.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())).join(", ")}
                         </span>
                     )}
                 </div>
@@ -2047,7 +2047,7 @@ function CheckoutPageInner() {
                         title: event.title,
                         slug: event.slug ?? event.id,
                         description: event.description,
-                        category: event.category,
+                        categories: event.category ? [event.category] : [],
                         language: [],
                         source: event.source,
                         stream_url: event.stream_url,

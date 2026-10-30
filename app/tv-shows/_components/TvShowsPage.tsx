@@ -32,6 +32,14 @@ function splitTitle(title: string): [string, string] {
     return [words.join(" "), last];
 }
 
+function categoryLabel(slug: string): string {
+    return slug.replace(/-/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function primaryCategory(channel: LiveTvChannelOut): string {
+    return channel.categories?.[0] ?? "";
+}
+
 function channelToSlide(ch: LiveTvChannelOut): SlideData {
     const image =
         ch.thumbnails.banner ||
@@ -39,16 +47,17 @@ function channelToSlide(ch: LiveTvChannelOut): SlideData {
         ch.thumbnails.portrait ||
         "/images/hero-banner.jpg";
     const [titleA, titleB] = splitTitle(ch.title);
+    const category = primaryCategory(ch);
     return {
         id: ch.id,
         image,
-        badge: ch.is_live ? "🔴 LIVE" : ch.category || "TV Channel",
+        badge: ch.is_live ? "🔴 LIVE" : categoryLabel(category || "TV Channel"),
         titleA,
         titleB,
         desc: ch.description ?? "",
         isLive: ch.is_live,
         language: ch.language?.[0] ?? "",
-        category: ch.category ?? "",
+        category: categoryLabel(category),
     };
 }
 
@@ -256,7 +265,7 @@ function ChannelCard({ channel }: { channel: LiveTvChannelOut }) {
                 <p className="text-sm font-medium text-foreground truncate">{channel.title}</p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     {channel.language?.[0] && <span>{channel.language[0]}</span>}
-                    {channel.category && <span className="text-primary truncate">{channel.category}</span>}
+                    {channel.categories?.length > 0 && <span className="text-primary truncate">{channel.categories.map(categoryLabel).join(", ")}</span>}
                 </div>
             </div>
         </Link>
@@ -356,9 +365,11 @@ function TVShowsContent({
 
     const categoryMap = new Map<string, LiveTvChannelOut[]>();
     for (const ch of channels) {
-        const key = ch.category?.trim() || "Uncategorized";
-        if (!categoryMap.has(key)) categoryMap.set(key, []);
-        categoryMap.get(key)!.push(ch);
+        const categories = ch.categories?.filter(Boolean) ?? [];
+        for (const key of categories.length > 0 ? categories : ["Uncategorized"]) {
+            if (!categoryMap.has(key)) categoryMap.set(key, []);
+            categoryMap.get(key)!.push(ch);
+        }
     }
     const categoryRows = Array.from(categoryMap.entries());
 
@@ -390,7 +401,7 @@ function TVShowsContent({
                             ) : null;
                         })()}
                         {categoryRows.map(([category, items]) => (
-                            <ChannelRow key={category} title={category} items={items} />
+                            <ChannelRow key={category} title={category === "Uncategorized" ? category : categoryLabel(category)} items={items} />
                         ))}
                     </>
                 )}

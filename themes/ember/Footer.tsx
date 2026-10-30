@@ -164,7 +164,7 @@ export default function Footer() {
                     className="mx-auto grid max-w-[100rem] grid-cols-1 gap-x-[clamp(1.5rem,3vw,4rem)] gap-y-10 sm:grid-cols-2 lg:[grid-template-columns:var(--footer-cols-lg)] xl:justify-between xl:[grid-template-columns:var(--footer-cols-xl)]"
                     style={{
                         ["--footer-cols-lg" as string]: `repeat(${columnCount + 3}, minmax(0, 1fr))`,
-                        ["--footer-cols-xl" as string]: `fit-content(22rem) repeat(${columnCount}, max-content) minmax(0, 19rem) max-content`,
+                        ["--footer-cols-xl" as string]: `fit-content(20rem) repeat(${columnCount}, max-content) minmax(0, 16.75rem) max-content`,
                     }}
                 >
                     <div className="space-y-5">
