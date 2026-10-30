@@ -783,8 +783,10 @@ class LiveStreamOut(BaseModel):
         self.managed = _managed_view(self.aws_live, self.rtmp_key)
         if self.source == "rtmp":
             self.pipeline = "aws" if self.managed else "legacy"
-        if self.managed and self.managed.ingest_endpoints:
-            self.rtmp_ingest_url = self.managed.ingest_endpoints[0]["server"]
+        if self.managed:
+            # AWS channels only have an ingest URL once MediaLive has created the input; never fall back to our server.
+            if self.managed.ingest_endpoints:
+                self.rtmp_ingest_url = self.managed.ingest_endpoints[0]["server"]
         elif self.source == "rtmp" and settings.RTMP_SERVER_HOST:
             self.rtmp_ingest_url = (
                 f"rtmp://{settings.RTMP_SERVER_HOST}/{settings.RTMP_APP_NAME}"

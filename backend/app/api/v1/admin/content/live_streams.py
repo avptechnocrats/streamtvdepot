@@ -324,6 +324,7 @@ async def retry_provisioning(
     stream.aws_live = {**state, "status": "provisioning", "error": None}
     stream.stream_url = None
     await db.commit()
+    await db.refresh(stream)  # updated_at is expired by the commit; serializing it would raise outside the greenlet
     background_tasks.add_task(live_pipeline.provision_stream, stream.id)
     return stream
 
