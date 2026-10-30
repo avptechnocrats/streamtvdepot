@@ -815,6 +815,7 @@ class PublicLiveStreamOut(BaseModel):
     title: str
     slug: str
     description: str | None
+    region: list[Literal["Caribbean", "South America", "North America", "Europe", "Asia", "Africa", "Middle East", "Australia"]] = Field(default_factory=list)
     categories: list[str] = Field(default_factory=list)  # category slugs
     language: list[str]
     source: str
