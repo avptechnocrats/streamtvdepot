@@ -13,6 +13,7 @@ class ThemeSettingsIn(BaseModel):
 
     theme_id: str = Field(..., description="Theme identifier, e.g. 'dark-gold'")
     radius: RadiusType = Field("default", description="Card/border corner style")
+    radius_size: int = Field(16, ge=0, le=64, description="Rounded corner radius in pixels")
     banner_style: BannerStyleType = Field("static", description="Homepage banner display mode")
     card_style: CardStyleType = Field("default", description="Content card hover behaviour")
 
@@ -22,5 +23,6 @@ class ThemeSettingsOut(BaseModel):
 
     theme_id: str
     radius: RadiusType
+    radius_size: int
     banner_style: BannerStyleType
     card_style: CardStyleType

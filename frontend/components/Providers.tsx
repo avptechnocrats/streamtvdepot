@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { UserPrefsProvider, useUserPrefs } from "@/hooks/use-user-prefs";
 import { ThemeProvider } from "@/hooks/use-theme";
+import { useThemeSettings } from "@/hooks/use-theme-settings";
 import type { ThemeDefinition } from "@/themes/types";
 
 /**
@@ -32,6 +33,11 @@ function ThemeProviderWithSync({ children }: { children: React.ReactNode }) {
     );
 }
 
+function ThemeSettingsSync() {
+    useThemeSettings();
+    return null;
+}
+
 export default function Providers({ children }: { children: React.ReactNode }) {
     const [queryClient] = useState(() => new QueryClient());
 
@@ -39,6 +45,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         <UserPrefsProvider>
             <ThemeProviderWithSync>
                 <QueryClientProvider client={queryClient}>
+                    <ThemeSettingsSync />
                     <TooltipProvider>
                         <Toaster />
                         <Sonner />

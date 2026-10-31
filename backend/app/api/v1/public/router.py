@@ -584,6 +584,7 @@ async def get_public_theme_settings(
     return ThemeSettingsOut(
         theme_id=config.get("theme_id", _THEME_DEFAULTS["theme_id"]),
         radius=config.get("radius", _THEME_DEFAULTS["radius"]),
+        radius_size=config.get("radius_size", 16),
         banner_style=config.get("banner_style", _THEME_DEFAULTS["banner_style"]),
         card_style=config.get("card_style", _THEME_DEFAULTS["card_style"]),
     )

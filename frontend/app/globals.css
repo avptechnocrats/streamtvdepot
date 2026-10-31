@@ -675,15 +675,11 @@
     }
 
     /* ── Corner-style UserPrefs — targets card/thumbnail wrappers ─── */
-    html[data-radius="sharp"] [class*="aspect-"].overflow-hidden,
-    html[data-radius="sharp"] .aspect-video.overflow-hidden,
-    html[data-radius="sharp"] .aspect-square.overflow-hidden {
+    html[data-radius="sharp"] [class*="aspect-"].overflow-hidden:not(.theme-preview) {
         border-radius: 2px !important;
     }
 
-    html[data-radius="rounded"] [class*="aspect-"].overflow-hidden,
-    html[data-radius="rounded"] .aspect-video.overflow-hidden,
-    html[data-radius="rounded"] .aspect-square.overflow-hidden {
+    html[data-radius="rounded"] [class*="aspect-"].overflow-hidden:not(.theme-preview) {
         border-radius: 1rem !important;
     }
 }

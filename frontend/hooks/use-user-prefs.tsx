@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 export interface UserPrefs {
     accentColor: "gold" | "cyan" | "orange" | "green" | "purple" | "rose";
     radius: "sharp" | "default" | "rounded";
+    radiusSize: number;
     bannerStyle: "static" | "slider" | "video";
     cardStyle: "default" | "detailed";
 }
@@ -12,6 +13,7 @@ export interface UserPrefs {
 const DEFAULT_PREFS: UserPrefs = {
     accentColor: "gold",
     radius: "default",
+    radiusSize: 16,
     bannerStyle: "static",
     cardStyle: "default",
 };
@@ -42,7 +44,7 @@ function applyPrefs(prefs: UserPrefs) {
     root.style.setProperty("--gradient-primary-1", a.g1);
     root.style.setProperty("--gradient-primary-2", a.g2);
     root.style.setProperty("--gradient-primary-3", a.g3);
-    root.style.setProperty("--radius", RADIUS_MAP[prefs.radius]);
+    root.style.setProperty("--radius", prefs.radius === "rounded" ? `${prefs.radiusSize ?? 16}px` : RADIUS_MAP[prefs.radius]);
     root.setAttribute("data-radius", prefs.radius);
 }
 
