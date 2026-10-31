@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTheme } from "@/hooks/use-theme";
 import { fetchHomeVideoRows, type HomeCategoryRow } from "@/lib/services";
 import { Skeleton } from "@/components/ui/skeleton";
+import ManagedBannerSlot from "@/components/ManagedBannerSlot";
 import type { Movie } from "@/types/content";
 
 function ContentRowSkeleton() {
@@ -112,6 +113,7 @@ export default function ThemeRenderer() {
     return (
         <>
             <Banner />
+            <ManagedBannerSlot page="/" position="top" />
             <div className="space-y-10 py-10 lg:px-8">
                 {rows.length === 0 && loading ? (
                     <>
@@ -130,13 +132,18 @@ export default function ThemeRenderer() {
                             />
                         ))}
                         {rows.length >= 1 && <CategoryGrid type="video" showName={false} />}
-                        {rows.slice(1).map((row) => (
+                        <ManagedBannerSlot page="/" position="middle_1" />
+                        {rows.slice(1, 3).map((row) => (
                             <ContentRow
                                 key={row.category_id}
                                 title={row.category_name}
                                 movies={mapRowMovies(row)}
                                 href={`/categories/${row.category_slug}`}
                             />
+                        ))}
+                        <ManagedBannerSlot page="/" position="middle_2" />
+                        {rows.slice(3).map((row) => (
+                            <ContentRow key={row.category_id} title={row.category_name} movies={mapRowMovies(row)} href={`/categories/${row.category_slug}`} />
                         ))}
                         {/* Infinite scroll sentinel */}
                         {hasMore && (
@@ -151,6 +158,7 @@ export default function ThemeRenderer() {
                     </>
                 )}
             </div>
+            <ManagedBannerSlot page="/" position="bottom" />
         </>
     );
 }

@@ -9,6 +9,7 @@ import { fetchHomeVideoRows, type HomeCategoryRow, type HomeVideoItem } from "@/
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BannerSkeleton } from "@/components/BannerSkeleton";
+import ManagedBannerSlot from "@/components/ManagedBannerSlot";
 import type { Movie } from "@/types/content";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -263,6 +264,7 @@ export default function MoviesClient() {
             {/* Hero Banner */}
             {isInitialLoad && <BannerSkeleton />}
             {bannerReady && rows.length > 0 && <HeroBanner rows={rows} />}
+            <ManagedBannerSlot page="/movies" position="top" />
 
             {/* Content rows */}
             <div className="space-y-10 py-10 lg:px-8">
@@ -273,20 +275,28 @@ export default function MoviesClient() {
                         <ContentRowSkeleton />
                     </>
                 ) : rows.length === 0 ? (
+                    <>
                     <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-4 px-6">
                         <Film size={56} className="opacity-30" />
                         <p className="text-lg font-medium">No movies available yet</p>
                         <p className="text-sm opacity-70">Check back soon for new content.</p>
                     </div>
+                    <ManagedBannerSlot page="/movies" position="middle_1" />
+                    <ManagedBannerSlot page="/movies" position="middle_2" />
+                    </>
                 ) : (
                     <>
-                        {rows.map((row) => (
+                        {rows.slice(0, 1).map((row) => (
                             <ContentRow
                                 key={row.category_id}
                                 title={row.category_name}
                                 movies={mapRowToMovies(row)}
                             />
                         ))}
+                        <ManagedBannerSlot page="/movies" position="middle_1" />
+                        {rows.slice(1, 3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} />)}
+                        <ManagedBannerSlot page="/movies" position="middle_2" />
+                        {rows.slice(3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} />)}
                         {hasMore && <div ref={sentinelRef} style={{ height: 1 }} />}
                         {loading && (
                             <>
@@ -297,6 +307,7 @@ export default function MoviesClient() {
                     </>
                 )}
             </div>
+            <ManagedBannerSlot page="/movies" position="bottom" />
         </>
     );
 }

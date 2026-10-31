@@ -10,6 +10,7 @@ import { listLiveTvChannels, listPpvEvents, type LiveTvChannelOut, type PublicPp
 import { Button } from "@/components/ui/button";
 import { BannerSkeleton } from "@/components/BannerSkeleton";
 import EpgGuide from "./EpgGuide";
+import ManagedBannerSlot from "@/components/ManagedBannerSlot";
 
 const VideoPlayer = dynamic(() => import("@/components/VideoPlayer"), { ssr: false });
 const ManagedLivePlayer = dynamic(() => import("@/components/ManagedLivePlayer"), { ssr: false });
@@ -418,7 +419,7 @@ function TVShowsContent({
         void navigator.clipboard?.writeText(url);
     };
 
-    if (!selected) return <div className="flex min-h-[55vh] flex-col items-center justify-center gap-3 text-muted-foreground"><Tv size={44} className="opacity-40" /><p>No TV channels available yet.</p></div>;
+    if (!selected) return <main className="pt-16"><ManagedBannerSlot page="/tv-shows" position="top" /><div className="flex min-h-[55vh] flex-col items-center justify-center gap-3 text-muted-foreground"><Tv size={44} className="opacity-40" /><p>No TV channels available yet.</p></div><ManagedBannerSlot page="/tv-shows" position="middle_1" /><ManagedBannerSlot page="/tv-shows" position="middle_2" /><ManagedBannerSlot page="/tv-shows" position="bottom" /></main>;
 
     return (
         <main className="bg-[#080b12] pb-12 pt-16 text-white">
@@ -443,6 +444,7 @@ function TVShowsContent({
                 </section>
             </div>
 
+            <ManagedBannerSlot page="/tv-shows" position="top" />
             <div className="mx-auto max-w-[1536px] space-y-9 px-4 py-8 sm:px-6 lg:px-14">
                 <section>
                     <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="flex items-center gap-2"><Radio size={18} className="text-primary" /><h2 className="text-xl font-semibold">Watch Live TV by Region</h2></div><p className="mt-1 text-xs text-white/55">Explore channels from around the world.</p></div></div>
@@ -450,9 +452,12 @@ function TVShowsContent({
                     {regionChannels.length > 0 ? <div className="mt-3 flex gap-3 overflow-x-auto pb-2">{regionChannels.map((channel) => <ChannelTile key={channel.id} channel={channel} selected={channel.id === selected.id} onSelect={() => setSelectedId(channel.id)} />)}</div> : <p className="py-5 text-sm text-white/50">No channels available in this region yet.</p>}
                 </section>
 
+                <ManagedBannerSlot page="/tv-shows" position="middle_1" inset />
                 {liveChannels.length > 0 && <EpgGuide channels={liveChannels} embedded />}
+                <ManagedBannerSlot page="/tv-shows" position="middle_2" inset />
                 {ppvEvent && <PpvBanner event={ppvEvent} />}
             </div>
+            <ManagedBannerSlot page="/tv-shows" position="bottom" />
         </main>
     );
 }
