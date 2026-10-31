@@ -8,6 +8,7 @@ import {
     useCallback,
     type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import { THEMES, DEFAULT_THEME_ID, getThemeById } from "@/themes/registry";
 import type { ThemeDefinition } from "@/themes/types";
 
@@ -47,8 +48,12 @@ const ThemeContext = createContext<ThemeContextType>({
 
 // ─── DOM helper ───────────────────────────────────────────────────────────────
 
-/** Writes `data-theme` onto <html> so the matching CSS selector takes effect. */
-function applyThemeToDom(theme: ThemeDefinition) {
+/** Writes storefront theme styling onto public pages only. */
+function applyThemeToDom(theme: ThemeDefinition, isAdminRoute: boolean) {
+    if (isAdminRoute) {
+        document.documentElement.removeAttribute("data-theme");
+        return;
+    }
     document.documentElement.setAttribute("data-theme", theme.dataTheme);
 }
 
@@ -65,16 +70,18 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children, onThemeChange }: ThemeProviderProps) {
+    const pathname = usePathname();
     const [activeThemeId, setActiveThemeId] = useState(DEFAULT_THEME_ID);
     const [siteThemeId, setSiteThemeId] = useState(DEFAULT_THEME_ID);
+    const isAdminRoute = pathname.startsWith("/admin");
 
     /**
      * Init: apply the default theme to the DOM immediately.
      * The real value is hydrated by useThemeSettings() once the API responds.
      */
     useEffect(() => {
-        applyThemeToDom(getThemeById(DEFAULT_THEME_ID));
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+        applyThemeToDom(getThemeById(activeThemeId), isAdminRoute);
+    }, [activeThemeId, isAdminRoute]);
 
     /** User action — personal override (Customizer Panel) */
     const setTheme = useCallback(
@@ -82,10 +89,10 @@ export function ThemeProvider({ children, onThemeChange }: ThemeProviderProps) {
             const theme = THEMES.find((t) => t.id === id);
             if (!theme) return;
             setActiveThemeId(id);
-            applyThemeToDom(theme);
-            onThemeChange?.(theme);
+            applyThemeToDom(theme, isAdminRoute);
+            if (!isAdminRoute) onThemeChange?.(theme);
         },
-        [onThemeChange],
+        [isAdminRoute, onThemeChange],
     );
 
     /** Admin action — sets the site-wide default and applies it immediately */
@@ -95,10 +102,10 @@ export function ThemeProvider({ children, onThemeChange }: ThemeProviderProps) {
             if (!theme) return;
             setSiteThemeId(id);
             setActiveThemeId(id);
-            applyThemeToDom(theme);
-            onThemeChange?.(theme);
+            applyThemeToDom(theme, isAdminRoute);
+            if (!isAdminRoute) onThemeChange?.(theme);
         },
-        [onThemeChange],
+        [isAdminRoute, onThemeChange],
     );
 
     const activeTheme = getThemeById(activeThemeId);

@@ -22,6 +22,7 @@ export default function AdminThemesPage() {
             .then((data) => {
                 setPrefs({
                     radius: data.radius,
+                    radiusSize: data.radius_size ?? 16,
                     bannerStyle: data.banner_style,
                     cardStyle: data.card_style,
                 });
@@ -71,14 +72,14 @@ export default function AdminThemesPage() {
                         return (
                             <div
                                 key={theme.id}
-                                className={`group/card rounded-xl border overflow-hidden transition-all ${isActive
-                                    ? "border-primary ring-1 ring-primary/20 shadow-md shadow-primary/10"
+                                className={`group/card rounded-[8px] border overflow-hidden transition-all ${isActive
+                                    ? "border-primary shadow-md shadow-primary/10"
                                     : "border-border hover:border-primary/40"
                                     }`}
                             >
                                 {/* Screenshot thumbnail — click to enlarge */}
                                 <div
-                                    className="relative overflow-hidden cursor-zoom-in aspect-video bg-muted"
+                                    className="theme-preview relative aspect-video cursor-zoom-in overflow-hidden border-b border-border/60 bg-muted"
                                     onClick={() => setLightboxTheme(theme)}
                                 >
                                     {theme.previewImage ? (
@@ -92,7 +93,7 @@ export default function AdminThemesPage() {
                                         />
                                     ) : (
                                         <div
-                                            className="w-full h-full flex flex-col gap-1 p-3"
+                                            className="flex h-full w-full flex-col gap-1 p-3"
                                             style={{ background: theme.previewBg }}
                                         >
                                             <div className="h-4 rounded opacity-60" style={{ background: theme.previewCard }} />
@@ -110,7 +111,7 @@ export default function AdminThemesPage() {
 
                                     {/* Active badge */}
                                     {isActive && (
-                                        <div className="absolute top-2 left-2 flex items-center gap-1 text-[9px] font-semibold text-primary bg-primary/15 border border-primary/30 backdrop-blur-sm rounded-full px-2 py-1">
+                                        <div className="absolute top-2 left-2 flex items-center gap-1 text-[9px] font-semibold text-primary bg-background/90 border border-primary/30 rounded-full px-2 py-1">
                                             <Check size={8} strokeWidth={3} />
                                             Active
                                         </div>

@@ -15,6 +15,7 @@ router = APIRouter()
 _DEFAULTS: dict = {
     "theme_id": "dark-gold",
     "radius": "default",
+    "radius_size": 16,
     "banner_style": "static",
     "card_style": "default",
 }
@@ -43,6 +44,7 @@ async def get_theme_settings(
     return ThemeSettingsOut(
         theme_id=config.get("theme_id", _DEFAULTS["theme_id"]),
         radius=config.get("radius", _DEFAULTS["radius"]),
+        radius_size=config.get("radius_size", _DEFAULTS["radius_size"]),
         banner_style=config.get("banner_style", _DEFAULTS["banner_style"]),
         card_style=config.get("card_style", _DEFAULTS["card_style"]),
     )
@@ -67,6 +69,7 @@ async def save_theme_settings(
         {
             "theme_id": payload.theme_id,
             "radius": payload.radius,
+            "radius_size": payload.radius_size,
             "banner_style": payload.banner_style,
             "card_style": payload.card_style,
         }
@@ -79,6 +82,7 @@ async def save_theme_settings(
     return ThemeSettingsOut(
         theme_id=saved["theme_id"],
         radius=saved["radius"],
+        radius_size=saved["radius_size"],
         banner_style=saved["banner_style"],
         card_style=saved["card_style"],
     )

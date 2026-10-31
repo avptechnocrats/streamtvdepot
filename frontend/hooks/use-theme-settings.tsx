@@ -27,6 +27,7 @@ export function useThemeSettings() {
                 setSiteTheme(s.theme_id);
                 setPrefs({
                     radius: s.radius,
+                    radiusSize: s.radius_size ?? 16,
                     bannerStyle: s.banner_style,
                     cardStyle: s.card_style,
                 });

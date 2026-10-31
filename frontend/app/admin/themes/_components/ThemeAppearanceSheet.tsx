@@ -49,7 +49,7 @@ export function ThemeAppearanceSheet({ theme, onClose }: ThemeAppearanceSheetPro
     const [saved, setSaved] = useState(false);
 
     const resetSettings = () => {
-        setPrefs({ radius: "default", bannerStyle: "static", cardStyle: "default" });
+        setPrefs({ radius: "default", radiusSize: 16, bannerStyle: "static", cardStyle: "default" });
     };
 
     const handleSave = async () => {
@@ -60,6 +60,7 @@ export function ThemeAppearanceSheet({ theme, onClose }: ThemeAppearanceSheetPro
             await saveThemeSettings({
                 theme_id: theme.id,
                 radius: prefs.radius,
+                radius_size: prefs.radiusSize,
                 banner_style: prefs.bannerStyle,
                 card_style: prefs.cardStyle,
             });
@@ -95,17 +96,36 @@ export function ThemeAppearanceSheet({ theme, onClose }: ThemeAppearanceSheetPro
                         <p className="text-xs text-muted-foreground mb-3">Border radius on cards and UI elements</p>
                         <div className="flex items-center gap-2">
                             {RADIUS.map((r) => (
-                                <button
-                                    key={r.id}
-                                    onClick={() => setPrefs({ radius: r.id })}
-                                    className={`flex flex-col items-center gap-2 px-5 py-3 rounded-lg border text-xs font-medium transition-all ${prefs.radius === r.id
-                                        ? "border-primary bg-primary/10 text-foreground"
-                                        : "border-border/60 text-muted-foreground hover:border-border hover:bg-surface-hover"
-                                        }`}
-                                >
-                                    <span className={`w-6 h-6 border-2 border-current ${r.cls}`} />
-                                    {r.label}
-                                </button>
+                                <div key={r.id} className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setPrefs({ radius: r.id })}
+                                        className={`flex flex-col items-center gap-2 px-5 py-3 rounded-lg border text-xs font-medium transition-all ${prefs.radius === r.id
+                                            ? "border-primary bg-primary/10 text-foreground"
+                                            : "border-border/60 text-muted-foreground hover:border-border hover:bg-surface-hover"
+                                            }`}
+                                    >
+                                        <span className={`w-6 h-6 border-2 border-current ${r.cls}`} />
+                                        {r.label}
+                                    </button>
+                                    {r.id === "rounded" && prefs.radius === "rounded" && (
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-[10px] font-medium text-muted-foreground">Border Radius</span>
+                                            <label className="flex h-10 items-center overflow-hidden rounded-lg border border-border/60 bg-background text-xs text-muted-foreground focus-within:border-primary">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="64"
+                                                    step="1"
+                                                    value={prefs.radiusSize ?? 16}
+                                                    onChange={(event) => setPrefs({ radiusSize: Math.min(64, Math.max(0, Number(event.target.value) || 0)) })}
+                                                    className="w-14 bg-transparent px-2 text-right text-foreground outline-none"
+                                                    aria-label="Border Radius in pixels"
+                                                />
+                                                <span className="pr-2">px</span>
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
                             ))}
                         </div>
                     </div>
