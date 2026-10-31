@@ -19,6 +19,7 @@ import {
     Settings,
     Palette,
     MenuSquare,
+    ImagePlus,
     Library,
     DollarSign,
     Landmark,
@@ -105,6 +106,7 @@ const NAV_GROUPS = [
         items: [
             { href: "/admin/themes", label: "Themes", icon: Palette, exact: false },
             { href: "/admin/manage-menu", label: "Manage Menu", icon: MenuSquare, exact: false },
+            { href: "/admin/manage-banners", label: "Manage Banners", icon: ImagePlus, exact: false },
             { href: "/admin/pages", label: "Pages", icon: FileStack, exact: false },
             { href: "/admin/contact-us", label: "Contact Us", icon: Mail, exact: false },
             { href: "/admin/faq", label: "FAQ", icon: MessageSquare, exact: false },

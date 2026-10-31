@@ -166,7 +166,7 @@ def get_required_admin_route_permission(
             "content" if relative_path.startswith(("content", "upload", "transcoding"))
             else "marketing" if relative_path.startswith(("advertisements", "coupons"))
             else "monetization" if relative_path.startswith(("payments", "billing", "payment-gateways", "taxes"))
-            else "platform" if relative_path.startswith(("theme-settings", "pages", "menus"))
+            else "platform" if relative_path.startswith(("theme-settings", "pages", "menus", "banners"))
             else None
         )
 

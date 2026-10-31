@@ -40,6 +40,7 @@ const SEARCH_ITEMS: SearchItem[] = [
     { label: "Subscriptions", href: "/admin/subscriptions", roles: ["clientAdmin"], section: "Audience" },
     { label: "Themes", href: "/admin/themes", roles: ["clientAdmin"], section: "Platform" },
     { label: "Manage Menu", href: "/admin/manage-menu", roles: ["clientAdmin"], section: "Platform" },
+    { label: "Manage Banners", href: "/admin/manage-banners", roles: ["clientAdmin"], section: "Platform" },
     { label: "Pages", href: "/admin/pages", roles: ["clientAdmin"], section: "Platform" },
     { label: "Contact Us", href: "/admin/contact-us", roles: ["clientAdmin"], section: "Platform" },
     { label: "FAQ", href: "/admin/faq", roles: ["clientAdmin"], section: "Platform" },

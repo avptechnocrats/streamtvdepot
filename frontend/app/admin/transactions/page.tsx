@@ -87,7 +87,7 @@ function RowSkeletonP() {
         return <div className={`h-3.5 ${w} rounded bg-muted animate-pulse`} />;
     }
     return (
-        <div className="flex items-center gap-4 px-4 py-3.5 border-b border-border last:border-0">
+        <div className="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0">
             <B w="w-28" />
             <B w="w-48 hidden sm:block" />
             <B w="w-20 hidden md:block" />
@@ -103,7 +103,7 @@ function RowSkeletonI() {
         return <div className={`h-3.5 ${w} rounded bg-muted animate-pulse`} />;
     }
     return (
-        <div className="flex items-center gap-4 px-4 py-3.5 border-b border-border last:border-0">
+        <div className="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0">
             <B w="w-36" />
             <B w="w-48 hidden sm:block" />
             <B w="flex-1" />
@@ -208,7 +208,7 @@ export default function AdminTransactionsPage() {
     }
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-6">
 
             {/* Header */}
             <div className="flex items-center justify-between gap-4">
@@ -218,17 +218,10 @@ export default function AdminTransactionsPage() {
                         All monetary transactions made by end users on your platform
                     </p>
                 </div>
-                <button
-                    onClick={fetchData}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-secondary text-sm text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors disabled:opacity-50"
-                >
-                    <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
-                    Refresh
-                </button>
             </div>
 
             {/* Tabs and search */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
                 <div className="flex gap-1 p-1 rounded-xl bg-surface-hover/50 border border-border w-fit">
                     {([["payments", "Payments", CreditCard], ["invoices", "Invoices", FileText]] as [TabKey, string, React.ElementType][]).map(([key, label, Icon]) => (
                         <button
@@ -245,15 +238,21 @@ export default function AdminTransactionsPage() {
                         </button>
                     ))}
                 </div>
-                <div className="relative w-full sm:w-80">
+                <div className="flex w-full items-center gap-2 lg:ml-auto lg:w-auto">
+                <div className="relative min-w-0 flex-1 lg:w-80">
                     <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <input
                         type="text"
                         placeholder={tab === "payments" ? "Search by user, gateway ID…" : "Search by invoice number, user…"}
                         value={search}
+                        aria-label="Search transactions"
                         onChange={(e) => setSearch(e.target.value)}
                         className="w-full pl-9 pr-3 h-10 rounded-xl bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                     />
+                </div>
+                <button onClick={fetchData} disabled={loading} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground hover:bg-muted/60 disabled:opacity-50">
+                    <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Refresh
+                </button>
                 </div>
             </div>
 
@@ -282,13 +281,13 @@ export default function AdminTransactionsPage() {
             )}
 
             {/* Table card */}
-            <div className="rounded-xl border border-border overflow-hidden">
+            <div className="rounded-2xl border border-border bg-card overflow-x-auto">
 
                 {/* Payments table */}
                 {tab === "payments" && (
                     <>
                         {/* Column headers */}
-                        <div className="flex items-center gap-4 px-4 py-2.5 bg-secondary/50 border-b border-border text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <div className="flex items-center gap-4 px-4 py-2.5 bg-muted/30 border-b border-border text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                             <span className="w-28 shrink-0">Amount</span>
                             <span className="hidden sm:block w-48 shrink-0">User</span>
                             <span className="hidden md:block w-20 shrink-0">Method</span>
@@ -309,7 +308,7 @@ export default function AdminTransactionsPage() {
                             </div>
                         ) : (
                             filteredPayments.map((p) => (
-                                <div key={p.id} className="flex items-center gap-4 px-4 py-3.5 border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                                <div key={p.id} className="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                                     {/* Amount */}
                                     <p className="w-28 shrink-0 text-sm font-semibold text-foreground tabular-nums">
                                         {p.currency} {p.amount.toFixed(2)}
@@ -317,7 +316,7 @@ export default function AdminTransactionsPage() {
 
                                     {/* User */}
                                     <div className="hidden sm:flex sm:flex-col w-48 shrink-0 min-w-0">
-                                        <p className="text-xs font-medium text-foreground truncate" title={p.user_name ?? p.user_id}>
+                                        <p className="text-sm font-medium text-primary truncate" title={p.user_name ?? p.user_id}>
                                             {p.user_name ?? "—"}
                                         </p>
                                         <p className="text-[10px] text-muted-foreground truncate" title={p.user_email ?? p.user_id}>
@@ -366,7 +365,7 @@ export default function AdminTransactionsPage() {
                 {/* Invoices table */}
                 {tab === "invoices" && (
                     <>
-                        <div className="flex items-center gap-4 px-4 py-2.5 bg-secondary/50 border-b border-border text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <div className="flex items-center gap-4 px-4 py-2.5 bg-muted/30 border-b border-border text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                             <span className="w-36 shrink-0">Invoice #</span>
                             <span className="hidden sm:block w-48 shrink-0">User</span>
                             <span className="flex-1">Amount</span>
@@ -386,10 +385,10 @@ export default function AdminTransactionsPage() {
                             </div>
                         ) : (
                             filteredInvoices.map((inv) => (
-                                <div key={inv.id} className="flex items-center gap-4 px-4 py-3.5 border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
-                                    <p className="w-36 shrink-0 text-sm font-mono text-foreground">{inv.invoice_number}</p>
+                                <div key={inv.id} className="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                                    <p className="w-36 shrink-0 text-sm font-medium text-primary">{inv.invoice_number}</p>
                                     <div className="hidden sm:flex sm:flex-col w-48 shrink-0 min-w-0">
-                                        <p className="text-xs font-medium text-foreground truncate" title={inv.user_name ?? inv.user_id}>
+                                        <p className="text-sm font-medium text-primary truncate" title={inv.user_name ?? inv.user_id}>
                                             {inv.user_name ?? "—"}
                                         </p>
                                         <p className="text-[10px] text-muted-foreground truncate" title={inv.user_email ?? inv.user_id}>
@@ -411,9 +410,9 @@ export default function AdminTransactionsPage() {
                                             onClick={() => setViewingInvoice(inv)}
                                             aria-label="View invoice"
                                             title="View invoice"
-                                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+                                            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors"
                                         >
-                                            <Eye size={15} />
+                                            <Eye size={13} />
                                         </button>
                                         {/* <button
                                             type="button"

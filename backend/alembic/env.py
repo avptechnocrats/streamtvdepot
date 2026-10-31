@@ -23,6 +23,8 @@ import app.models.superadmin.settings  # noqa
 import app.models.superadmin.demo_booking  # noqa
 import app.models.client.user  # noqa
 import app.models.client.content  # noqa
+import app.models.client.site_content
+import app.models.client.banner
 import app.models.client.subscription  # noqa
 import app.models.client.payment  # noqa
 import app.models.client.advertisement  # noqa
