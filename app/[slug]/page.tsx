@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { createContactSubmission, getPlatformContent, getPublicPage, type ContactFormField } from "@/lib/services";
+import ManagedBannerSlot, { usePageBanners } from "@/components/ManagedBannerSlot";
 
 const fieldClass = "h-11 w-full rounded-md border border-slate-300 bg-white px-3.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/15";
 const staticPageTitleClass = "text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl";
@@ -127,6 +128,9 @@ function PlatformContentPage({ slug }: { slug: string }) {
 
 export default function PublicPage() {
     const { slug } = useParams<{ slug: string }>();
+    const isSeries = slug === "series";
+    const { data: seriesBanners = [], isError: seriesBannerError } = usePageBanners(isSeries ? "/series" : undefined);
+    const hasSeriesBanners = !seriesBannerError && seriesBanners.some(banner => banner.page === "/series" && Object.keys(banner.images).length > 0);
     const isPlatformPage = slug === "contact-us" || slug === "faq";
     const { data: page, isLoading, isError } = useQuery({
         queryKey: ["public-page", slug],
@@ -145,6 +149,7 @@ export default function PublicPage() {
     }
 
     if (isError || !page) {
+        if (isSeries && hasSeriesBanners) return <main className="min-h-[60vh] pt-28"><header className="px-6 lg:px-14"><h1 className="text-3xl font-semibold">Series</h1></header><ManagedBannerSlot page="/series" position="top" /><p className="px-6 py-10 text-sm text-muted-foreground lg:px-14">Series content is not available yet.</p><ManagedBannerSlot page="/series" position="middle_1" /><ManagedBannerSlot page="/series" position="middle_2" /><ManagedBannerSlot page="/series" position="bottom" /></main>;
         return (
             <main className="min-h-[60vh] flex items-center justify-center px-6 text-center">
                 <div>
@@ -164,12 +169,16 @@ export default function PublicPage() {
                         <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">{page.short_description}</p>
                     )}
                 </header>
+                {isSeries && <ManagedBannerSlot page="/series" position="top" inset />}
+                {isSeries && <ManagedBannerSlot page="/series" position="middle_1" inset />}
                 {page.body && (
                     <div
                         className="prose prose-base mt-8 max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-slate-950 prose-h2:mt-12 prose-h2:border-b prose-h2:border-slate-200 prose-h2:pb-3 prose-h3:mt-8 prose-h3:text-lg sm:prose-h3:text-xl sm:prose-h3:leading-8 prose-p:my-4 prose-p:leading-7 prose-p:text-slate-600 prose-a:font-medium prose-strong:text-slate-900 prose-li:my-2 prose-li:leading-7 prose-li:text-slate-600 prose-blockquote:border-primary/40 prose-blockquote:text-slate-600 prose-hr:border-slate-200 sm:prose-lg"
                         dangerouslySetInnerHTML={{ __html: page.body }}
                     />
                 )}
+                {isSeries && <ManagedBannerSlot page="/series" position="middle_2" inset />}
+                {isSeries && <ManagedBannerSlot page="/series" position="bottom" inset />}
             </article>
         </main>
     );
