@@ -27,6 +27,9 @@ export function useThemeSettings() {
                 setSiteTheme(s.theme_id);
                 setPrefs({
                     radius: s.radius,
+                    radiusSize: typeof s.radius_size === "number" && Number.isFinite(s.radius_size)
+                        ? Math.min(64, Math.max(0, s.radius_size))
+                        : 16,
                     bannerStyle: s.banner_style,
                     cardStyle: s.card_style,
                 });

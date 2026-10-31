@@ -16,6 +16,7 @@ export type CardStyleType = "default" | "detailed";
 export interface ThemeSettingsPayload {
     theme_id: string;
     radius: RadiusType;
+    radius_size?: number;
     banner_style: BannerStyleType;
     card_style: CardStyleType;
 }
