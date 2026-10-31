@@ -55,7 +55,7 @@ function PosterCard({ movie }: { movie: Movie }) {
     return (
         <Link
             href={href}
-            className="group/card relative shrink-0 w-32 sm:w-36 lg:w-40 rounded-lg hover:z-30 focus-visible:z-30 focus-visible:outline-none"
+            className="group/card relative shrink-0 w-40 sm:w-44 lg:w-48 rounded-lg hover:z-30 focus-visible:z-30 focus-visible:outline-none"
         >
             <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-secondary">
                 <Image
@@ -63,7 +63,7 @@ function PosterCard({ movie }: { movie: Movie }) {
                     alt={movie.title}
                     fill
                     className="object-cover"
-                    sizes="(max-width: 640px) 128px, 160px"
+                    sizes="(min-width: 1024px) 192px, (min-width: 640px) 176px, 160px"
                 />
             </div>
             <div className="mt-1.5 px-0.5">
@@ -72,15 +72,15 @@ function PosterCard({ movie }: { movie: Movie }) {
             </div>
 
             {/* Expanded preview: ~1.5x wider than the poster, covering it and its neighbours */}
-            <div className="pointer-events-none absolute -inset-x-[25%] -top-[6%] scale-90 opacity-0 origin-center transition-all duration-200 group-hover/card:pointer-events-auto group-hover/card:scale-100 group-hover/card:opacity-100 group-focus-visible/card:pointer-events-auto group-focus-visible/card:scale-100 group-focus-visible/card:opacity-100">
-                <div className="overflow-hidden rounded-lg bg-card ring-2 ring-primary shadow-[0_16px_40px_rgba(0,0,0,0.7),0_0_30px_hsl(var(--primary)/0.3)]">
+            <div className="pointer-events-none absolute -inset-x-[25%] -top-[6%] origin-center scale-90 transform-gpu opacity-0 transition-[opacity,transform] delay-100 duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/card:pointer-events-auto group-hover/card:scale-100 group-hover/card:opacity-100 group-focus-visible/card:pointer-events-auto group-focus-visible/card:scale-100 group-focus-visible/card:opacity-100">
+                <div className="overflow-hidden rounded bg-card ring-1 ring-primary/55 shadow-[0_16px_40px_rgba(0,0,0,0.7),0_0_30px_hsl(var(--primary)/0.3)]">
                     <div className="relative aspect-[4/3] bg-secondary">
                         <Image
                             src={movie.image}
                             alt=""
                             fill
                             className="object-cover"
-                            sizes="260px"
+                            sizes="(min-width: 1024px) 288px, (min-width: 640px) 264px, 240px"
                         />
                     </div>
                     <div className="p-3 space-y-2">
@@ -141,7 +141,7 @@ export default function ContentRow({ title, movies, href }: ContentRowProps) {
             <div className="relative group">
                 <button
                     onClick={() => scroll("left")}
-                    className="absolute -left-3 top-[40%] -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-background/90 border border-border text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute -left-3 top-[40%] -translate-y-1/2 z-40 w-8 h-8 rounded-full bg-background/90 border border-border text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     aria-label="Scroll left"
                 >
                     <ChevronLeft size={18} />
@@ -153,7 +153,7 @@ export default function ContentRow({ title, movies, href }: ContentRowProps) {
                 </div>
                 <button
                     onClick={() => scroll("right")}
-                    className="absolute -right-3 top-[40%] -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-background/90 border border-border text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute -right-3 top-[40%] -translate-y-1/2 z-40 w-8 h-8 rounded-full bg-background/90 border border-border text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     aria-label="Scroll right"
                 >
                     <ChevronRight size={18} />

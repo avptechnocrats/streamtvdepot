@@ -46,7 +46,7 @@ function ContactForm({ fields }: { fields: ContactFormField[] }) {
                 </div>;
             })}
             {message && <p className="text-sm text-slate-700" role="status">{message}</p>}
-            <button type="submit" disabled={submitting} className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">{submitting ? "Submitting..." : "Send Message"}</button>
+            <button type="submit" disabled={submitting} className="inline-flex h-11 items-center justify-center rounded-md bg-primary bg-[image:var(--ember-gradient,none)] px-6 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">{submitting ? "Submitting..." : "Send Message"}</button>
         </form>
     );
 }

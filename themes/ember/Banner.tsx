@@ -9,13 +9,13 @@
 
 import { ChevronLeft, ChevronRight, Film, Play } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type PointerEvent } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBannerVideos } from "@/hooks/use-banner-videos";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 
 const NAV_OFFSET = "pt-14";
-const HERO_HEIGHT = "h-[360px] sm:h-[420px] lg:h-[460px]";
+const HERO_HEIGHT = "h-[480px] sm:h-[540px] lg:h-[580px]";
 
 function EmptyBanner() {
     const { site_title, tagline } = useSiteSettings();
@@ -43,6 +43,12 @@ export default function Banner() {
     const count = slides.length;
     const next = useCallback(() => setCurrent((i) => (i + 1) % Math.max(count, 1)), [count]);
     const prev = () => setCurrent((i) => (i - 1 + count) % count);
+    const handleArrowPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+        if (event.pointerType === "mouse") {
+            event.preventDefault();
+            event.currentTarget.blur();
+        }
+    };
 
     useEffect(() => {
         if (count < 2) return;
@@ -65,7 +71,7 @@ export default function Banner() {
 
     return (
         <section className={`${NAV_OFFSET} bg-background`}>
-            <div className={`relative ${HERO_HEIGHT} overflow-hidden`}>
+            <div className={`group/banner relative ${HERO_HEIGHT} overflow-hidden`}>
                 {slides.map((s, i) => (
                     <img
                         key={s.id}
@@ -125,14 +131,16 @@ export default function Banner() {
                     <>
                         <button
                             onClick={prev}
-                            className="absolute left-2 sm:left-5 top-1/2 -translate-y-1/2 p-1 text-foreground/80 hover:text-foreground transition-colors"
+                            onPointerDown={handleArrowPointerDown}
+                            className="absolute left-2 sm:left-5 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover/banner:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white [@media(hover:none)]:opacity-100"
                             aria-label="Previous slide"
                         >
                             <ChevronLeft size={32} />
                         </button>
                         <button
                             onClick={next}
-                            className="absolute right-2 sm:right-5 top-1/2 -translate-y-1/2 p-1 text-foreground/80 hover:text-foreground transition-colors"
+                            onPointerDown={handleArrowPointerDown}
+                            className="absolute right-2 sm:right-5 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover/banner:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white [@media(hover:none)]:opacity-100"
                             aria-label="Next slide"
                         >
                             <ChevronRight size={32} />

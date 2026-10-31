@@ -1,10 +1,11 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 export interface UserPrefs {
     accentColor: "gold" | "cyan" | "orange" | "green" | "purple" | "rose";
     radius: "sharp" | "rounded";
+    radiusSize: number;
     bannerStyle: "static" | "slider" | "video";
     cardStyle: "default" | "detailed";
 }
@@ -12,6 +13,7 @@ export interface UserPrefs {
 const DEFAULT_PREFS: UserPrefs = {
     accentColor: "gold",
     radius: "sharp",
+    radiusSize: 16,
     bannerStyle: "static",
     cardStyle: "default",
 };
@@ -41,7 +43,7 @@ function applyPrefs(prefs: UserPrefs) {
     root.style.setProperty("--gradient-primary-1", a.g1);
     root.style.setProperty("--gradient-primary-2", a.g2);
     root.style.setProperty("--gradient-primary-3", a.g3);
-    root.style.setProperty("--radius", RADIUS_MAP[prefs.radius]);
+    root.style.setProperty("--radius", prefs.radius === "rounded" ? `${prefs.radiusSize}px` : RADIUS_MAP[prefs.radius]);
     root.setAttribute("data-radius", prefs.radius);
 }
 
@@ -62,6 +64,7 @@ const UserPrefsContext = createContext<UserPrefsContextType>({
 
 export function UserPrefsProvider({ children }: { children: React.ReactNode }) {
     const [prefs, setState] = useState<UserPrefs>(DEFAULT_PREFS);
+    const prefsRef = useRef(DEFAULT_PREFS);
     const [prefsReady, setPrefsReady] = useState(false);
 
     useEffect(() => {
@@ -71,7 +74,8 @@ export function UserPrefsProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const setPrefs = (patch: Partial<UserPrefs>) => {
-        const next = { ...prefs, ...patch };
+        const next = { ...prefsRef.current, ...patch };
+        prefsRef.current = next;
         setState(next);
         applyPrefs(next);
     };

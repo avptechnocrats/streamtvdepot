@@ -403,7 +403,7 @@ export default function EpgGuide({ channels, embedded = false }: EpgGuideProps) 
             </div>
 
             {/* Guide container */}
-            <div className="rounded-xl border border-border/40 overflow-hidden bg-card">
+            <div className="border border-border/40 overflow-hidden bg-card">
                 {/* Sticky top row: empty channel col + time header */}
                 <div className="flex border-b border-border/50 bg-card sticky top-0 z-10">
                     {/* Empty channel name column header */}

@@ -960,5 +960,10 @@ html[data-radius="sharp"] .aspect-square.overflow-hidden {
 html[data-radius="rounded"] [class*="aspect-"].overflow-hidden,
 html[data-radius="rounded"] .aspect-video.overflow-hidden,
 html[data-radius="rounded"] .aspect-square.overflow-hidden {
-    border-radius: 1rem !important;
+    border-radius: var(--radius) !important;
+}
+
+html[data-radius="rounded"] button:not(.rounded-full):not([role="switch"]):not([role="checkbox"]):not([role="radio"]),
+html[data-radius="rounded"] :is(.rounded, .rounded-sm, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl):not(.rounded-full) {
+    border-radius: var(--radius) !important;
 }
