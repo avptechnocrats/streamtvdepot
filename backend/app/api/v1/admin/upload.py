@@ -18,6 +18,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_client_admin
 from app.core.storage import get_s3_client as _get_s3_client, media_display_url
 from app.models.client.content import Category, MediaAsset, Video
+from app.models.client.banner import ClientBannerImage
 from app.schemas.client.content import MediaAssetCreate, MediaAssetOut
 
 router = APIRouter()
@@ -64,7 +65,7 @@ class PresignRequest(BaseModel):
     filename: str
     content_type: str
     file_size: int
-    purpose: Literal["thumbnail", "banner"] | None = None
+    purpose: Literal["thumbnail", "banner", "managed_banner"] | None = None
 
 
 class PresignResponse(BaseModel):
@@ -78,7 +79,7 @@ class MultipartInitiateRequest(BaseModel):
     filename: str
     content_type: str
     file_size: int
-    purpose: Literal["thumbnail", "banner"] | None = None
+    purpose: Literal["thumbnail", "banner", "managed_banner"] | None = None
 
 
 class MultipartInitiateResponse(BaseModel):
@@ -124,7 +125,7 @@ class ConfirmUploadRequest(BaseModel):
     file_size: int | None = None
     width: int | None = None
     height: int | None = None
-    purpose: Literal["thumbnail", "banner"] | None = None
+    purpose: Literal["thumbnail", "banner", "managed_banner"] | None = None
 
 
 class ReconcileUploadRequest(BaseModel):
@@ -800,6 +801,7 @@ async def get_signed_url(
             MediaAsset.id == asset_id,
             MediaAsset.client_id == admin._client_id,
         )
+        .with_for_update()
     )
     asset = result.scalar_one_or_none()
     if not asset:
@@ -838,6 +840,10 @@ async def delete_media_asset(
             status_code=status.HTTP_409_CONFLICT,
             detail="Asset is in use by one or more categories. Remove it from those categories first.",
         )
+
+    banner_usage = await db.execute(select(func.count()).select_from(ClientBannerImage).where(ClientBannerImage.client_id == admin._client_id, ClientBannerImage.media_asset_id == asset_id))
+    if banner_usage.scalar_one() > 0:
+        raise HTTPException(status_code=409, detail="Asset is in use by a banner. Remove it from that banner first.")
 
     # Remove from S3; log but don't block if already gone
     if settings.AWS_S3_BUCKET and settings.AWS_ACCESS_KEY_ID:

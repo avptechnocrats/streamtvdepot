@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.site_content import read_site_content, write_site_content
 from app.core.dependencies import get_current_client_admin
 from app.models.superadmin.client import Client
 from app.schemas.client.contact_content import (
@@ -35,7 +36,7 @@ async def get_platform_content(
     admin=Depends(get_current_client_admin),
 ):
     client = await _get_client(admin._client_id, db)
-    site_config = dict(client.site_config or {})
+    site_config = await read_site_content(client.id, db)
     return PlatformContentOut(contact=_contact_config(site_config), faq=_faq_config(site_config))
 
 
@@ -46,11 +47,9 @@ async def update_contact_content(
     admin=Depends(get_current_client_admin),
 ):
     client = await _get_client(admin._client_id, db)
-    site_config = dict(client.site_config or {})
-    site_config["contact_content"] = payload.model_dump()
-    client.site_config = site_config
+    await write_site_content(client.id, "contact_content", payload.model_dump(mode="json"), db)
     await db.commit()
-    return _contact_config(site_config)
+    return ContactContentOut.model_validate(payload.model_dump())
 
 
 @router.put("/faq", response_model=FAQContentOut)
@@ -60,8 +59,6 @@ async def update_faq_content(
     admin=Depends(get_current_client_admin),
 ):
     client = await _get_client(admin._client_id, db)
-    site_config = dict(client.site_config or {})
-    site_config["faq_content"] = payload.model_dump()
-    client.site_config = site_config
+    await write_site_content(client.id, "faq_content", payload.model_dump(mode="json"), db)
     await db.commit()
-    return _faq_config(site_config)
+    return FAQContentOut.model_validate(payload.model_dump())

@@ -154,8 +154,8 @@ export default function CouponsPage() {
     };
 
     return (
-        <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between gap-4">
+        <div className="p-4 sm:p-6 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h1 className="text-xl font-bold text-foreground">Coupon Management</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">
@@ -213,7 +213,7 @@ export default function CouponsPage() {
                 </div>
             )}
 
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
                 <div className="flex gap-1 p-1 rounded-xl bg-surface-hover/50 border border-border w-fit flex-wrap">
                     {COUPON_TABS.map(({ key, label, icon: Icon }) => (
                         <button
@@ -234,25 +234,26 @@ export default function CouponsPage() {
                     ))}
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <div className="relative w-72 md:w-80">
+                <div className="flex w-full items-center gap-2 lg:ml-auto lg:w-auto">
+                    <div className="relative min-w-0 flex-1 lg:w-80">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <input
                             type="text"
                             placeholder="Search by code or description…"
                             value={search}
+                            aria-label="Search coupons"
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-9 pr-3 h-9 rounded-xl bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+                            className="w-full pl-9 pr-3 h-10 rounded-xl bg-secondary border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
                         />
                     </div>
 
                     <button
                         onClick={() => fetchCoupons(true)}
                         disabled={loading || refreshing}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-secondary text-sm text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors disabled:opacity-50"
+                        className="inline-flex shrink-0 items-center gap-2 px-3 py-2 rounded-lg border border-border bg-secondary text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50"
                         title="Refresh"
                     >
-                        <RefreshCw size={13} className={refreshing || loading ? "animate-spin" : ""} />
+                        <RefreshCw size={14} className={refreshing || loading ? "animate-spin" : ""} />
                         Refresh
                     </button>
                 </div>
@@ -264,8 +265,8 @@ export default function CouponsPage() {
                 </div>
             )}
 
-            <div className="rounded-xl border border-border overflow-hidden">
-                <div className="flex items-center gap-4 px-4 py-2.5 bg-secondary/50 border-b border-border text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="rounded-2xl border border-border bg-card overflow-x-auto">
+                <div className="flex min-w-[1080px] items-center gap-4 px-4 py-2.5 bg-muted/30 border-b border-border text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                     <span className="w-32 shrink-0">Code</span>
                     <span className="flex-1">Description</span>
                     <span className="w-24 shrink-0 text-center">Discount</span>
@@ -300,12 +301,12 @@ export default function CouponsPage() {
                         return (
                             <div
                                 key={coupon.id}
-                                className="flex items-center gap-4 px-4 py-3 border-b border-border hover:bg-muted/20 transition-colors"
+                                className="flex min-w-[1080px] items-center gap-4 px-4 py-3 border-b border-border last:border-0 hover:bg-muted/20 transition-colors"
                             >
-                                <span className="w-32 shrink-0 font-mono text-sm font-bold text-primary">
+                                <span className="w-32 shrink-0 text-sm font-medium text-primary truncate" title={coupon.code}>
                                     {coupon.code}
                                 </span>
-                                <span className="flex-1 text-sm text-muted-foreground truncate">
+                                <span className="min-w-0 flex-1 text-xs text-muted-foreground truncate" title={coupon.description ?? ""}>
                                     {coupon.description || "—"}
                                 </span>
                                 <span className="w-24 shrink-0 text-center text-sm font-semibold text-foreground">
@@ -314,7 +315,7 @@ export default function CouponsPage() {
                                         : `$${coupon.discount_value}`}
                                 </span>
                                 <span className="w-24 shrink-0 flex justify-center">
-                                    <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-semibold text-purple-400">
+                                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                                         {coupon.currency ?? "All"}
                                     </span>
                                 </span>
@@ -351,17 +352,19 @@ export default function CouponsPage() {
                                 <div className="w-32 shrink-0 flex items-center justify-end gap-1">
                                     <Link
                                         href={`/admin/coupons/${coupon.id}`}
-                                        className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-surface-hover hover:text-foreground transition-colors"
                                         title="Edit"
+                                        aria-label={`Edit coupon ${coupon.code}`}
                                     >
-                                        <Pencil size={15} color="#2a83e9" />
+                                        <Pencil size={13} />
                                     </Link>
                                     <button
                                         onClick={() => setConfirmDeleteCoupon(coupon)}
-                                        className="rounded-md p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-600"
+                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors"
                                         title="Delete"
+                                        aria-label={`Delete coupon ${coupon.code}`}
                                     >
-                                        <Trash2 size={15} color="#fa4b4b" />
+                                        <Trash2 size={13} />
                                     </button>
                                 </div>
                             </div>

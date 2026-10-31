@@ -50,7 +50,7 @@ type ConfirmPayload = {
     file_size: number;
     width?: number | null;
     height?: number | null;
-    purpose?: "thumbnail" | "banner" | null;
+    purpose?: "thumbnail" | "banner" | "managed_banner" | null;
 };
 
 interface MultipartInitiateResponse {

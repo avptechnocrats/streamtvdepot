@@ -26,6 +26,8 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.banner_management import read_managed_banners
+from app.core.site_content import read_site_content
 from app.core.payment_gateways import get_active_payment_gateway_config
 from app.core.subscription_guard import enforce_active_client_saas_subscription
 from app.core.storage import presign_get_url
@@ -42,6 +44,7 @@ from app.schemas.superadmin.plan import SaasPlanOut
 from app.schemas.client.content import CategoryOut, EPGProgramOut, PublicLiveStreamOut, PublicPPVEventOut, PublicVideoOut, SeriesOut, AudioOut, HomeCategoryRow, HomeContentsOut, CategoryDetailOut
 from app.schemas.client.subscription import ClientPlanOut
 from app.schemas.client.theme_settings import ThemeSettingsOut
+from app.schemas.client.banners import BannerOut, BannerPage, BannerPosition
 from app.schemas.client.site_settings import (
     GeneralSettingsOut,
     PublicSocialAuthConfigOut,
@@ -570,6 +573,17 @@ async def list_public_plans(db: AsyncSession = Depends(get_db)):
     return result.scalars().all()
 
 
+@router.get("/banners", response_model=list[BannerOut], summary="Get tenant banners for an assigned page and position")
+async def get_public_banners(
+    slug: str = Query(...),
+    page: BannerPage = Query(...),
+    position: BannerPosition | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    client = await _resolve_client(slug, db)
+    return await read_managed_banners(client, db, page, position)
+
+
 @router.get(
     "/theme-settings",
     response_model=ThemeSettingsOut,
@@ -661,7 +675,7 @@ async def get_public_active_menus(
     db: AsyncSession = Depends(get_db),
 ):
     client = await _resolve_client(slug, db, enforce_plan=False)
-    config: dict = client.theme_config or {}
+    config = await read_site_content(client.id, db)
     menu_config: dict = config.get(_MENU_CONFIG_KEY) or {}
     groups = _normalize_public_menu_groups(menu_config.get("groups") or [])
 
@@ -2173,7 +2187,7 @@ async def get_platform_content(
     db: AsyncSession = Depends(get_db),
 ):
     client = await _resolve_client(slug, db, enforce_plan=False)
-    site_config = dict(client.site_config or {})
+    site_config = await read_site_content(client.id, db)
     return PlatformContentOut.model_validate({
         "contact": site_config.get("contact_content", {}),
         "faq": site_config.get("faq_content", {}),
@@ -2421,7 +2435,7 @@ async def create_client_contact_submission(
     db: AsyncSession = Depends(get_db),
 ):
     client = await _resolve_client(slug, db, enforce_plan=False)
-    site_config = client.site_config or {}
+    site_config = await read_site_content(client.id, db)
     fields = [ContactFormField.model_validate(item) for item in site_config.get("contact_content", {}).get("fields", [])]
     if not fields:
         raise HTTPException(status_code=404, detail="Contact form is not configured.")

@@ -1,11 +1,11 @@
 import uuid
-from copy import deepcopy
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.site_content import read_site_content, write_site_content
 from app.core.dependencies import get_current_client_admin
 from app.models.superadmin.client import Client
 from app.schemas.client.menus import (
@@ -124,19 +124,16 @@ async def _get_client(client_id: uuid.UUID, db: AsyncSession) -> Client:
     return client
 
 
-def _read_groups(client: Client) -> list[dict]:
-    config = dict(client.theme_config) if client.theme_config else {}
+async def _read_groups(client: Client, db: AsyncSession, for_update: bool = True) -> list[dict]:
+    config = await read_site_content(client.id, db, for_update=for_update)
     menu_config = config.get(_MENU_CONFIG_KEY) or {}
     raw_groups = menu_config.get("groups") or []
     return _normalize_groups(raw_groups)
 
 
 async def _save_groups(client: Client, db: AsyncSession, groups: list[dict]) -> None:
-    config = deepcopy(client.theme_config) if client.theme_config else {}
-    config[_MENU_CONFIG_KEY] = {"groups": _normalize_groups(groups)}
-    client.theme_config = config
+    await write_site_content(client.id, "menu_management", {"groups": _normalize_groups(groups)}, db)
     await db.commit()
-    await db.refresh(client)
 
 
 def _to_group_out(group: dict) -> MenuGroupOut:
@@ -174,7 +171,7 @@ async def list_menu_groups(
     admin=Depends(get_current_client_admin),
 ):
     client = await _get_client(admin._client_id, db)
-    groups = _read_groups(client)
+    groups = await _read_groups(client, db, for_update=False)
     if position:
         groups = [g for g in groups if g["position"] == position]
     groups.sort(key=lambda g: g["sort_order"])
@@ -188,7 +185,7 @@ async def create_menu_group(
     admin=Depends(get_current_client_admin),
 ):
     client = await _get_client(admin._client_id, db)
-    groups = _read_groups(client)
+    groups = await _read_groups(client, db)
     pos_groups = [g for g in groups if g["position"] == payload.position]
 
     group = {
@@ -215,7 +212,7 @@ async def update_menu_group(
     admin=Depends(get_current_client_admin),
 ):
     client = await _get_client(admin._client_id, db)
-    groups = _read_groups(client)
+    groups = await _read_groups(client, db)
     group_idx, group = _find_group(groups, group_id)
 
     updates = payload.model_dump(exclude_unset=True)
@@ -240,7 +237,7 @@ async def delete_menu_group(
     admin=Depends(get_current_client_admin),
 ):
     client = await _get_client(admin._client_id, db)
-    groups = _read_groups(client)
+    groups = await _read_groups(client, db)
     _, group = _find_group(groups, group_id)
 
     groups = [g for g in groups if g["id"] != group_id]
@@ -260,7 +257,7 @@ async def activate_menu_group(
     admin=Depends(get_current_client_admin),
 ):
     client = await _get_client(admin._client_id, db)
-    groups = _read_groups(client)
+    groups = await _read_groups(client, db)
     _, group = _find_group(groups, group_id)
 
     for item in groups:
@@ -279,7 +276,7 @@ async def add_menu_link(
     admin=Depends(get_current_client_admin),
 ):
     client = await _get_client(admin._client_id, db)
-    groups = _read_groups(client)
+    groups = await _read_groups(client, db)
     group_idx, group = _find_group(groups, group_id)
 
     if group["position"] == "header" and len(group["links"]) >= 12:
@@ -323,7 +320,7 @@ async def update_menu_link(
     admin=Depends(get_current_client_admin),
 ):
     client = await _get_client(admin._client_id, db)
-    groups = _read_groups(client)
+    groups = await _read_groups(client, db)
     group_idx, group = _find_group(groups, group_id)
     link_idx, link = _find_link(group, link_id)
 
@@ -368,7 +365,7 @@ async def delete_menu_link(
     admin=Depends(get_current_client_admin),
 ):
     client = await _get_client(admin._client_id, db)
-    groups = _read_groups(client)
+    groups = await _read_groups(client, db)
     group_idx, group = _find_group(groups, group_id)
     _find_link(group, link_id)
 
@@ -388,7 +385,7 @@ async def reorder_menu_links(
     admin=Depends(get_current_client_admin),
 ):
     client = await _get_client(admin._client_id, db)
-    groups = _read_groups(client)
+    groups = await _read_groups(client, db)
     group_idx, group = _find_group(groups, group_id)
 
     existing_ids = {item["id"] for item in group["links"]}

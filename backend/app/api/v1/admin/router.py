@@ -21,6 +21,7 @@ from .tickets import router as tickets_router
 from .support import router as support_router
 from .pages import router as pages_router
 from .menus import router as menus_router
+from .banners import router as banners_router
 from .roles import router as roles_router
 from .content_partners import router as content_partners_router
 from .contact_content import router as contact_content_router
@@ -47,5 +48,6 @@ router.include_router(contact_submissions_router, prefix="/contact-submissions",
 router.include_router(contact_content_router, prefix="/contact-content", tags=["Admin – Contact Content"])
 router.include_router(pages_router, prefix="/pages", tags=["Admin – Pages"])
 router.include_router(menus_router, prefix="/menus", tags=["Admin – Menus"])
+router.include_router(banners_router, prefix="/banners", tags=["Admin – Banners"])
 router.include_router(roles_router, prefix="/roles", tags=["Admin – Roles & Access"])
 router.include_router(content_partners_router, prefix="/content-partners", tags=["Admin – Content Partners"])

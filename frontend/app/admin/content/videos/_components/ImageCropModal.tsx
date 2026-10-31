@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from "react-image-crop";
+import ReactCrop, { centerCrop, makeAspectCrop, convertToPixelCrop, type Crop, type PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { X, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 
@@ -26,8 +26,9 @@ export async function getCroppedBlob(
     output: { width: number; height: number },
 ): Promise<Blob> {
     const canvas = document.createElement("canvas");
-    const scaleX = imgEl.naturalWidth / imgEl.width;
-    const scaleY = imgEl.naturalHeight / imgEl.height;
+    const renderedImage = imgEl.getBoundingClientRect();
+    const scaleX = imgEl.naturalWidth / renderedImage.width;
+    const scaleY = imgEl.naturalHeight / renderedImage.height;
     canvas.width = output.width;
     canvas.height = output.height;
     const ctx = canvas.getContext("2d")!;
@@ -70,25 +71,42 @@ export interface ImageCropModalProps {
     src: string;
     filename: string;
     aspect: CropAspect;
-    onConfirm: (blob: Blob, filename: string) => void;
+    output?: { width: number; height: number };
+    freeForm?: boolean;
+    onConfirm: (blob: Blob, filename: string, dimensions: { width: number; height: number }) => void;
     onCancel: () => void;
 }
 
-export default function ImageCropModal({ src, filename, aspect, onConfirm, onCancel }: ImageCropModalProps) {
+export default function ImageCropModal({ src, filename, aspect, output, freeForm = false, onConfirm, onCancel }: ImageCropModalProps) {
     const imgRef = useRef<HTMLImageElement>(null);
     const [crop, setCrop] = useState<Crop>();
     const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
     const [confirming, setConfirming] = useState(false);
     const [suitabilityError, setSuitabilityError] = useState<string | null>(null);
-    const aspectNum = aspectToNumber(aspect);
-    const outputDimensions = dimensionsForAspect(aspect);
+    const presetDimensions = output ?? dimensionsForAspect(aspect);
+    const aspectNum = presetDimensions.width / presetDimensions.height;
+    const renderedImage = imgRef.current?.getBoundingClientRect();
+    const naturalCropWidth = imgRef.current && completedCrop && renderedImage?.width ? Math.max(1, Math.round(completedCrop.width * imgRef.current.naturalWidth / renderedImage.width)) : 0;
+    const naturalCropHeight = imgRef.current && completedCrop && renderedImage?.height ? Math.max(1, Math.round(completedCrop.height * imgRef.current.naturalHeight / renderedImage.height)) : 0;
+    const outputScale = Math.min(1, 4096 / Math.max(naturalCropWidth, naturalCropHeight, 1));
+    const outputDimensions = freeForm
+        ? { width: Math.max(1, Math.round(naturalCropWidth * outputScale)), height: Math.max(1, Math.round(naturalCropHeight * outputScale)) }
+        : presetDimensions;
 
     function onImageLoad(e: React.SyntheticEvent<HTMLImageElement>) {
-        const { width, height, naturalWidth, naturalHeight } = e.currentTarget;
-        const error = validateImageForCrop(naturalWidth, naturalHeight, aspect);
+        const { naturalWidth, naturalHeight } = e.currentTarget;
+        const { width, height } = e.currentTarget.getBoundingClientRect();
+        const cropWidth = Math.min(naturalWidth, naturalHeight * aspectNum);
+        const error = freeForm ? null : output
+            ? (Math.min(cropWidth, cropWidth / aspectNum) < MIN_CROP_DIM ? "Image too small for this banner crop. At least 200 pixels on each side are required." : null)
+            : validateImageForCrop(naturalWidth, naturalHeight, aspect);
         setSuitabilityError(error);
         if (error) return; // don't set a crop selection — image is unsuitable
-        setCrop(centerCrop(makeAspectCrop({ unit: "%", width: 90 }, aspectNum, width, height), width, height));
+        const initialCrop: Crop = freeForm
+            ? { unit: "%", x: 0, y: 0, width: 100, height: 100 }
+            : centerCrop(makeAspectCrop({ unit: "%", width: 90 }, aspectNum, width, height), width, height);
+        setCrop(initialCrop);
+        setCompletedCrop(convertToPixelCrop(initialCrop, width, height));
     }
 
     async function handleConfirm() {
@@ -96,7 +114,7 @@ export default function ImageCropModal({ src, filename, aspect, onConfirm, onCan
         setConfirming(true);
         try {
             const blob = await getCroppedBlob(imgRef.current, completedCrop, outputDimensions);
-            onConfirm(blob, filename);
+            onConfirm(blob, filename, outputDimensions);
         } finally {
             setConfirming(false);
         }
@@ -128,9 +146,9 @@ export default function ImageCropModal({ src, filename, aspect, onConfirm, onCan
                         crop={crop}
                         onChange={c => setCrop(c)}
                         onComplete={c => setCompletedCrop(c)}
-                        aspect={aspectNum}
-                        minWidth={MIN_CROP_DIM}
-                        minHeight={MIN_CROP_DIM}
+                        aspect={freeForm ? undefined : aspectNum}
+                        minWidth={freeForm ? 1 : MIN_CROP_DIM}
+                        minHeight={freeForm ? 1 : MIN_CROP_DIM}
                         keepSelection
                         disabled={!!suitabilityError}
                     >

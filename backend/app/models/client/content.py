@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, Enum, Float, ForeignKey, Integer, Numeric, String, Table, Text
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, Enum, Float, ForeignKey, Integer, Numeric, String, Table, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,6 +14,7 @@ from app.models.base import Base, TimestampMixin, UUIDMixin
 class MediaAsset(Base, UUIDMixin, TimestampMixin):
     """S3-uploaded file tracked in the media library."""
     __tablename__ = "media_assets"
+    __table_args__ = (UniqueConstraint("id", "client_id", name="uq_media_assets_id_client"),)
 
     client_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
