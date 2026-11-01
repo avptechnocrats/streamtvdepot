@@ -13,11 +13,11 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.core.database import AsyncSessionLocal
-from app.core.mediaconvert import get_job_status, hls_manifest_s3_key, hls_manifest_url, invalidate_cloudfront_hls
-from app.models.client.content import TranscodeJob, Video
+from app.core.mediaconvert import get_job_status, hls_manifest_s3_key, hls_manifest_url, invalidate_cloudfront_hls, is_preview_profile
+from app.models.client.content import MediaAssetRendition, TranscodeJob, Video
 from app.models.superadmin.demo_content import DemoContent
 
 logger = logging.getLogger(__name__)
@@ -90,6 +90,17 @@ async def _poll_once() -> None:
                     select(Video).where(Video.id == job_row.video_id)
                 )
                 video = vid_result.scalar_one_or_none()
+                rendition = None
+                if job_row.media_asset_rendition_id:
+                    rendition_result = await db.execute(
+                        select(MediaAssetRendition).where(
+                            MediaAssetRendition.id == job_row.media_asset_rendition_id
+                        )
+                    )
+                    rendition = rendition_result.scalar_one_or_none()
+                    # A trailer preview is independent of the video's own stream state.
+                    if rendition and is_preview_profile(rendition.profile):
+                        video = None
 
                 if mc_status == "COMPLETE":
                     # Parse client_slug from output_s3_prefix:
@@ -104,32 +115,50 @@ async def _poll_once() -> None:
                     # parts: ["hls", "client_slug", "video_id", "video_id"]
                     # client_slug is at index 1 (after the output prefix "hls")
                     client_slug = parts[1] if len(parts) >= 3 else str(job_row.client_id)
-                    video_id_str = str(job_row.video_id)
+                    output_id = str(rendition.id) if rendition else str(job_row.video_id)
 
-                    final_hls_url = hls_manifest_url(client_slug, video_id_str)
-                    final_hls_key = hls_manifest_s3_key(client_slug, video_id_str)
+                    final_hls_url = hls_manifest_url(client_slug, output_id)
+                    final_hls_key = hls_manifest_s3_key(client_slug, output_id)
 
                     job_row.status = "complete"
                     job_row.progress = 100
                     job_row.hls_url = final_hls_url
                     job_row.completed_at = now
 
+                    if rendition:
+                        rendition.status = "complete"
+                        rendition.progress = 100
+                        rendition.hls_url = final_hls_url
+                        rendition.hls_manifest_key = final_hls_key
+                        rendition.error_message = None
                     if video:
                         video.transcode_status = "complete"
                         video.transcode_progress = 100
                         video.hls_url = final_hls_url
                         video.hls_manifest_key = final_hls_key
+                    if rendition:
+                        await db.execute(
+                            update(Video)
+                            .where(Video.media_asset_rendition_id == rendition.id)
+                            .values(
+                                transcode_status="complete",
+                                transcode_progress=100,
+                                hls_url=final_hls_url,
+                                hls_manifest_key=final_hls_key,
+                                drm_key_encrypted=rendition.drm_key_encrypted,
+                            )
+                        )
 
                     logger.info(
-                        "Poller: job %s COMPLETE → video %s",
-                        job_row.mediaconvert_job_id, job_row.video_id,
+                        "Poller: job %s COMPLETE → rendition %s",
+                        job_row.mediaconvert_job_id, output_id,
                     )
 
                     # Evict stale CloudFront cache so the new segments
                     # (encrypted with the new DRM key) are served immediately.
                     await loop.run_in_executor(
                         None,
-                        lambda cs=client_slug, vid=video_id_str: invalidate_cloudfront_hls(cs, vid),
+                        lambda cs=client_slug, rid=output_id: invalidate_cloudfront_hls(cs, rid),
                     )
 
                 elif mc_status in ("ERROR", "CANCELED"):
@@ -137,9 +166,18 @@ async def _poll_once() -> None:
                     job_row.error_message = error_msg or mc_status
                     job_row.completed_at = now
 
+                    if rendition:
+                        rendition.status = "failed"
+                        rendition.error_message = error_msg or mc_status
                     if video:
                         video.transcode_status = "failed"
                         video.transcode_job_id = f"error:{error_msg or mc_status}"
+                    if rendition:
+                        await db.execute(
+                            update(Video)
+                            .where(Video.media_asset_rendition_id == rendition.id)
+                            .values(transcode_status="failed")
+                        )
 
                     logger.warning(
                         "Poller: job %s %s → video %s: %s",
@@ -153,9 +191,18 @@ async def _poll_once() -> None:
                     if not job_row.started_at and mc_status == "PROGRESSING":
                         job_row.started_at = now
 
+                    if rendition:
+                        rendition.status = "processing"
+                        rendition.progress = progress
                     if video:
                         video.transcode_status = "processing"
                         video.transcode_progress = progress
+                    if rendition:
+                        await db.execute(
+                            update(Video)
+                            .where(Video.media_asset_rendition_id == rendition.id)
+                            .values(transcode_status="processing", transcode_progress=progress)
+                        )
 
                 await db.commit()
 

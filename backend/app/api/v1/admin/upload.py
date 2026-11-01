@@ -17,7 +17,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_client_admin
 from app.core.storage import get_s3_client as _get_s3_client, media_display_url
-from app.models.client.content import Category, MediaAsset, Video
+from app.models.client.content import Category, MediaAsset, MediaAssetRendition, Video
 from app.models.client.banner import ClientBannerImage
 from app.schemas.client.content import MediaAssetCreate, MediaAssetOut
 
@@ -773,9 +773,28 @@ async def list_media_assets(
                     key = urlparse(url).path.lstrip("/")
                     if key:
                         video_thumb_keys.add(key)
+
+        asset_keys = {asset.s3_key for asset in assets}
+        rendition_rows = await db.execute(
+            select(
+                MediaAssetRendition.source_s3_key,
+                MediaAssetRendition.status,
+                MediaAssetRendition.progress,
+            )
+            .where(
+                MediaAssetRendition.client_id == admin._client_id,
+                MediaAssetRendition.source_s3_key.in_(asset_keys),
+                MediaAssetRendition.profile.in_(("abr_hls_v1_drm", "abr_hls_v1_clear")),
+            )
+            .order_by(MediaAssetRendition.updated_at.desc())
+        )
+        rendition_by_key: dict[str, tuple[str, int | None]] = {}
+        for source_key, transcode_status, progress in rendition_rows.all():
+            rendition_by_key.setdefault(source_key, (transcode_status, progress))
     else:
         used_ids = set()
         video_thumb_keys = set()
+        rendition_by_key = {}
 
     out = []
     for asset in assets:
@@ -785,6 +804,10 @@ async def list_media_assets(
         via_category = asset.id in used_ids
         via_video = asset.s3_key in video_thumb_keys
         item.in_use = via_category or via_video
+        rendition = rendition_by_key.get(asset.s3_key)
+        if rendition:
+            item.transcode_status = rendition[0]
+            item.transcode_progress = rendition[1]
         out.append(item)
     return MediaLibraryListResponse(items=out, counts=counts)
 

@@ -132,6 +132,8 @@ export interface VideoOut {
     thumbnails: VideoThumbnails;
     trailer_type: TrailerType | null;
     trailer_url: string | null;
+    trailer_display_url?: string | null;
+    trailer_transcode_status?: "pending" | "processing" | "complete" | "failed" | null;
     access_type: AccessType;
     subscription_plan_ids: string[];
     ppv_price: number | null;

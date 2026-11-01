@@ -185,6 +185,8 @@ export const ENDPOINTS = {
         transcoding: {
             trigger: (videoId: string) => `/admin/transcoding/videos/${videoId}/trigger`,
             status: (videoId: string) => `/admin/transcoding/videos/${videoId}/status`,
+            trailerTrigger: (videoId: string) => `/admin/transcoding/videos/${videoId}/trailer/trigger`,
+            trailerStatus: (videoId: string) => `/admin/transcoding/videos/${videoId}/trailer/status`,
             keyToken: (videoId: string) => `/admin/transcoding/videos/${videoId}/key-token`,
         },
         pages: "/admin/pages",

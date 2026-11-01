@@ -99,6 +99,16 @@ def _hls_display_url(video: Video) -> str | None:
     return _refresh_s3_url(video.hls_url) if video.hls_url else None
 
 
+def _trailer_hls_url(video: Video) -> str | None:
+    """Public HLS preview of the uploaded trailer, only once its rendition has completed."""
+    rendition = video.trailer_rendition
+    if video.trailer_type != "upload" or not rendition or rendition.status != "complete" or not rendition.hls_manifest_key:
+        return None
+    base = settings.BACKEND_PUBLIC_URL.rstrip("/")
+    prefix = settings.API_V1_PREFIX.strip("/")
+    return f"{base}/{prefix}/media/stream/trailer/{video.id}/manifest.m3u8"
+
+
 def _public_video_media_urls(video: Video) -> tuple[str | None, str | None, str | None]:
     """Expose direct media URLs only for free videos; paid playback requires authorization."""
     if video.access_type != "free":
@@ -1011,6 +1021,7 @@ async def list_public_videos(
             "thumbnails": video.thumbnails or {},
             "trailer_type": video.trailer_type,
             "trailer_url": video.trailer_url,
+            "trailer_hls_url": _trailer_hls_url(video),
             "access_type": video.access_type,
             "subscription_plan_ids": video.subscription_plan_ids or [],
             "ppv_price": video.ppv_price,
@@ -1068,6 +1079,7 @@ async def get_public_video(
         "thumbnails": video.thumbnails or {},
         "trailer_type": video.trailer_type,
         "trailer_url": video.trailer_url,
+        "trailer_hls_url": _trailer_hls_url(video),
         "access_type": video.access_type,
         "subscription_plan_ids": video.subscription_plan_ids or [],
         "ppv_price": video.ppv_price,
@@ -2036,6 +2048,7 @@ async def _fetch_category_items(
                 "thumbnails": v.thumbnails or {},
                 "trailer_type": v.trailer_type,
                 "trailer_url": v.trailer_url,
+                "trailer_hls_url": _trailer_hls_url(v),
                 "access_type": v.access_type,
                 "subscription_plan_ids": v.subscription_plan_ids or [],
                 "ppv_price": v.ppv_price,
