@@ -11,18 +11,52 @@ import { ChevronDown, ChevronLeft, ChevronRight, Check, Play, Plus } from "lucid
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef } from "react";
+import { useRef, useState, type SyntheticEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { addToWatchlist, getWatchlist, removeFromWatchlist, type WatchlistItem } from "@/lib/services/watchlist";
 import type { ContentRowProps, Movie } from "@/types/content";
 
-function PosterCard({ movie }: { movie: Movie }) {
+export function PosterCard({ movie, rank }: { movie: Movie; rank?: number }) {
     const router = useRouter();
     const { user } = useAuth();
     const queryClient = useQueryClient();
     const href = movie.id ? `/movies/${movie.id}` : "#";
+    const [edge, setEdge] = useState<"left" | "center" | "right">("center");
+    const [edgeOffset, setEdgeOffset] = useState(0);
+    const [layer, setLayer] = useState<number>();
+    const [expanded, setExpanded] = useState(false);
+    const [posterCenter, setPosterCenter] = useState<number>();
+    const [reducedMotion, setReducedMotion] = useState(false);
+
+    function preparePreview(event: SyntheticEvent<HTMLAnchorElement>) {
+        const card = event.currentTarget;
+        const rail = card.parentElement;
+        if (!rail) return;
+        const bounds = rail.getBoundingClientRect();
+        const padding = getComputedStyle(rail);
+        const left = Math.max(0, bounds.left + parseFloat(padding.paddingLeft));
+        const right = Math.min(window.innerWidth, bounds.right - parseFloat(padding.paddingRight));
+        const visible = Array.from(rail.children).filter(element => {
+            const rect = element.getBoundingClientRect();
+            return rect.right > left + 1 && rect.left < right - 1;
+        });
+        const nextEdge = card === visible[0] ? "left" : card === visible[visible.length - 1] ? "right" : "center";
+        const posterBounds = card.firstElementChild!.getBoundingClientRect();
+        setPosterCenter(posterBounds.height / 2);
+        setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+        setEdge(nextEdge);
+        setEdgeOffset(nextEdge === "left" ? Math.max(0, left - posterBounds.left) : nextEdge === "right" ? Math.max(0, posterBounds.right - right) : 0);
+        setLayer(30);
+        setExpanded(true);
+    }
+
+    function releasePreview(event: SyntheticEvent<HTMLAnchorElement>) {
+        if (event.currentTarget.matches(":hover, :focus-visible")) return;
+        setExpanded(false);
+        setLayer(window.matchMedia("(prefers-reduced-motion: reduce)").matches ? undefined : 20);
+    }
 
     const { data: watchlist = [] } = useQuery({
         queryKey: ["watchlist"],
@@ -55,34 +89,41 @@ function PosterCard({ movie }: { movie: Movie }) {
     return (
         <Link
             href={href}
-            className="group/card relative shrink-0 w-40 sm:w-44 lg:w-48 rounded-lg hover:z-30 focus-visible:z-30 focus-visible:outline-none"
+            aria-label={rank ? `${rank}. ${movie.title}` : undefined}
+            onPointerEnter={preparePreview}
+            onPointerLeave={releasePreview}
+            onFocus={preparePreview}
+            onBlur={releasePreview}
+            style={{ zIndex: layer, containerType: rank ? "inline-size" : undefined, marginLeft: rank === 1 ? "calc(var(--rank-gutter) * -0.64)" : undefined }}
+            className={`group/card pointer-events-auto relative shrink-0 ${rank ? "w-52 sm:w-56 lg:w-60 [--rank-gutter:96px] sm:[--rank-gutter:104px] lg:[--rank-gutter:112px]" : "w-44 sm:w-48 lg:w-52"} rounded-lg hover:z-30 focus-visible:z-30 focus-visible:outline-none`}
         >
-            <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-secondary">
-                <Image
-                    src={movie.image}
-                    alt={movie.title}
-                    fill
-                    className="object-cover"
-                    sizes="(min-width: 1024px) 192px, (min-width: 640px) 176px, 160px"
-                />
-            </div>
-            <div className="mt-1.5 px-0.5">
+            <div className="aspect-[2/3]" style={{ marginLeft: rank ? "var(--rank-gutter)" : undefined }} aria-hidden="true" />
+            <div className="mt-1.5 px-0.5" style={{ marginLeft: rank ? "var(--rank-gutter)" : undefined, opacity: expanded ? 0 : 1, transition: reducedMotion ? "none" : "opacity 120ms linear" }}>
                 <p className="text-xs font-medium text-foreground truncate">{movie.title}</p>
                 {movie.year && <p className="text-[11px] text-muted-foreground">{movie.year}</p>}
             </div>
+            {rank && <span aria-hidden="true" data-content-rank={rank} className={`pointer-events-none absolute left-0 top-0 flex items-center ${rank === 10 ? "justify-start" : "justify-end"} font-display font-800 leading-none text-transparent`} style={{ width: rank === 10 ? "100%" : "calc(var(--rank-gutter) + (100cqw - var(--rank-gutter)) * 0.35)", height: "calc((100cqw - var(--rank-gutter)) * 1.5)", fontSize: "calc((100cqw - var(--rank-gutter)) * 1.9)", transform: rank === 10 ? "scaleX(0.6)" : undefined, transformOrigin: "left center", WebkitTextStroke: "2px hsl(var(--foreground) / 0.4)" }}>{rank}</span>}
 
-            {/* Expanded preview: ~1.5x wider than the poster, covering it and its neighbours */}
-            <div className="pointer-events-none absolute -inset-x-[25%] -top-[6%] origin-center scale-90 transform-gpu opacity-0 transition-[opacity,transform] delay-100 duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/card:pointer-events-auto group-hover/card:scale-100 group-hover/card:opacity-100 group-focus-visible/card:pointer-events-auto group-focus-visible/card:scale-100 group-focus-visible/card:opacity-100">
-                <div className="overflow-hidden rounded bg-card ring-1 ring-primary/55 shadow-[0_16px_40px_rgba(0,0,0,0.7),0_0_30px_hsl(var(--primary)/0.3)]">
-                    <div className="relative aspect-[4/3] bg-secondary">
+            <div
+                data-preview-edge={edge}
+                style={{ left: rank ? "var(--rank-gutter)" : 0, transformOrigin: `${edge} ${posterCenter ?? 0}px`, transform: `translate3d(${expanded ? (edge === "right" ? -edgeOffset : edgeOffset) : 0}px, 0, 0) scale(${expanded ? 1.2 : 1})`, transition: reducedMotion ? "none" : "transform 500ms cubic-bezier(0.4, 0, 0.2, 1)" }}
+                onTransitionEnd={event => {
+                    if (event.target === event.currentTarget && event.propertyName === "transform" && !event.currentTarget.parentElement?.matches(":hover, :focus-visible")) setLayer(undefined);
+                }}
+                className="absolute inset-x-0 top-0"
+            >
+                <div className={`overflow-hidden rounded-lg bg-card ${expanded || layer === 20 ? "ring-1 ring-primary/20 shadow-[0_16px_40px_rgba(0,0,0,0.7),0_0_30px_hsl(var(--primary)/0.3)]" : ""}`}>
+                    <div className="relative bg-secondary" style={{ aspectRatio: "2 / 3" }}>
                         <Image
                             src={movie.image}
-                            alt=""
+                            alt={movie.title}
                             fill
                             className="object-cover"
-                            sizes="(min-width: 1024px) 288px, (min-width: 640px) 264px, 240px"
+                            sizes={rank ? "(min-width: 1024px) 154px, (min-width: 640px) 144px, 135px" : "(min-width: 1024px) 250px, (min-width: 640px) 231px, 212px"}
                         />
                     </div>
+                    <div className="grid" style={{ gridTemplateRows: expanded ? "1fr" : "0fr", opacity: expanded ? 1 : 0, transition: reducedMotion ? "none" : "grid-template-rows 500ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease" }}>
+                    <div className="min-h-0 overflow-hidden">
                     <div className="p-3 space-y-2">
                         <div className="flex items-center gap-2">
                             <span
@@ -116,6 +157,8 @@ function PosterCard({ movie }: { movie: Movie }) {
                             {movie.rating && <span className="text-primary">{movie.rating}</span>}
                         </p>
                     </div>
+                    </div>
+                    </div>
                 </div>
             </div>
         </Link>
@@ -133,7 +176,7 @@ export default function ContentRow({ title, movies, href }: ContentRowProps) {
             <div className="flex items-center justify-between">
                 <h3 className="text-lg md:text-xl font-display font-700 text-foreground">{title}</h3>
                 {href && (
-                    <Link href={href} className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors">
+                    <Link href={href} className="text-xs font-bold text-foreground hover:text-primary transition-colors">
                         View All <ChevronRight size={12} className="inline -mt-0.5" />
                     </Link>
                 )}
@@ -146,7 +189,7 @@ export default function ContentRow({ title, movies, href }: ContentRowProps) {
                 >
                     <ChevronLeft size={18} />
                 </button>
-                <div ref={scrollRef} className="flex gap-3 overflow-x-auto scrollbar-hide pt-8 pb-14 px-10 -mt-7 -mb-12 -mx-10">
+                <div ref={scrollRef} className="pointer-events-none flex gap-5 sm:gap-6 overflow-x-auto scrollbar-hide pt-32 pb-64 px-10 -mx-10" style={{ marginTop: -124, marginBottom: -248 }}>
                     {movies.map((movie, i) => (
                         <PosterCard key={movie.id || `${movie.title}-${i}`} movie={movie} />
                     ))}

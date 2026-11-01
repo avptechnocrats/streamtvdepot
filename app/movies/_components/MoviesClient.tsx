@@ -7,9 +7,10 @@ import { Play, Plus, Info, ChevronLeft, ChevronRight, Film } from "lucide-react"
 import { useTheme } from "@/hooks/use-theme";
 import { fetchHomeVideoRows, type HomeCategoryRow, type HomeVideoItem } from "@/lib/services";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import ContentRowSkeleton from "@/components/ContentRowSkeleton";
 import { BannerSkeleton } from "@/components/BannerSkeleton";
 import ManagedBannerSlot from "@/components/ManagedBannerSlot";
+import BannerTitle from "@/components/BannerTitle";
 import type { Movie } from "@/types/content";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -119,7 +120,7 @@ function HeroBanner({ rows }: { rows: HomeCategoryRow[] }) {
                 <span className="inline-block px-3 py-1 text-xs font-semibold tracking-wider uppercase bg-primary/20 text-primary border border-primary/30 rounded-full">
                     🎬 Movie
                 </span>
-                <h2 className="text-4xl md:text-6xl lg:text-7xl font-display font-800 leading-tight max-w-2xl text-white">
+                <BannerTitle title={slide.title} imageUrl={slide.thumbnails.video_title_image} className="text-4xl md:text-6xl lg:text-7xl font-display font-800 leading-tight max-w-2xl text-white">
                     {titleA}
                     {titleB && (
                         <>
@@ -127,7 +128,7 @@ function HeroBanner({ rows }: { rows: HomeCategoryRow[] }) {
                             <span className="text-gradient-gold">{titleB}</span>
                         </>
                     )}
-                </h2>
+                </BannerTitle>
                 <div className="flex items-center gap-3">
                     <Button
                         asChild
@@ -194,23 +195,6 @@ function HeroBanner({ rows }: { rows: HomeCategoryRow[] }) {
 }
 
 // ─── Skeletons ────────────────────────────────────────────────────────────────
-
-function ContentRowSkeleton() {
-    return (
-        <section className="px-6 lg:px-12 space-y-4">
-            <Skeleton className="h-6 w-44 rounded" />
-            <div className="flex gap-4 overflow-hidden py-2 px-1">
-                {Array.from({ length: 7 }).map((_, i) => (
-                    <div key={i} className="content-card shrink-0 space-y-2">
-                        <Skeleton className="w-full aspect-[2/3] rounded-lg" />
-                        <Skeleton className="h-3.5 w-3/4 rounded" />
-                        <Skeleton className="h-3 w-1/2 rounded" />
-                    </div>
-                ))}
-            </div>
-        </section>
-    );
-}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 

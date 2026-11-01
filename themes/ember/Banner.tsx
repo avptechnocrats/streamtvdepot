@@ -12,12 +12,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useState, type PointerEvent } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BannerTrailer, useBannerHover } from "@/components/BannerTrailer";
+import BannerTitle from "@/components/BannerTitle";
 import { useBannerVideos } from "@/hooks/use-banner-videos";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import { useUserPrefs } from "@/hooks/use-user-prefs";
 
 const NAV_OFFSET = "pt-14";
-const HERO_HEIGHT = "h-[480px] sm:h-[540px] lg:h-[580px]";
+const HERO_HEIGHT = "h-[480px] sm:h-[540px] lg:h-[clamp(600px,65svh,720px)]";
 
 function EmptyBanner() {
     const { site_title, tagline } = useSiteSettings();
@@ -92,21 +93,23 @@ export default function Banner() {
                     hovered={trailerActive}
                     positionClassName="object-[70%_30%]"
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-background via-background/70 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent" />
+                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(0,5,12,0.98)_0%,rgba(0,5,12,0.85)_24%,rgba(0,5,12,0.45)_46%,rgba(0,5,12,0)_72%)]" />
+                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(0deg,hsl(var(--background))_0%,rgba(0,5,12,0.85)_9%,rgba(0,5,12,0)_42%)]" />
 
-                <div className="absolute inset-0 flex items-center px-14 sm:px-16 lg:px-24">
+                <div className="absolute inset-0 flex items-center px-10 sm:px-14 lg:px-16">
                     <div key={slide.id} className="max-w-xl space-y-3 animate-fade-in">
                         <span className="inline-block px-2.5 py-0.5 text-xs font-semibold tracking-wide border border-primary/70 text-primary rounded bg-primary/10">
                             {slide.classification}
                         </span>
-                        <h2
+                        <BannerTitle
+                            title={slide.title}
+                            imageUrl={slide.titleImage}
                             className="font-display font-800 uppercase leading-[1.05] text-foreground text-3xl sm:text-4xl lg:text-5xl"
                             style={shadow}
                         >
                             {slide.titleA && <span className="block text-[0.6em] tracking-wider">{slide.titleA}</span>}
                             <span className="block text-gradient-gold">{slide.titleB || slide.title}</span>
-                        </h2>
+                        </BannerTitle>
                         {meta.length > 0 && (
                             <p className="flex flex-wrap items-center gap-x-2 text-xs sm:text-sm text-foreground/90" style={shadow}>
                                 {meta.map((m, i) => (

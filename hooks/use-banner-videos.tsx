@@ -14,6 +14,7 @@ export interface BannerSlide {
     image: string;
     id: string;
     title: string;
+    titleImage: string | null;
     /** first part of the title (everything except the last word) */
     titleA: string;
     /** last word of the title */
@@ -65,6 +66,7 @@ function toSlide(v: VideoOut): BannerSlide {
         image,
         id: v.id,
         title: v.title,
+        titleImage: v.thumbnails.video_title_image ?? null,
         titleA,
         titleB,
         description: v.short_description ?? "",

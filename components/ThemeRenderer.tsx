@@ -5,31 +5,11 @@ import { useState, useEffect, useRef } from "react";
 
 import { useTheme } from "@/hooks/use-theme";
 import { fetchHomeVideoRows, type HomeCategoryRow } from "@/lib/services";
-import { Skeleton } from "@/components/ui/skeleton";
+import ContentRowSkeleton from "@/components/ContentRowSkeleton";
 import ManagedBannerSlot from "@/components/ManagedBannerSlot";
+import LiveTvLogoRow from "@/components/LiveTvLogoRow";
+import TopTenRow from "@/components/TopTenRow";
 import type { Movie } from "@/types/content";
-
-function ContentRowSkeleton() {
-    return (
-        <section className="px-6 lg:px-12 space-y-4">
-            {/* Row title */}
-            <Skeleton className="h-6 w-44 rounded" />
-            {/* Card strip */}
-            <div className="flex gap-4 overflow-hidden py-2 px-1">
-                {Array.from({ length: 7 }).map((_, i) => (
-                    <div key={i} className="content-card shrink-0 space-y-2">
-                        {/* Poster — portrait 2:3 matching real card */}
-                        <Skeleton className="w-full aspect-[2/3] rounded-lg" />
-                        {/* Title line */}
-                        <Skeleton className="h-3.5 w-3/4 rounded" />
-                        {/* Meta line (year + rating) */}
-                        <Skeleton className="h-3 w-1/2 rounded" />
-                    </div>
-                ))}
-            </div>
-        </section>
-    );
-}
 
 function getMovieImage(row: HomeCategoryRow["items"][number]): string {
     return (
@@ -69,6 +49,28 @@ export default function ThemeRenderer() {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
+    const contentArea = useRef<HTMLDivElement>(null);
+    const [minimumRowCount, setMinimumRowCount] = useState<number | null>(null);
+
+    useEffect(() => {
+        const area = contentArea.current;
+        if (!area) return;
+        function measureRow() {
+            const viewport = window.innerWidth;
+            const style = getComputedStyle(area!);
+            const rowPadding = viewport >= 1024 ? 80 : viewport >= 640 ? 48 : 32;
+            const posterWidth = viewport >= 1024 ? 208 : viewport >= 640 ? 192 : 176;
+            const gap = viewport >= 640 ? 24 : 20;
+            const available = area!.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - rowPadding;
+            setMinimumRowCount(Math.max(1, Math.ceil((available + gap) / (posterWidth + gap))));
+        }
+        measureRow();
+        const observer = new ResizeObserver(measureRow);
+        observer.observe(area);
+        window.addEventListener("resize", measureRow);
+        return () => { observer.disconnect(); window.removeEventListener("resize", measureRow); };
+    }, []);
+    const visibleRows = minimumRowCount === null ? [] : rows.filter(row => row.items.length >= minimumRowCount);
 
     useEffect(() => {
         let cancelled = false;
@@ -113,8 +115,10 @@ export default function ThemeRenderer() {
     return (
         <>
             <Banner />
+            <LiveTvLogoRow />
+            <TopTenRow />
             <ManagedBannerSlot page="/" position="top" />
-            <div className="space-y-10 py-10 lg:px-8">
+            <div ref={contentArea} className="space-y-10 py-10 lg:px-8">
                 {rows.length === 0 && loading ? (
                     <>
                         <ContentRowSkeleton />
@@ -123,7 +127,7 @@ export default function ThemeRenderer() {
                     </>
                 ) : (
                     <>
-                        {rows.slice(0, 1).map((row) => (
+                        {visibleRows.slice(0, 1).map((row) => (
                             <ContentRow
                                 key={row.category_id}
                                 title={row.category_name}
@@ -133,7 +137,7 @@ export default function ThemeRenderer() {
                         ))}
                         {rows.length >= 1 && <CategoryGrid type="video" showName={false} />}
                         <ManagedBannerSlot page="/" position="middle_1" />
-                        {rows.slice(1, 3).map((row) => (
+                        {visibleRows.slice(1, 3).map((row) => (
                             <ContentRow
                                 key={row.category_id}
                                 title={row.category_name}
@@ -142,7 +146,7 @@ export default function ThemeRenderer() {
                             />
                         ))}
                         <ManagedBannerSlot page="/" position="middle_2" />
-                        {rows.slice(3).map((row) => (
+                        {visibleRows.slice(3).map((row) => (
                             <ContentRow key={row.category_id} title={row.category_name} movies={mapRowMovies(row)} href={`/categories/${row.category_slug}`} />
                         ))}
                         {/* Infinite scroll sentinel */}
