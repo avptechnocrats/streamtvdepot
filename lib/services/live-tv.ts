@@ -17,6 +17,7 @@ export type LiveTvSource = (typeof LIVE_TV_SOURCES)[number]["value"];
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface LiveTvThumbnails {
+    square?: string | null;  // 1:1
     banner: string | null;    // 16:9
     portrait: string | null;  // 2:3
     wide: string | null;      // 3:2

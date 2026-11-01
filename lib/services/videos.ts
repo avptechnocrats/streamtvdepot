@@ -81,6 +81,7 @@ export interface VideoSeo {
 }
 
 export interface VideoThumbnails {
+    video_title_image?: string | null;
     video_banner: string | null;
     video_h_thumbnail: string | null;
     video_w_thumbnail: string | null;
@@ -137,6 +138,7 @@ export interface VideoOut {
 export type VideoUpdate = Partial<VideoOut>;
 
 export interface ListVideosParams {
+    sort_by?: "latest" | "rating";
     page?: number;
     page_size?: number;
     search?: string;

@@ -1,7 +1,10 @@
 import axios from "axios";
 import publicApiClient from "./public-client";
 
+export const HOME_CONTENT_ITEMS_PER_ROW = 12;
+
 interface HomeVideoItemThumbnails {
+    video_title_image?: string | null;
     video_banner: string | null;
     video_h_thumbnail: string | null;
     video_w_thumbnail: string | null;
@@ -51,7 +54,7 @@ function isTenantlessLocalRequest(): boolean {
 export async function fetchHomeVideoRows({
     page = 1,
     pageSize = 3,
-    itemsPerRow = 12,
+    itemsPerRow = HOME_CONTENT_ITEMS_PER_ROW,
     categoryId,
     contentType = "video",
 }: FetchHomeContentRowsParams = {}): Promise<HomeContentsResponse> {

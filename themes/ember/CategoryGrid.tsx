@@ -47,16 +47,16 @@ export default function CategoryGrid({ type, showName = true }: CategoryGridProp
                 >
                     <ChevronLeft size={18} />
                 </button>
-                <div ref={scrollRef} className="flex gap-3 overflow-x-auto scrollbar-hide py-1">
+                <div ref={scrollRef} className="pointer-events-none flex gap-5 sm:gap-6 overflow-x-auto scrollbar-hide pt-8 pb-12 px-8 -mx-8" style={{ marginTop: -28, marginBottom: -44 }}>
                     {categories.map((cat) => {
                         const img = getCategoryImageUrl(cat);
                         return (
                             <Link
                                 key={cat.id}
                                 href={`/categories/${cat.slug}`}
-                                className="group/tile shrink-0 w-32 sm:w-36 lg:w-40 space-y-1.5"
+                                className="group/tile pointer-events-auto shrink-0 w-44 sm:w-48 lg:w-52 space-y-1.5"
                             >
-                                <div className="relative aspect-[4/3] overflow-hidden rounded-lg border border-border/60 group-hover/tile:border-primary transition-colors">
+                                <div className="relative aspect-[4/3] overflow-hidden rounded-lg group-hover/tile:ring-1 group-hover/tile:ring-primary/20 group-hover/tile:shadow-[0_16px_40px_rgba(0,0,0,0.7),0_0_30px_hsl(var(--primary)/0.3)] group-focus-visible/tile:ring-1 group-focus-visible/tile:ring-primary/20 group-focus-visible/tile:shadow-[0_16px_40px_rgba(0,0,0,0.7),0_0_30px_hsl(var(--primary)/0.3)] transition-shadow">
                                     {img ? (
                                         <div
                                             className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover/tile:scale-110"
