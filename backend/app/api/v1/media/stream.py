@@ -48,6 +48,7 @@ import logging
 import re
 import uuid as _uuid_module
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import boto3
 from botocore.config import Config
@@ -61,7 +62,7 @@ from starlette.concurrency import run_in_threadpool
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.drm import verify_key_access_token
-from app.models.client.content import Video
+from app.models.client.content import MediaAssetRendition, Video
 
 router = APIRouter(tags=["Media – HLS Proxy"])
 logger = logging.getLogger(__name__)
@@ -131,26 +132,35 @@ def _rewrite_master(content: str, video_id: str, token: str | None = None) -> st
 _EXT_X_KEY_URI_RE = re.compile(r'URI="([^"]+)"')
 
 
-def _append_token_to_uri(uri: str, token: str) -> str:
-    sep = "&" if "?" in uri else "?"
-    return f"{uri}{sep}token={token}"
+def _rewrite_key_uri(uri: str, video_id: str, token: str | None) -> str:
+    parsed = urlsplit(uri)
+    if "/drm/key/" not in parsed.path:
+        return uri
+    key_path = parsed.path.rsplit("/", 1)[0] + f"/{video_id}"
+    query = [(key, value) for key, value in parse_qsl(parsed.query, keep_blank_values=True) if key != "token"]
+    if token:
+        query.append(("token", token))
+    return urlunsplit((parsed.scheme, parsed.netloc, key_path, urlencode(query), parsed.fragment))
 
 
-def _rewrite_sub_playlist(content: str, dir_prefix: str, bucket: str, token: str | None = None) -> str:
-    """Replace relative .ts segment lines with presigned S3 GET URLs and tokenise the key URI."""
+def _rewrite_sub_playlist(
+    content: str,
+    dir_prefix: str,
+    bucket: str,
+    video_id: str,
+    token: str | None = None,
+) -> str:
+    """Rewrite segments and bind shared HLS key delivery to the requesting video."""
     s3 = _make_s3_client()
     lines = content.splitlines(keepends=True)
     out: list[str] = []
     for line in lines:
         stripped = line.strip()
-        if stripped.startswith("#EXT-X-KEY") and token:
-            # Native HLS fetches the key without the player's JS hooks, so the token must ride in the URI.
+        if stripped.startswith("#EXT-X-KEY"):
+            # Native HLS fetches keys without the player's JS hooks.
             newline = line[len(line.rstrip()):]
             rewritten = _EXT_X_KEY_URI_RE.sub(
-                lambda m: (
-                    f'URI="{_append_token_to_uri(m.group(1), token)}"'
-                    if "/drm/key/" in m.group(1) else m.group(0)
-                ),
+                lambda m: f'URI="{_rewrite_key_uri(m.group(1), video_id, token)}"',
                 stripped,
             )
             out.append(rewritten + newline)
@@ -172,8 +182,8 @@ def _rewrite_sub_playlist(content: str, dir_prefix: str, bucket: str, token: str
     return "".join(out)
 
 
-async def _get_active_video(video_id: str, token: str | None, db: AsyncSession) -> Video:
-    """Fetch an active HLS video and require a valid stream token when paid."""
+async def _get_active_video(video_id: str, token: str | None, db: AsyncSession) -> tuple[Video, str]:
+    """Return an active video and its HLS manifest key, requiring a stream token when paid."""
     try:
         vid_uuid = _uuid_module.UUID(video_id)
     except ValueError:
@@ -187,7 +197,21 @@ async def _get_active_video(video_id: str, token: str | None, db: AsyncSession) 
         )
     )
     video = result.scalar_one_or_none()
-    if not video or not video.hls_manifest_key:
+    if not video:
+        raise HTTPException(status_code=404, detail="Stream not available.")
+    manifest_key = video.hls_manifest_key
+    if video.media_asset_rendition_id:
+        rendition_result = await db.execute(
+            select(MediaAssetRendition).where(
+                MediaAssetRendition.id == video.media_asset_rendition_id,
+                MediaAssetRendition.client_id == video.client_id,
+            )
+        )
+        rendition = rendition_result.scalar_one_or_none()
+        if not rendition or rendition.status != "complete":
+            raise HTTPException(status_code=404, detail="Stream not available.")
+        manifest_key = rendition.hls_manifest_key
+    if not manifest_key:
         raise HTTPException(status_code=404, detail="Stream not available.")
     if video.access_type != "free":
         if not token:
@@ -198,10 +222,88 @@ async def _get_active_video(video_id: str, token: str | None, db: AsyncSession) 
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
         if claims.get("vid") != video_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token is not valid for this video.")
-    return video
+    return video, manifest_key
 
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
+
+async def _get_trailer_manifest_key(video_id: str, db: AsyncSession) -> str:
+    """Trailer previews are public marketing content: no token, but only a completed, active one is served."""
+    try:
+        vid_uuid = _uuid_module.UUID(video_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Trailer not available.")
+    result = await db.execute(
+        select(Video).where(
+            Video.id == vid_uuid,
+            Video.is_active.is_(True),
+            Video.deleted_at.is_(None),
+        )
+    )
+    video = result.scalar_one_or_none()
+    rendition = video.trailer_rendition if video else None
+    if (
+        not video
+        or video.trailer_type != "upload"
+        or not rendition
+        or rendition.status != "complete"
+        or not rendition.hls_manifest_key
+    ):
+        raise HTTPException(status_code=404, detail="Trailer not available.")
+    return rendition.hls_manifest_key
+
+
+# Registered before the generic routes below so "/trailer/..." is not read as a video id.
+@router.get(
+    "/trailer/{video_id}/manifest.m3u8",
+    summary="Public HLS master manifest for a video's trailer preview",
+    response_class=Response,
+)
+async def proxy_trailer_manifest(video_id: str, db: AsyncSession = Depends(get_db)):
+    if not settings.AWS_S3_BUCKET:
+        raise HTTPException(status_code=503, detail="S3 storage not configured.")
+    key = await _get_trailer_manifest_key(video_id, db)
+    try:
+        raw = await run_in_threadpool(_fetch_s3_text, _hls_bucket(), key)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Manifest not found in storage.")
+    except (BotoCoreError, ClientError) as exc:
+        logger.error("S3 error fetching trailer manifest %s: %s", key, exc)
+        raise HTTPException(status_code=502, detail="Storage error.")
+    return Response(
+        content=_rewrite_master(raw, f"trailer/{video_id}"),
+        media_type=_HLS_CONTENT_TYPE,
+        headers={"Cache-Control": "no-store, no-cache"},
+    )
+
+
+@router.get(
+    "/trailer/{video_id}/{filename:path}",
+    summary="Public HLS quality sub-playlist for a video's trailer preview",
+    response_class=Response,
+)
+async def proxy_trailer_sub_playlist(video_id: str, filename: str, db: AsyncSession = Depends(get_db)):
+    if not settings.AWS_S3_BUCKET:
+        raise HTTPException(status_code=503, detail="S3 storage not configured.")
+    if not filename.endswith(".m3u8") or "/" in filename or ".." in filename:
+        raise HTTPException(status_code=404)
+    manifest_key = await _get_trailer_manifest_key(video_id, db)
+    bucket = _hls_bucket()
+    dir_prefix = _dir_prefix(manifest_key)
+    sub_key = dir_prefix + filename
+    try:
+        raw = await run_in_threadpool(_fetch_s3_text, bucket, sub_key)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Sub-playlist not found.")
+    except (BotoCoreError, ClientError) as exc:
+        logger.error("S3 error fetching trailer sub-playlist %s: %s", sub_key, exc)
+        raise HTTPException(status_code=502, detail="Storage error.")
+    content = await run_in_threadpool(_rewrite_sub_playlist, raw, dir_prefix, bucket, video_id, None)
+    return Response(
+        content=content,
+        media_type=_HLS_CONTENT_TYPE,
+        headers={"Cache-Control": "no-store, no-cache"},
+    )
 
 @router.get(
     "/{video_id}/manifest.m3u8",
@@ -228,9 +330,8 @@ async def proxy_master_manifest(
     if not settings.AWS_S3_BUCKET:
         raise HTTPException(status_code=503, detail="S3 storage not configured.")
 
-    video = await _get_active_video(video_id, token, db)
+    _, key = await _get_active_video(video_id, token, db)
     bucket = _hls_bucket()
-    key: str = video.hls_manifest_key  # type: ignore[assignment]
 
     try:
         raw = await run_in_threadpool(_fetch_s3_text, bucket, key)
@@ -270,11 +371,11 @@ async def proxy_sub_playlist(
     if not settings.AWS_S3_BUCKET:
         raise HTTPException(status_code=503, detail="S3 storage not configured.")
 
-    video = await _get_active_video(video_id, token, db)
+    _, manifest_key = await _get_active_video(video_id, token, db)
     bucket = _hls_bucket()
-    dir_prefix = _dir_prefix(video.hls_manifest_key)  # type: ignore[arg-type]
+    dir_prefix = _dir_prefix(manifest_key)
 
-    if not filename.endswith(".m3u8"):
+    if not filename.endswith(".m3u8") or "/" in filename or ".." in filename:
         raise HTTPException(status_code=404)
 
     sub_key = dir_prefix + filename
@@ -286,7 +387,7 @@ async def proxy_sub_playlist(
         logger.error("S3 error fetching sub-playlist %s: %s", sub_key, exc)
         raise HTTPException(status_code=502, detail="Storage error.")
 
-    content = await run_in_threadpool(_rewrite_sub_playlist, raw, dir_prefix, bucket, token)
+    content = await run_in_threadpool(_rewrite_sub_playlist, raw, dir_prefix, bucket, video_id, token)
     return Response(
         content=content,
         media_type=_HLS_CONTENT_TYPE,

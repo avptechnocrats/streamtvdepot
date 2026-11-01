@@ -31,11 +31,13 @@ import json
 import logging
 import uuid
 from datetime import datetime, timezone
+from urllib.parse import unquote, urlparse
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -49,13 +51,15 @@ from app.core.drm import (
     key_as_hex,
 )
 from app.core.mediaconvert import (
+    PREVIEW_PROFILE,
     create_hls_job,
     get_job_status,
     hls_manifest_s3_key,
     hls_manifest_url,
     invalidate_cloudfront_hls,
+    is_preview_profile,
 )
-from app.models.client.content import Video, TranscodeJob
+from app.models.client.content import MediaAsset, MediaAssetRendition, Video, TranscodeJob
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -67,6 +71,7 @@ class TriggerResponse(BaseModel):
     video_id: str
     transcode_job_id: str
     transcode_status: str
+    transcode_progress: int | None = 0
     drm_enabled: bool
     message: str
 
@@ -136,13 +141,17 @@ async def _submit_mediaconvert_job(
     s3_key: str,
     client_slug: str,
     drm_enabled: bool,
+    asset_rendition_id: str | None = None,
+    profile: str | None = None,
 ) -> None:
     """
     Background task: submit a MediaConvert job, update the Video row,
     and write a full audit record to transcode_jobs.
     Opens its own DB session — the request session is already closed by the time
     FastAPI runs background tasks.
+    Preview (trailer) jobs only touch the rendition and job rows, never the video's own transcode fields.
     """
+    preview = is_preview_profile(profile)
     loop = asyncio.get_event_loop()
     async with AsyncSessionLocal() as db:
         try:
@@ -153,7 +162,7 @@ async def _submit_mediaconvert_job(
             if drm_enabled:
                 raw_key = generate_aes128_key()
                 drm_key_hex = key_as_hex(raw_key)
-                drm_key_url = _drm_key_url(video_id)
+                drm_key_url = _drm_key_url(asset_rendition_id or video_id)
                 encrypted_key = encrypt_key(raw_key)
 
             # boto3 is synchronous – run in thread pool to avoid blocking the event loop
@@ -163,8 +172,10 @@ async def _submit_mediaconvert_job(
                     input_s3_key=s3_key,
                     client_slug=client_slug,
                     video_id=video_id,
+                    asset_rendition_id=asset_rendition_id,
                     drm_key_hex=drm_key_hex,
                     drm_key_url=drm_key_url,
+                    profile=profile,
                 ),
             )
 
@@ -173,12 +184,24 @@ async def _submit_mediaconvert_job(
             # Update Video row
             result = await db.execute(select(Video).where(Video.id == uuid.UUID(video_id)))
             video = result.scalar_one_or_none()
-            if video:
+            if video and not preview:
                 video.transcode_job_id = job_id
                 video.transcode_status = "processing"
                 video.transcode_progress = 0
-                if encrypted_key:
-                    video.drm_key_encrypted = encrypted_key
+                video.drm_key_encrypted = encrypted_key
+
+            if asset_rendition_id:
+                result = await db.execute(
+                    select(MediaAssetRendition).where(
+                        MediaAssetRendition.id == uuid.UUID(asset_rendition_id)
+                    )
+                )
+                rendition = result.scalar_one_or_none()
+                if rendition:
+                    rendition.mediaconvert_job_id = job_id
+                    rendition.status = "processing"
+                    rendition.progress = 0
+                    rendition.drm_key_encrypted = encrypted_key
 
             # Update TranscodeJob row
             result = await db.execute(
@@ -202,9 +225,25 @@ async def _submit_mediaconvert_job(
 
                 result = await db.execute(select(Video).where(Video.id == uuid.UUID(video_id)))
                 video = result.scalar_one_or_none()
-                if video:
+                if video and not preview:
                     video.transcode_status = "failed"
                     video.transcode_job_id = f"error:{error_detail[:240]}"
+
+                if asset_rendition_id:
+                    result = await db.execute(
+                        select(MediaAssetRendition).where(
+                            MediaAssetRendition.id == uuid.UUID(asset_rendition_id)
+                        )
+                    )
+                    rendition = result.scalar_one_or_none()
+                    if rendition:
+                        rendition.status = "failed"
+                        rendition.error_message = error_detail
+                        await db.execute(
+                            update(Video)
+                            .where(Video.media_asset_rendition_id == rendition.id)
+                            .values(transcode_status="failed")
+                        )
 
                 result = await db.execute(
                     select(TranscodeJob).where(TranscodeJob.id == uuid.UUID(job_row_id))
@@ -240,8 +279,6 @@ async def trigger_transcode(
     The video must already have a raw ``video_url`` set (uploaded to S3).
     The job runs in the background; poll GET /status to track progress.
     """
-    _check_mediaconvert_config()
-
     video = await _get_video_for_client(video_id, admin._client_id, db)
 
     if not video.video_url:
@@ -253,27 +290,122 @@ async def trigger_transcode(
     # Derive the S3 key from the stored URL
     # URL format: https://{bucket}.s3.{region}.amazonaws.com/{key}
     try:
-        from urllib.parse import urlparse
-        s3_key = urlparse(video.video_url).path.lstrip("/")
+        s3_key = unquote(urlparse(video.video_url).path.lstrip("/"))
     except Exception:
         raise HTTPException(status_code=400, detail="Could not parse video_url into S3 key.")
 
     if not s3_key:
         raise HTTPException(status_code=400, detail="Could not derive S3 key from video_url.")
 
+    rendition: MediaAssetRendition | None = None
+    asset_result = await db.execute(
+        select(MediaAsset)
+        .where(
+            MediaAsset.client_id == admin._client_id,
+            MediaAsset.s3_key == s3_key,
+            MediaAsset.content_type.like("video/%"),
+        )
+        .order_by(MediaAsset.created_at.desc())
+        .limit(1)
+    )
+    asset = asset_result.scalar_one_or_none()
+    rendition_id: str | None = None
+    created_rendition = False
+    if asset:
+        profile = "abr_hls_v1_drm" if payload.enable_drm else "abr_hls_v1_clear"
+        insert_result = await db.execute(
+            pg_insert(MediaAssetRendition)
+            .values(
+                client_id=admin._client_id,
+                media_asset_id=asset.id,
+                source_s3_key=s3_key,
+                profile=profile,
+                status="pending",
+                progress=0,
+            )
+            .on_conflict_do_nothing(constraint="uq_media_asset_rendition_source_profile")
+            .returning(MediaAssetRendition.id)
+        )
+        created_rendition = insert_result.scalar_one_or_none() is not None
+        rendition_result = await db.execute(
+            select(MediaAssetRendition)
+            .where(
+                MediaAssetRendition.client_id == admin._client_id,
+                MediaAssetRendition.source_s3_key == s3_key,
+                MediaAssetRendition.profile == profile,
+            )
+            .with_for_update()
+        )
+        rendition = rendition_result.scalar_one()
+        rendition_id = str(rendition.id)
+        rendition.media_asset_id = asset.id
+
+        if rendition.status == "complete" and rendition.hls_manifest_key:
+            video.transcode_status = "complete"
+            video.transcode_progress = 100
+            video.hls_manifest_key = rendition.hls_manifest_key
+            video.hls_url = rendition.hls_url
+            video.media_asset_rendition_id = rendition.id
+            video.drm_key_encrypted = rendition.drm_key_encrypted
+            video.transcode_job_id = rendition.mediaconvert_job_id
+            await db.commit()
+            return TriggerResponse(
+                video_id=video_id,
+                transcode_job_id=rendition.mediaconvert_job_id or "reused",
+                transcode_status="complete",
+                transcode_progress=100,
+                drm_enabled=bool(rendition.drm_key_encrypted),
+                message="Existing asset rendition reused.",
+            )
+
+        if not created_rendition and rendition.status in {"pending", "processing"}:
+            video.transcode_status = rendition.status
+            video.transcode_progress = rendition.progress or 0
+            video.hls_manifest_key = rendition.hls_manifest_key
+            video.hls_url = rendition.hls_url
+            video.media_asset_rendition_id = rendition.id
+            video.drm_key_encrypted = rendition.drm_key_encrypted
+            video.transcode_job_id = rendition.mediaconvert_job_id
+            await db.commit()
+            return TriggerResponse(
+                video_id=video_id,
+                transcode_job_id=rendition.mediaconvert_job_id or "pending",
+                transcode_status=rendition.status,
+                transcode_progress=rendition.progress or 0,
+                drm_enabled=payload.enable_drm,
+                message="An asset rendition is already in progress.",
+            )
+
+    _check_mediaconvert_config()
+
     # Mark as pending immediately so the UI can start polling
     video.transcode_status = "pending"
     video.transcode_progress = 0
+    video.hls_manifest_key = None
+    video.hls_url = None
+    video.drm_key_encrypted = None
+    if rendition:
+        video.media_asset_rendition_id = rendition.id
+        rendition.status = "pending"
+        rendition.progress = 0
+        rendition.error_message = None
+        rendition.mediaconvert_job_id = None
+        rendition.drm_key_encrypted = None
 
     client_slug = getattr(admin, "_client_slug", "") or str(admin._client_id)
     from app.core.mediaconvert import _hls_output_destination
-    output_prefix = _hls_output_destination(client_slug, video_id)
+    output_id = rendition_id or video_id
+    output_prefix = _hls_output_destination(client_slug, output_id)
 
     # Reuse the most recent job row for this video (e.g. on retry after failure)
     # rather than creating a new row every time the button is clicked.
     existing = await db.execute(
         select(TranscodeJob)
-        .where(TranscodeJob.video_id == uuid.UUID(video_id))
+        .where(
+            TranscodeJob.media_asset_rendition_id == uuid.UUID(rendition_id)
+            if rendition_id
+            else TranscodeJob.video_id == uuid.UUID(video_id)
+        )
         .order_by(TranscodeJob.created_at.desc())
         .limit(1)
     )
@@ -293,10 +425,12 @@ async def trigger_transcode(
         job_row.input_s3_key = s3_key
         job_row.output_s3_prefix = output_prefix
         job_row.drm_enabled = payload.enable_drm
+        job_row.media_asset_rendition_id = uuid.UUID(rendition_id) if rendition_id else None
     else:
         job_row = TranscodeJob(
             client_id=admin._client_id,
             video_id=uuid.UUID(video_id),
+            media_asset_rendition_id=uuid.UUID(rendition_id) if rendition_id else None,
             input_s3_key=s3_key,
             output_s3_prefix=output_prefix,
             status="pending",
@@ -316,12 +450,14 @@ async def trigger_transcode(
         s3_key=s3_key,
         client_slug=client_slug,
         drm_enabled=payload.enable_drm,
+        asset_rendition_id=rendition_id,
     )
 
     return TriggerResponse(
         video_id=video_id,
         transcode_job_id="pending",
         transcode_status="pending",
+        transcode_progress=0,
         drm_enabled=payload.enable_drm,
         message="Transcoding job queued. Poll /status for progress.",
     )
@@ -338,6 +474,23 @@ async def get_transcode_status(
     """Return the current transcode status stored in the DB."""
     video = await _get_video_for_client(video_id, admin._client_id, db)
 
+    if video.media_asset_rendition_id:
+        rendition_result = await db.execute(
+            select(MediaAssetRendition).where(
+                MediaAssetRendition.id == video.media_asset_rendition_id
+            )
+        )
+        rendition = rendition_result.scalar_one_or_none()
+        if rendition:
+            return StatusResponse(
+                video_id=video_id,
+                transcode_status=rendition.status,
+                transcode_progress=rendition.progress,
+                hls_url=rendition.hls_url,
+                drm_enabled=bool(rendition.drm_key_encrypted),
+                error_message=rendition.error_message,
+            )
+
     # If transcode_job_id starts with "error:" it's a stored failure reason, not a real job ID
     error_message: str | None = None
     if video.transcode_status == "failed" and video.transcode_job_id and video.transcode_job_id.startswith("error:"):
@@ -351,6 +504,157 @@ async def get_transcode_status(
         drm_enabled=bool(video.drm_key_encrypted),
         error_message=error_message,
     )
+
+
+# ─── Trailer preview (public, clear HLS) ───────────────────────────────────────
+
+class TrailerStatusResponse(BaseModel):
+    video_id: str
+    status: str | None
+    progress: int | None = None
+    error_message: str | None = None
+
+
+def _trailer_status(video_id: str, rendition: MediaAssetRendition | None) -> TrailerStatusResponse:
+    return TrailerStatusResponse(
+        video_id=video_id,
+        status=rendition.status if rendition else None,
+        progress=rendition.progress if rendition else None,
+        error_message=rendition.error_message if rendition else None,
+    )
+
+
+@router.post("/videos/{video_id}/trailer/trigger", response_model=TrailerStatusResponse)
+async def trigger_trailer_transcode(
+    video_id: str,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    admin=Depends(get_current_client_admin),
+):
+    """
+    Build a public, DRM-free HLS preview of the video's uploaded trailer.
+
+    Idempotent per tenant + source file: a completed rendition is reused and an in-flight one is joined,
+    so the same trailer file used on several videos is only encoded once.
+    """
+    video = await _get_video_for_client(video_id, admin._client_id, db)
+    if video.trailer_type != "upload" or not video.trailer_url:
+        raise HTTPException(status_code=400, detail="This video has no uploaded trailer.")
+
+    s3_key = unquote(urlparse(video.trailer_url).path.lstrip("/"))
+    if not s3_key:
+        raise HTTPException(status_code=400, detail="Could not derive S3 key from trailer_url.")
+
+    asset_result = await db.execute(
+        select(MediaAsset.id)
+        .where(MediaAsset.client_id == admin._client_id, MediaAsset.s3_key == s3_key)
+        .limit(1)
+    )
+    insert_result = await db.execute(
+        pg_insert(MediaAssetRendition)
+        .values(
+            client_id=admin._client_id,
+            media_asset_id=asset_result.scalar_one_or_none(),
+            source_s3_key=s3_key,
+            profile=PREVIEW_PROFILE,
+            status="pending",
+            progress=0,
+        )
+        .on_conflict_do_nothing(constraint="uq_media_asset_rendition_source_profile")
+        .returning(MediaAssetRendition.id)
+    )
+    created = insert_result.scalar_one_or_none() is not None
+    rendition = (await db.execute(
+        select(MediaAssetRendition)
+        .where(
+            MediaAssetRendition.client_id == admin._client_id,
+            MediaAssetRendition.source_s3_key == s3_key,
+            MediaAssetRendition.profile == PREVIEW_PROFILE,
+        )
+        .with_for_update()
+    )).scalar_one()
+    video.trailer_rendition_id = rendition.id
+
+    if rendition.status == "complete" and rendition.hls_manifest_key:
+        await db.commit()
+        return _trailer_status(video_id, rendition)
+    if not created and rendition.status in {"pending", "processing"}:
+        await db.commit()
+        return _trailer_status(video_id, rendition)
+
+    _check_mediaconvert_config()
+
+    rendition.status = "pending"
+    rendition.progress = 0
+    rendition.error_message = None
+    rendition.mediaconvert_job_id = None
+
+    client_slug = getattr(admin, "_client_slug", "") or str(admin._client_id)
+    from app.core.mediaconvert import _hls_output_destination
+    output_prefix = _hls_output_destination(client_slug, str(rendition.id))
+
+    job_row = (await db.execute(
+        select(TranscodeJob)
+        .where(TranscodeJob.media_asset_rendition_id == rendition.id)
+        .order_by(TranscodeJob.created_at.desc())
+        .limit(1)
+    )).scalar_one_or_none()
+    if job_row:
+        job_row.status = "pending"
+        job_row.mediaconvert_job_id = None
+        job_row.mediaconvert_queue = None
+        job_row.hls_url = None
+        job_row.progress = 0
+        job_row.error_code = None
+        job_row.error_message = None
+        job_row.submitted_at = None
+        job_row.started_at = None
+        job_row.completed_at = None
+        job_row.input_s3_key = s3_key
+        job_row.output_s3_prefix = output_prefix
+        job_row.drm_enabled = False
+    else:
+        job_row = TranscodeJob(
+            client_id=admin._client_id,
+            video_id=video.id,
+            media_asset_rendition_id=rendition.id,
+            input_s3_key=s3_key,
+            output_s3_prefix=output_prefix,
+            status="pending",
+            drm_enabled=False,
+        )
+        db.add(job_row)
+
+    await db.commit()
+    await db.refresh(job_row)
+
+    background_tasks.add_task(
+        _submit_mediaconvert_job,
+        video_id=video_id,
+        client_id=str(admin._client_id),
+        job_row_id=str(job_row.id),
+        s3_key=s3_key,
+        client_slug=client_slug,
+        drm_enabled=False,
+        asset_rendition_id=str(rendition.id),
+        profile=PREVIEW_PROFILE,
+    )
+    return _trailer_status(video_id, rendition)
+
+
+@router.get("/videos/{video_id}/trailer/status", response_model=TrailerStatusResponse)
+async def get_trailer_status(
+    video_id: str,
+    db: AsyncSession = Depends(get_db),
+    admin=Depends(get_current_client_admin),
+):
+    video = await _get_video_for_client(video_id, admin._client_id, db)
+    rendition = None
+    if video.trailer_rendition_id:
+        rendition = (await db.execute(
+            select(MediaAssetRendition).where(MediaAssetRendition.id == video.trailer_rendition_id)
+        )).scalar_one_or_none()
+    return _trailer_status(video_id, rendition)
 
 
 # ─── GET /key-token ────────────────────────────────────────────────────────────
@@ -433,6 +737,7 @@ async def mediaconvert_webhook(
     progress: int = detail.get("jobProgress", {}).get("jobPercentComplete", 0)
     user_meta: dict = detail.get("userMetadata", {})
     video_id_str: str | None = user_meta.get("video_id")
+    rendition_id_str: str | None = user_meta.get("asset_rendition_id")
 
     if not job_id or not video_id_str:
         # Not a MediaConvert event we care about
@@ -443,53 +748,131 @@ async def mediaconvert_webhook(
     except ValueError:
         return {"ignored": True}
 
-    result = await db.execute(
-        select(Video).where(Video.id == video_uuid, Video.transcode_job_id == job_id)
-    )
-    video = result.scalar_one_or_none()
-    if not video:
-        return {"ignored": True}
+    rendition: MediaAssetRendition | None = None
+    if rendition_id_str:
+        try:
+            rendition_uuid = uuid.UUID(rendition_id_str)
+        except ValueError:
+            return {"ignored": True}
+        rendition_result = await db.execute(
+            select(MediaAssetRendition).where(
+                MediaAssetRendition.id == rendition_uuid,
+                MediaAssetRendition.mediaconvert_job_id == job_id,
+            )
+        )
+        rendition = rendition_result.scalar_one_or_none()
+        if not rendition:
+            return {"ignored": True}
+        video_result = await db.execute(select(Video).where(Video.id == video_uuid))
+        video = video_result.scalar_one_or_none()
+        # A trailer preview is independent of the video's own stream state.
+        if is_preview_profile(rendition.profile):
+            video = None
+    else:
+        result = await db.execute(
+            select(Video).where(Video.id == video_uuid, Video.transcode_job_id == job_id)
+        )
+        video = result.scalar_one_or_none()
+        if not video:
+            return {"ignored": True}
 
     # Also fetch the matching TranscodeJob row for the audit log
-    job_result = await db.execute(
-        select(TranscodeJob).where(
-            TranscodeJob.video_id == video_uuid,
-            TranscodeJob.mediaconvert_job_id == job_id,
-        )
-    )
+    job_filters = [TranscodeJob.mediaconvert_job_id == job_id]
+    if rendition:
+        job_filters.append(TranscodeJob.media_asset_rendition_id == rendition.id)
+    else:
+        job_filters.append(TranscodeJob.video_id == video_uuid)
+    job_result = await db.execute(select(TranscodeJob).where(*job_filters))
     job_row = job_result.scalar_one_or_none()
     now = datetime.now(timezone.utc)
+    output_id = str(rendition.id) if rendition else video_id_str
+    client_id = rendition.client_id if rendition else video.client_id
+    client_slug = user_meta.get("client_slug", str(client_id))
 
     if mc_status == "COMPLETE":
-        client_slug = user_meta.get("client_slug", str(video.client_id))
-        video.transcode_status = "complete"
-        video.transcode_progress = 100
-        video.hls_manifest_key = hls_manifest_s3_key(client_slug, video_id_str)
-        video.hls_url = hls_manifest_url(client_slug, video_id_str)
+        manifest_key = hls_manifest_s3_key(client_slug, output_id)
+        manifest_url = hls_manifest_url(client_slug, output_id)
+        if rendition:
+            rendition.status = "complete"
+            rendition.progress = 100
+            rendition.hls_manifest_key = manifest_key
+            rendition.hls_url = manifest_url
+            rendition.error_message = None
+        if video:
+            video.transcode_status = "complete"
+            video.transcode_progress = 100
+            video.hls_manifest_key = manifest_key
+            video.hls_url = manifest_url
+            if rendition:
+                video.media_asset_rendition_id = rendition.id
+                video.drm_key_encrypted = rendition.drm_key_encrypted
+        if rendition:
+            await db.execute(
+                update(Video)
+                .where(Video.media_asset_rendition_id == rendition.id)
+                .values(
+                    transcode_status="complete",
+                    transcode_progress=100,
+                    hls_manifest_key=manifest_key,
+                    hls_url=manifest_url,
+                    drm_key_encrypted=rendition.drm_key_encrypted,
+                )
+            )
         if job_row:
             job_row.status = "complete"
             job_row.progress = 100
-            job_row.hls_url = video.hls_url
+            job_row.hls_url = manifest_url
             job_row.completed_at = now
     elif mc_status == "ERROR":
         error_msg = detail.get("errorMessage") or detail.get("errorCode") or "Unknown error"
-        video.transcode_status = "failed"
-        video.transcode_progress = progress
-        video.transcode_job_id = f"error:{error_msg[:240]}"
+        if rendition:
+            rendition.status = "failed"
+            rendition.progress = progress
+            rendition.error_message = error_msg
+        if video:
+            video.transcode_status = "failed"
+            video.transcode_progress = progress
+            video.transcode_job_id = f"error:{error_msg[:240]}"
+        if rendition:
+            await db.execute(
+                update(Video)
+                .where(Video.media_asset_rendition_id == rendition.id)
+                .values(transcode_status="failed", transcode_progress=progress)
+            )
         if job_row:
             job_row.status = "failed"
             job_row.error_code = detail.get("errorCode")
             job_row.error_message = detail.get("errorMessage") or error_msg
             job_row.completed_at = now
     elif mc_status == "CANCELED":
-        video.transcode_status = "failed"
+        if rendition:
+            rendition.status = "failed"
+            rendition.error_message = "MediaConvert job canceled."
+        if video:
+            video.transcode_status = "failed"
+        if rendition:
+            await db.execute(
+                update(Video)
+                .where(Video.media_asset_rendition_id == rendition.id)
+                .values(transcode_status="failed")
+            )
         if job_row:
             job_row.status = "canceled"
             job_row.completed_at = now
     else:
         # PROGRESSING / SUBMITTED – just update progress
-        video.transcode_status = "processing"
-        video.transcode_progress = progress
+        if rendition:
+            rendition.status = "processing"
+            rendition.progress = progress
+        if video:
+            video.transcode_status = "processing"
+            video.transcode_progress = progress
+        if rendition:
+            await db.execute(
+                update(Video)
+                .where(Video.media_asset_rendition_id == rendition.id)
+                .values(transcode_status="processing", transcode_progress=progress)
+            )
         if job_row:
             job_row.status = "processing"
             job_row.progress = progress
@@ -497,16 +880,15 @@ async def mediaconvert_webhook(
                 job_row.started_at = now
 
     await db.commit()
-    logger.info("Webhook: job %s → status %s (video %s)", job_id, mc_status, video_id_str)
+    logger.info("Webhook: job %s → status %s (rendition %s)", job_id, mc_status, output_id)
 
     # Invalidate CloudFront cache when a new HLS package is ready so that
     # stale segments (encrypted with the previous DRM key) are not served.
     if mc_status == "COMPLETE":
-        client_slug = user_meta.get("client_slug", str(video.client_id))
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None,
-            lambda: invalidate_cloudfront_hls(client_slug, video_id_str),
+            lambda: invalidate_cloudfront_hls(client_slug, output_id),
         )
 
     return {"ok": True}

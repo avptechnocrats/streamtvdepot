@@ -14,6 +14,8 @@ export interface MediaAsset {
     content_type: string;
     width: number | null;
     height: number | null;
+    transcode_status?: "pending" | "processing" | "complete" | "failed" | null;
+    transcode_progress?: number | null;
 }
 
 const LIB_PAGE_SIZE = 20;

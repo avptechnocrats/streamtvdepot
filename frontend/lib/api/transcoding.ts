@@ -30,6 +30,7 @@ export interface TriggerResponse {
     video_id: string;
     transcode_job_id: string;
     transcode_status: string;
+    transcode_progress?: number | null;
     drm_enabled: boolean;
     message: string;
 }
@@ -46,6 +47,14 @@ export interface TranscodeStatusResponse {
 export interface KeyTokenResponse {
     token: string;
     video_id: string;
+}
+
+/** Public, DRM-free HLS preview of a video's uploaded trailer. */
+export interface TrailerStatusResponse {
+    video_id: string;
+    status: "pending" | "processing" | "complete" | "failed" | null;
+    progress: number | null;
+    error_message: string | null;
 }
 
 // ─── API calls ────────────────────────────────────────────────────────────────
@@ -66,6 +75,24 @@ export async function getTranscodeStatus(
 ): Promise<TranscodeStatusResponse> {
     const { data } = await apiClient.get<TranscodeStatusResponse>(
         ENDPOINTS.admin.transcoding.status(videoId),
+    );
+    return data;
+}
+
+export async function triggerTrailerTranscode(
+    videoId: string,
+): Promise<TrailerStatusResponse> {
+    const { data } = await apiClient.post<TrailerStatusResponse>(
+        ENDPOINTS.admin.transcoding.trailerTrigger(videoId),
+    );
+    return data;
+}
+
+export async function getTrailerTranscodeStatus(
+    videoId: string,
+): Promise<TrailerStatusResponse> {
+    const { data } = await apiClient.get<TrailerStatusResponse>(
+        ENDPOINTS.admin.transcoding.trailerStatus(videoId),
     );
     return data;
 }

@@ -29,7 +29,7 @@ import MediaLibraryModal from "./MediaLibraryModal";
 import { AiWriteButton } from "@/components/AiWriteButton";
 import { CategoryPicker } from "@/components/CategoryPicker";
 import VideoPlayer from "@/components/VideoPlayer";
-import { getDrmKeyToken, getTranscodeStatus, triggerTranscode } from "@/lib/api/transcoding";
+import { getDrmKeyToken, getTranscodeStatus, getTrailerTranscodeStatus, triggerTranscode, triggerTrailerTranscode, type TrailerStatusResponse } from "@/lib/api/transcoding";
 import { uploadAssetToS3 } from "@/lib/upload/s3-upload";
 import { getApiErrorMessage } from "@/lib/api/error-utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -403,6 +403,58 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
     return <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">{children}</h3>;
 }
 
+// S3 and CDN URLs for one object differ by host/query but share the same path.
+function mediaObjectKey(url: string): string {
+    try {
+        return decodeURIComponent(new URL(url).pathname).replace(/^\/+/, "");
+    } catch {
+        return stripQuery(url);
+    }
+}
+
+// Only an uploaded trailer is optimized; external links (e.g. YouTube) are left alone.
+function trailerKey(type: string | null | undefined, url: string | null | undefined): string {
+    return type === "upload" && url ? mediaObjectKey(url) : "";
+}
+
+function TrailerOptimization({ status, unsaved, onOptimize }: {
+    status: TrailerStatusResponse["status"];
+    unsaved: boolean;
+    onOptimize: () => void;
+}) {
+    if (unsaved) {
+        return <p className="text-[11px] text-muted-foreground">The trailer is optimized for streaming when you save this video.</p>;
+    }
+    if (status === "complete") {
+        return (
+            <p className="flex items-center gap-1.5 text-[11px] text-emerald-500">
+                <CheckCircle2 size={12} /> Optimized for adaptive streaming
+            </p>
+        );
+    }
+    if (status === "pending" || status === "processing") {
+        return (
+            <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <Loader2 size={12} className="animate-spin" /> Optimizing for streaming… visitors get the original file until it is ready.
+            </p>
+        );
+    }
+    return (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+            <p className="text-[11px] text-muted-foreground">
+                {status === "failed" ? "Optimization failed." : "Not optimized yet — visitors stream the original file."}
+            </p>
+            <button
+                type="button"
+                onClick={onOptimize}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
+            >
+                <Zap size={11} /> {status === "failed" ? "Retry" : "Optimize now"}
+            </button>
+        </div>
+    );
+}
+
 // ─── Media asset type ────────────────────────────────────────────────────────
 
 // ─── S3 Image upload field (presign → PUT → confirm) ─────────────────────────
@@ -586,6 +638,8 @@ interface S3VideoFieldProps {
     hint: string;
     accept: string;
     value: string;
+    previewSourceOnly?: boolean;
+    initialDisplayUrl?: string;
     thumbnailUrl?: string;
     streamPreviewUrl?: string | null;
     streamVideoId?: string;
@@ -616,7 +670,7 @@ function detectVideoDuration(file: File): Promise<number | null> {
     });
 }
 
-function S3VideoField({ label, hint, accept, value, thumbnailUrl, streamPreviewUrl, streamVideoId, streamDrmKeyToken, transcodeStatus, transcodeProgress, onRetryTranscode, onChange, onBeforeUpload, onDurationDetected }: S3VideoFieldProps) {
+function S3VideoField({ label, hint, accept, value, thumbnailUrl, previewSourceOnly, initialDisplayUrl, streamPreviewUrl, streamVideoId, streamDrmKeyToken, transcodeStatus, transcodeProgress, onRetryTranscode, onChange, onBeforeUpload, onDurationDetected }: S3VideoFieldProps) {
     const [uploading, setUploading] = useState(false);
     const [progressPct, setProgressPct] = useState(0);
     const [uploadedBytes, setUploadedBytes] = useState(0);
@@ -722,7 +776,7 @@ function S3VideoField({ label, hint, accept, value, thumbnailUrl, streamPreviewU
         await handleFile(failedFile);
     }, [failedFile, handleFile]);
 
-    const previewUrl = displayUrl || value;
+    const previewUrl = displayUrl || initialDisplayUrl || value;
     const streamReady = Boolean(streamPreviewUrl && streamVideoId);
     const isProcessing = transcodeStatus === "pending" || transcodeStatus === "processing";
     const isFailed = transcodeStatus === "failed";
@@ -735,7 +789,15 @@ function S3VideoField({ label, hint, accept, value, thumbnailUrl, streamPreviewU
                 <div className="space-y-2">
                     {/* Preview lifecycle: complete → inline HLS player, processing → status, failed → retry */}
                     <div className="relative rounded-xl overflow-hidden border border-border bg-black">
-                        {streamReady ? (
+                        {previewSourceOnly ? (
+                            <video
+                                src={previewUrl}
+                                controls
+                                playsInline
+                                preload="metadata"
+                                className="aspect-video w-full bg-black object-contain"
+                            />
+                        ) : streamReady ? (
                             <VideoPlayer
                                 src={streamPreviewUrl!}
                                 videoId={streamVideoId}
@@ -876,7 +938,11 @@ function S3VideoField({ label, hint, accept, value, thumbnailUrl, streamPreviewU
                 onClose={() => setPickerOpen(false)}
                 filterType="video"
                 onUploadFile={(file) => { handleFile(file); }}
-                onSelect={(url) => { lastValueRef.current = stripQuery(url); setDisplayUrl(url); onChange(stripQuery(url)); }}
+                onSelect={(url) => {
+                    lastValueRef.current = stripQuery(url);
+                    setDisplayUrl(url);
+                    onChange(stripQuery(url));
+                }}
                 usedUrls={value ? [value] : []}
             />
         </div>
@@ -1200,7 +1266,7 @@ interface VideoFormProps {
     mode: "create" | "edit";
     videoId?: string;
     defaultValues?: VideoFormValues;
-    previewVideo?: Pick<VideoOut, "hls_url" | "drm_enabled" | "thumbnails" | "transcode_status" | "transcode_progress">;
+    previewVideo?: Pick<VideoOut, "hls_url" | "drm_enabled" | "thumbnails" | "transcode_status" | "transcode_progress" | "trailer_url" | "trailer_display_url" | "trailer_transcode_status">;
 }
 
 const DEFAULT_FORM_VALUES: VideoFormValues = {
@@ -1272,6 +1338,8 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
     const [previewVideoId, setPreviewVideoId] = useState<string | undefined>(videoId);
     const [transcodeStatus, setTranscodeStatus] = useState<VideoOut["transcode_status"]>(previewVideo?.transcode_status ?? null);
     const [transcodeProgress, setTranscodeProgress] = useState<number>(previewVideo?.transcode_progress ?? 0);
+    const [trailerStatus, setTrailerStatus] = useState<TrailerStatusResponse["status"]>(previewVideo?.trailer_transcode_status ?? null);
+    const [savedTrailerKey, setSavedTrailerKey] = useState(trailerKey(defaultValues?.trailer_type, defaultValues?.trailer_url));
 
     // Build the CORS-safe HLS stream URL (+ DRM token), the same way the listing preview does.
     const buildStreamPreview = useCallback(async (id: string) => {
@@ -1314,16 +1382,58 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
         const id = previewVideoId ?? persistedVideoIdRef.current;
         if (!id) return;
         try {
-            await triggerTranscode(id);
+            const result = await triggerTranscode(id);
             setPreviewVideoId(id);
             setStreamPreviewUrl(null);
-            setTranscodeStatus("pending");
-            setTranscodeProgress(0);
-            toast({ title: "Transcoding started", description: "Preparing the streaming render. The preview will appear when ready." });
+            setTranscodeStatus(result.transcode_status as VideoOut["transcode_status"]);
+            setTranscodeProgress(result.transcode_progress ?? 0);
+            if (result.transcode_status === "complete" && previewVideoId === id && transcodeStatus === "complete") {
+                void buildStreamPreview(id);
+            }
+            toast({
+                title: result.transcode_status === "complete" ? "Existing stream reused" : "Transcoding started",
+                description: result.transcode_status === "complete"
+                    ? "The existing asset rendition is ready to preview."
+                    : "Preparing the streaming render. The preview will appear when ready.",
+            });
         } catch (err: unknown) {
             toast({ title: "Could not start transcoding", description: getApiErrorMessage(err, "Please try again."), variant: "destructive" });
         }
-    }, [previewVideoId, toast]);
+    }, [buildStreamPreview, previewVideoId, toast, transcodeStatus]);
+
+    const optimizeTrailer = useCallback(async (id: string, quiet = false) => {
+        try {
+            const result = await triggerTrailerTranscode(id);
+            setTrailerStatus(result.status);
+            if (!quiet) {
+                toast({
+                    title: result.status === "complete" ? "Trailer already optimized" : "Optimizing trailer",
+                    description: result.status === "complete"
+                        ? "An existing optimized version is being reused."
+                        : "Visitors get the original file until the streaming version is ready.",
+                });
+            }
+        } catch (err: unknown) {
+            setTrailerStatus("failed");
+            toast({ title: "Could not optimize the trailer", description: getApiErrorMessage(err, "Please try again."), variant: "destructive" });
+        }
+    }, [toast]);
+
+    // Poll while the trailer is being optimized so the status flips to ready on its own.
+    useEffect(() => {
+        const id = persistedVideoIdRef.current;
+        if (!id || (trailerStatus !== "pending" && trailerStatus !== "processing")) return;
+        let cancelled = false;
+        const timer = setInterval(async () => {
+            try {
+                const s = await getTrailerTranscodeStatus(id);
+                if (!cancelled) setTrailerStatus(s.status);
+            } catch {
+                // transient — keep polling
+            }
+        }, 8000);
+        return () => { cancelled = true; clearInterval(timer); };
+    }, [trailerStatus]);
 
     const {
         register,
@@ -1514,6 +1624,7 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
     }, [getValues, setError, setValue, toast]);
 
     const persistVideoUrl = useCallback((url: string) => {
+        if (mediaObjectKey(url) === mediaObjectKey(getValues("video_url") ?? "")) return;
         setValue("video_url", url, { shouldDirty: true });
         if (!url) {
             setStreamPreviewUrl(null);
@@ -1530,9 +1641,13 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
                     transcodeTriggeredUrlRef.current = url;
                     setPreviewVideoId(id);
                     setStreamPreviewUrl(null);
-                    setTranscodeStatus("pending");
-                    setTranscodeProgress(0);
-                    return triggerTranscode(id);
+                    return triggerTranscode(id).then((result) => {
+                        setTranscodeStatus(result.transcode_status as VideoOut["transcode_status"]);
+                        setTranscodeProgress(result.transcode_progress ?? (result.transcode_status === "complete" ? 100 : 0));
+                        if (result.transcode_status === "complete" && previewVideoId === id && transcodeStatus === "complete") {
+                            void buildStreamPreview(id);
+                        }
+                    });
                 })
                 .catch((err: unknown) => {
                     setError("root", { message: getApiErrorMessage(err, "Failed to update video draft") });
@@ -1540,7 +1655,7 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
             pendingAssetSavesRef.current.add(savePromise);
             void savePromise.finally(() => pendingAssetSavesRef.current.delete(savePromise));
         }
-    }, [getValues, mode, setError, setValue]);
+    }, [buildStreamPreview, getValues, mode, previewVideoId, setError, setValue, transcodeStatus]);
 
     const persistThumbnail = useCallback((field: keyof VideoFormValues["thumbnails"], url: string) => {
         setValue(`thumbnails.${field}`, url, { shouldDirty: true });
@@ -1701,6 +1816,13 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
                     description: "Your video is being processed for streaming. This may take several minutes.",
                 });
             }
+
+            // Optimize a new trailer, or one that was never optimized or failed earlier.
+            const savedTrailer = trailerKey(savedVideo.trailer_type, savedVideo.trailer_url);
+            if (savedTrailer && (savedTrailer !== savedTrailerKey || trailerStatus === null || trailerStatus === "failed")) {
+                void optimizeTrailer(savedVideo.id, true);
+            }
+            setSavedTrailerKey(savedTrailer);
 
             toast({
                 title: targetStatus === "draft" ? "Draft saved" : "Video published",
@@ -2576,14 +2698,36 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
                                     )}
                                     {trailerType === "upload" && (
                                         <Controller name="trailer_url" control={control} render={({ field }) => (
-                                            <S3VideoField
-                                                label="Trailer File"
-                                                hint="MP4, MOV up to 500 GB (multipart above 5 GB)"
-                                                accept="video/mp4,video/quicktime,video/*"
-                                                value={field.value ?? ""}
-                                                onChange={field.onChange}
-                                                onBeforeUpload={ensureDraftBeforeUpload}
-                                            />
+                                            <div className="space-y-3">
+                                                <S3VideoField
+                                                    label="Trailer File"
+                                                    hint="MP4, MOV up to 500 GB (multipart above 5 GB)"
+                                                    accept="video/mp4,video/quicktime,video/*"
+                                                    value={field.value ?? ""}
+                                                    previewSourceOnly
+                                                    initialDisplayUrl={
+                                                        previewVideo?.trailer_display_url
+                                                        && mediaObjectKey(previewVideo.trailer_url ?? "") === mediaObjectKey(field.value ?? "")
+                                                            ? previewVideo.trailer_display_url
+                                                            : undefined
+                                                    }
+                                                    onChange={(url) => {
+                                                        field.onChange(url);
+                                                        if (trailerKey("upload", url) !== savedTrailerKey) setTrailerStatus(null);
+                                                    }}
+                                                    onBeforeUpload={ensureDraftBeforeUpload}
+                                                />
+                                                {field.value && (
+                                                    <TrailerOptimization
+                                                        status={trailerStatus}
+                                                        unsaved={trailerKey("upload", field.value) !== savedTrailerKey}
+                                                        onOptimize={() => {
+                                                            const id = persistedVideoIdRef.current;
+                                                            if (id) void optimizeTrailer(id);
+                                                        }}
+                                                    />
+                                                )}
+                                            </div>
                                         )} />
                                     )}
                                 </section>

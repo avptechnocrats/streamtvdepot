@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete, select
@@ -116,10 +116,22 @@ def _freshen_thumbnail_url(raw: str | None) -> str | None:
     return fresh if fresh else raw
 
 
+def _object_key(url: str | None) -> str:
+    return unquote(urlparse(url).path.lstrip("/")) if url else ""
+
+
+def _trailer_source(video: Video) -> str:
+    """Identity of the uploaded trailer file; empty when there is none or it is an external link."""
+    return _object_key(video.trailer_url) if video.trailer_type == "upload" else ""
+
+
 def _enrich_thumbnails(videos: list[Video]) -> list[VideoOut]:
     """Convert ORM Video rows to VideoOut and replace thumbnail URLs with fresh presigned URLs."""
     schemas: list[VideoOut] = [VideoOut.model_validate(v) for v in videos]
-    for s in schemas:
+    for v, s in zip(videos, schemas):
+        s.trailer_display_url = _freshen_thumbnail_url(s.trailer_url) if s.trailer_type == "upload" else None
+        rendition = v.trailer_rendition if s.trailer_type == "upload" else None
+        s.trailer_transcode_status = rendition.status if rendition else None
         t = s.thumbnails
         s.thumbnails = VideoThumbnails(
             video_banner=_freshen_thumbnail_url(t.video_banner),
@@ -345,8 +357,22 @@ async def update_video(
             )
 
     updates = _serialize_nested(updates)
+    video_source_changed = "video_url" in updates and _object_key(updates["video_url"]) != _object_key(video.video_url)
+    previous_trailer = _trailer_source(video)
     for field, value in updates.items():
         setattr(video, field, value)
+
+    if _trailer_source(video) != previous_trailer:
+        video.trailer_rendition = None
+
+    if video_source_changed:
+        video.media_asset_rendition_id = None
+        video.transcode_status = None
+        video.transcode_job_id = None
+        video.transcode_progress = None
+        video.hls_manifest_key = None
+        video.hls_url = None
+        video.drm_key_encrypted = None
 
     # Update relationship if categories were included in the patch
     if category_slugs is not None:

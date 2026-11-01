@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, Enum, Float, ForeignKey, Integer, Numeric, String, Table, Text, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, Enum, Float, ForeignKey, Index, Integer, Numeric, String, Table, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,7 +14,10 @@ from app.models.base import Base, TimestampMixin, UUIDMixin
 class MediaAsset(Base, UUIDMixin, TimestampMixin):
     """S3-uploaded file tracked in the media library."""
     __tablename__ = "media_assets"
-    __table_args__ = (UniqueConstraint("id", "client_id", name="uq_media_assets_id_client"),)
+    __table_args__ = (
+        UniqueConstraint("id", "client_id", name="uq_media_assets_id_client"),
+        Index("ix_media_assets_client_s3_key", "client_id", "s3_key"),
+    )
 
     client_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
@@ -278,8 +281,21 @@ class Video(Base, UUIDMixin, TimestampMixin):
     transcode_progress: Mapped[int | None] = mapped_column(Integer)   # 0-100
     hls_manifest_key: Mapped[str | None] = mapped_column(Text)        # S3 key → master.m3u8
     hls_url: Mapped[str | None] = mapped_column(Text)                 # CDN/S3 playback URL
+    media_asset_rendition_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("media_asset_renditions.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
     # AES-128 DRM: Fernet-encrypted raw key, null when DRM is disabled
     drm_key_encrypted: Mapped[str | None] = mapped_column(Text)
+
+    # Public, clear-HLS preview of the uploaded trailer (separate from the main video's rendition).
+    trailer_rendition_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("media_asset_renditions.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+    trailer_rendition: Mapped["MediaAssetRendition | None"] = relationship(
+        "MediaAssetRendition", foreign_keys=[trailer_rendition_id], lazy="selectin",
+    )
 
 
 # ─── Transcode Job Log ────────────────────────────────────────────────────────
@@ -300,6 +316,10 @@ class TranscodeJob(Base, UUIDMixin, TimestampMixin):
     video_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("content_videos.id", ondelete="CASCADE"),
         nullable=False, index=True,
+    )
+    media_asset_rendition_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("media_asset_renditions.id", ondelete="SET NULL"),
+        nullable=True, index=True,
     )
 
     # AWS MediaConvert identifiers
@@ -325,6 +345,35 @@ class TranscodeJob(Base, UUIDMixin, TimestampMixin):
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class MediaAssetRendition(Base, UUIDMixin, TimestampMixin):
+    """Versioned streaming output for an immutable uploaded media object."""
+    __tablename__ = "media_asset_renditions"
+    __table_args__ = (
+        UniqueConstraint(
+            "client_id", "source_s3_key", "profile",
+            name="uq_media_asset_rendition_source_profile",
+        ),
+    )
+
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    media_asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("media_assets.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+    source_s3_key: Mapped[str] = mapped_column(Text, nullable=False)
+    profile: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    mediaconvert_job_id: Mapped[str | None] = mapped_column(String(255), index=True)
+    progress: Mapped[int | None] = mapped_column(Integer)
+    hls_manifest_key: Mapped[str | None] = mapped_column(Text)
+    hls_url: Mapped[str | None] = mapped_column(Text)
+    drm_key_encrypted: Mapped[str | None] = mapped_column(Text)
+    error_message: Mapped[str | None] = mapped_column(Text)
 
 
 # ─── Series ──────────────────────────────────────────────────────────────────

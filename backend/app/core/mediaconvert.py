@@ -77,6 +77,25 @@ _RENDITIONS = [
     {"height": 360,  "width": 640,  "video_bitrate": 800_000,   "audio_bitrate": 96_000,  "name": "360p"},
 ]
 
+# Trailers and hover previews: short, public, never DRM-protected, so a lighter ladder than the main video is enough.
+_PREVIEW_RENDITIONS = [
+    {"height": 1080, "width": 1920, "video_bitrate": 4_500_000, "audio_bitrate": 96_000, "name": "1080p"},
+    {"height": 720,  "width": 1280, "video_bitrate": 2_500_000, "audio_bitrate": 96_000, "name": "720p"},
+    {"height": 540,  "width": 960,  "video_bitrate": 1_200_000, "audio_bitrate": 96_000, "name": "540p"},
+    {"height": 360,  "width": 640,  "video_bitrate": 600_000,   "audio_bitrate": 64_000, "name": "360p"},
+]
+
+# Bump the version whenever the ladder changes: the profile is part of the rendition dedup key.
+PREVIEW_PROFILE = "preview_hls_v3_clear"
+
+
+def is_preview_profile(profile: str | None) -> bool:
+    return bool(profile) and profile.startswith("preview_hls_")
+
+
+def renditions_for_profile(profile: str | None) -> list[dict]:
+    return _PREVIEW_RENDITIONS if is_preview_profile(profile) else _RENDITIONS
+
 
 def _get_client() -> Any:
     endpoint = _resolve_endpoint()
@@ -199,12 +218,14 @@ def _build_job_settings(
     output_destination: str,
     drm_key_hex: str | None = None,
     drm_key_url: str | None = None,
+    profile: str | None = None,
 ) -> dict:
     """
     Build the complete MediaConvert job settings dict.
 
     drm_key_hex  : 32-char hex string of the 16-byte AES-128 key.
     drm_key_url  : URL baked into #EXT-X-KEY URI of the HLS manifest.
+    profile      : selects the bitrate ladder (full ABR vs. lighter preview).
     """
     hls_group_settings: dict[str, Any] = {
         "Destination": output_destination,
@@ -231,7 +252,7 @@ def _build_job_settings(
             },
         }
 
-    outputs = [_make_video_output(r) for r in _RENDITIONS]
+    outputs = [_make_video_output(r) for r in renditions_for_profile(profile)]
 
     return {
         "TimecodeConfig": {"Source": "ZEROBASED"},
@@ -263,8 +284,10 @@ def create_hls_job(
     input_s3_key: str,
     client_slug: str,
     video_id: str,
+    asset_rendition_id: str | None = None,
     drm_key_hex: str | None = None,
     drm_key_url: str | None = None,
+    profile: str | None = None,
 ) -> str:
     """
     Submit an AWS MediaConvert job to transcode a raw video into ABR HLS.
@@ -274,13 +297,14 @@ def create_hls_job(
     """
     bucket = settings.AWS_S3_BUCKET
     input_uri = f"s3://{bucket}/{input_s3_key}"
-    output_destination = _hls_output_destination(client_slug, video_id)
+    output_destination = _hls_output_destination(client_slug, asset_rendition_id or video_id)
 
     job_settings = _build_job_settings(
         input_s3_uri=input_uri,
         output_destination=output_destination,
         drm_key_hex=drm_key_hex,
         drm_key_url=drm_key_url,
+        profile=profile,
     )
 
     try:
@@ -292,13 +316,14 @@ def create_hls_job(
             UserMetadata={
                 "video_id": video_id,
                 "client_slug": client_slug,
+                **({"asset_rendition_id": asset_rendition_id} if asset_rendition_id else {}),
             },
         )
         job_id: str = response["Job"]["Id"]
-        logger.info("MediaConvert job created: %s for video %s", job_id, video_id)
+        logger.info("MediaConvert job created: %s for rendition %s", job_id, asset_rendition_id or video_id)
         return job_id
     except (BotoCoreError, ClientError) as exc:
-        logger.error("Failed to create MediaConvert job for video %s: %s", video_id, exc)
+        logger.error("Failed to create MediaConvert job for rendition %s: %s", asset_rendition_id or video_id, exc)
         raise RuntimeError(f"MediaConvert job creation failed: {exc}") from exc
 
 

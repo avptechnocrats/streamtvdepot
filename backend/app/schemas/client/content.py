@@ -115,6 +115,8 @@ class MediaAssetOut(BaseModel):
     height: int | None
     created_at: datetime
     in_use: bool = False             # True if referenced by any content; set at serve time
+    transcode_status: str | None = None
+    transcode_progress: int | None = None
 
     model_config = {"from_attributes": True}
 
@@ -435,6 +437,8 @@ class VideoOut(BaseModel):
     thumbnails: VideoThumbnails = Field(default_factory=VideoThumbnails)
     trailer_type: str | None
     trailer_url: str | None
+    trailer_display_url: str | None = None
+    trailer_transcode_status: str | None = None
     access_type: str
     subscription_plan_ids: list[str] = Field(default_factory=list)
     ppv_price: float | None
@@ -506,6 +510,8 @@ class PublicVideoOut(BaseModel):
     thumbnails: VideoThumbnails = Field(default_factory=VideoThumbnails)
     trailer_type: str | None
     trailer_url: str | None
+    trailer_display_url: str | None = None      # playable URL for the storefront banner; direct media files only
+    trailer_hls_url: str | None = None          # adaptive preview, set once the trailer has been transcoded
     access_type: str
     subscription_plan_ids: list[str] = Field(default_factory=list)
     ppv_price: float | None
@@ -522,6 +528,16 @@ class PublicVideoOut(BaseModel):
         if hasattr(v[0], "slug"):
             return [c.slug for c in v]
         return list(v)
+
+    @model_validator(mode="after")
+    def _resolve_trailer_display_url(self) -> "PublicVideoOut":
+        if not self.trailer_url:
+            return self
+        if self.trailer_type == "upload":
+            self.trailer_display_url = _refresh_s3_url(self.trailer_url)
+        elif re.search(r"\.(mp4|webm|m4v|mov)(\?|#|$)", self.trailer_url, re.IGNORECASE):
+            self.trailer_display_url = self.trailer_url
+        return self
 
     model_config = {"from_attributes": True}
 
