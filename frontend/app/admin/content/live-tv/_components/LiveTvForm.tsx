@@ -68,6 +68,7 @@ const schema = z.object({
     banner: z.string().optional(),
     portrait: z.string().optional(),
     wide: z.string().optional(),
+    square: z.string().optional(),
     geo_fencing: z.object({ blocked_countries: z.array(z.string()) }),
     access_type: z.enum(["free", "subscription", "pay_per_view"]),
     subscription_plan_ids: z.array(z.string()),
@@ -85,16 +86,16 @@ type FormValues = z.infer<typeof schema>;
 
 // ─── Shared UI helpers ────────────────────────────────────────────────────────
 
-function inputCls(hasError = false) {
-    return `w-full h-9 rounded-lg bg-secondary border ${hasError ? "border-red-500/60" : "border-border"} px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
+function inputCls(hasError = false, lightBackground = false) {
+    return `w-full h-9 rounded-lg ${lightBackground ? "bg-background" : "bg-secondary"} border ${hasError ? "border-red-500/60" : "border-border"} px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
 }
 
-function selectCls(hasError = false) {
-    return `w-full h-9 rounded-lg bg-secondary border ${hasError ? "border-red-500/60" : "border-border"} px-3 pr-8 text-sm text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
+function selectCls(hasError = false, lightBackground = false) {
+    return `w-full h-9 rounded-lg ${lightBackground ? "bg-background" : "bg-secondary"} border ${hasError ? "border-red-500/60" : "border-border"} px-3 pr-8 text-sm text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
 }
 
 function textareaCls() {
-    return `w-full rounded-lg bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none`;
+    return `w-full rounded-lg bg-background border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none`;
 }
 
 function FieldError({ msg }: { msg?: string }) {
@@ -256,12 +257,14 @@ function CheckboxDropdown({
     placeholder,
     options,
     columns = 2,
+    lightBackground = false,
 }: {
     selected: string[];
     onChange: (v: string[]) => void;
     placeholder: string;
     options: { value: string; label: string }[];
     columns?: number;
+    lightBackground?: boolean;
 }) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
@@ -314,7 +317,7 @@ function CheckboxDropdown({
                 <button
                     type="button"
                     onClick={() => setOpen((v) => !v)}
-                    className={`${selectCls()} flex items-center justify-between pr-8 text-left text-muted-foreground`}
+                    className={`${selectCls(false, lightBackground)} flex items-center justify-between pr-8 text-left ${lightBackground ? "" : "text-muted-foreground"}`}
                 >
                     <span className="truncate">{placeholder}</span>
                 </button>
@@ -326,7 +329,7 @@ function CheckboxDropdown({
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search…"
-                            className="w-full h-8 rounded-lg bg-secondary border border-border px-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                            className={`w-full h-8 rounded-lg ${lightBackground ? "bg-background" : "bg-secondary"} border border-border px-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary`}
                             autoFocus
                         />
                         <div
@@ -386,6 +389,7 @@ export function liveTvChannelToFormValues(c: LiveTvChannelOut): FormValues {
         banner: c.thumbnails?.banner ?? "",
         portrait: c.thumbnails?.portrait ?? "",
         wide: c.thumbnails?.wide ?? "",
+        square: c.thumbnails?.square ?? "",
         geo_fencing: c.geo_fencing ?? { blocked_countries: [] },
         access_type: (c.access_type as "free" | "subscription" | "pay_per_view") ?? "free",
         subscription_plan_ids: c.subscription_plan_ids ?? [],
@@ -419,6 +423,7 @@ const DEFAULT_VALUES: FormValues = {
     banner: "",
     portrait: "",
     wide: "",
+    square: "",
     pipeline: "legacy",
     ads_enabled: false,
     record_vod: true,
@@ -500,6 +505,7 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                 banner: data.banner || null,
                 portrait: data.portrait || null,
                 wide: data.wide || null,
+                square: data.square || null,
             },
             is_active: data.is_active,
             is_featured: data.is_featured,
@@ -540,7 +546,7 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
                                 <label className="block text-xs font-semibold text-muted-foreground">Title *</label>
-                                <input {...register("title")} autoFocus placeholder="e.g. Sports News 24" className={inputCls(!!errors.title)} />
+                                <input {...register("title")} autoFocus placeholder="e.g. Sports News 24" className={inputCls(!!errors.title, true)} />
                                 <FieldError msg={errors.title?.message} />
                             </div>
                             <div className="space-y-1">
@@ -594,6 +600,7 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                                 selected={watch("region")}
                                 onChange={(value) => setValue("region", value as FormValues["region"])}
                                 placeholder="+ Select regions"
+                                lightBackground
                                 options={REGIONS.map((region) => ({ value: region, label: region }))}
                             />
                         </div>
@@ -604,6 +611,7 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                                 selected={watch("language") ?? []}
                                 onChange={(v) => setValue("language", v)}
                                 placeholder="+ Select languages"
+                                lightBackground
                                 options={LANGUAGE_OPTIONS}
                                 columns={2}
                             />
@@ -653,7 +661,7 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                                 <input
                                     {...register("stream_url")}
                                     placeholder="https://example.com/stream.m3u8"
-                                    className={inputCls(!!errors.stream_url)}
+                                    className={inputCls(!!errors.stream_url, true)}
                                 />
                                 <FieldError msg={errors.stream_url?.message} />
                             </div>
@@ -725,6 +733,7 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                                 selected={blockedCountries}
                                 onChange={(v) => setValue("geo_fencing.blocked_countries", v)}
                                 placeholder="+ Select countries"
+                                lightBackground
                                 options={COUNTRY_OPTIONS}
                                 columns={2}
                             />
@@ -850,6 +859,15 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                             <section className="rounded-2xl border border-border bg-card p-6 space-y-5">
                                 <SectionHeading>Thumbnails</SectionHeading>
                                 <div className="space-y-6">
+                                    <Controller name="square" control={control} render={({ field }) => (
+                                        <S3ImageField
+                                            label="Square Thumbnail"
+                                            hint="1:1 square thumbnail (1000 x 1000 px)"
+                                            aspect="1:1"
+                                            value={field.value ?? ""}
+                                            onChange={field.onChange}
+                                        />
+                                    )} />
                                     <Controller name="portrait" control={control} render={({ field }) => (
                                         <S3ImageField
                                             label="Portrait Thumbnail"

@@ -15,6 +15,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote_plus
+from typing import Literal
 from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
@@ -966,6 +967,7 @@ async def list_public_videos(
     search: str | None = Query(None, description="Search by title"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    sort_by: Literal["latest", "rating"] = Query("latest"),
     db: AsyncSession = Depends(get_db),
 ):
     client = await _resolve_client(slug, db)
@@ -987,7 +989,11 @@ async def list_public_videos(
         q = q.join(Video.categories).where(Category.slug == category)
     if search:
         q = q.where(Video.title.ilike(f"%{search}%"))
-    q = q.order_by(Video.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    if sort_by == "rating":
+        q = q.order_by(Video.rating.desc().nullslast(), Video.created_at.desc(), Video.id)
+    else:
+        q = q.order_by(Video.created_at.desc())
+    q = q.offset((page - 1) * page_size).limit(page_size)
 
     result = await db.execute(q)
     videos = result.scalars().all()
