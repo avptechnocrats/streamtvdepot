@@ -156,6 +156,7 @@ export const videoFormSchema = z.object({
     // Thumbnails
     thumbnails: z.object({
         video_banner: z.string().optional(),
+        video_title_image: z.string().optional(),
         video_h_thumbnail: z.string().optional(),
         video_w_thumbnail: z.string().optional(),
     }),
@@ -317,6 +318,7 @@ export function videoToFormValues(v: VideoOut): VideoFormValues {
         video_url: v.video_url ?? "",
         thumbnails: {
             video_banner: v.thumbnails.video_banner ?? "",
+            video_title_image: v.thumbnails.video_title_image ?? "",
             video_h_thumbnail: v.thumbnails.video_h_thumbnail ?? "",
             video_w_thumbnail: v.thumbnails.video_w_thumbnail ?? "",
         },
@@ -468,9 +470,10 @@ interface S3ImageFieldProps {
     value: string;
     onChange: (url: string) => void;
     onBeforeUpload?: () => Promise<boolean>;
+    preserveOriginal?: boolean;
 }
 
-function S3ImageField({ label, hint, aspect, value, onChange, onBeforeUpload }: S3ImageFieldProps) {
+function S3ImageField({ label, hint, aspect, value, onChange, onBeforeUpload, preserveOriginal = false }: S3ImageFieldProps) {
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [pendingCrop, setPendingCrop] = useState<PendingCropState | null>(null);
@@ -489,12 +492,32 @@ function S3ImageField({ label, hint, aspect, value, onChange, onBeforeUpload }: 
 
     // Called with raw file from input/drop — opens crop modal instead of uploading immediately
     const openCrop = useCallback(async (file: File) => {
+        if (uploading) return;
         if (onBeforeUpload && !(await onBeforeUpload())) return;
         if (!file.type.startsWith("image/")) { setUploadError("Please select an image file"); return; }
         setUploadError(null);
+        if (preserveOriginal) {
+            if (!["image/png", "image/webp", "image/jpeg"].includes(file.type) || file.size > 10 * 1024 * 1024) {
+                setUploadError("Choose a PNG, WebP, or JPEG image under 10 MB");
+                return;
+            }
+            setUploading(true);
+            try {
+                const image = await createImageBitmap(file);
+                const dimensions = { width: image.width, height: image.height };
+                image.close();
+                const confirmed = await uploadAssetToS3(file, {}, dimensions);
+                lastValueRef.current = confirmed.url;
+                setDisplayUrl(resolveMediaUrl(confirmed) ?? confirmed.url);
+                onChange(confirmed.url);
+            } catch (error) {
+                setUploadError(getApiErrorMessage(error, "Unable to upload title image"));
+            } finally { setUploading(false); }
+            return;
+        }
         const src = URL.createObjectURL(file);
         setPendingCrop({ file, src });
-    }, [onBeforeUpload]);
+    }, [onBeforeUpload, onChange, preserveOriginal, uploading]);
 
     const openPicker = useCallback(async () => {
         if (onBeforeUpload && !(await onBeforeUpload())) return;
@@ -582,7 +605,7 @@ function S3ImageField({ label, hint, aspect, value, onChange, onBeforeUpload }: 
             <div className="space-y-2">
                 <div>
                     <label className="block text-xs font-semibold text-muted-foreground">
-                        {label} <span className="font-normal opacity-50">({aspect})</span>
+                        {label} {!preserveOriginal && <span className="font-normal opacity-50">({aspect})</span>}
                     </label>
                     <p className="text-[11px] text-muted-foreground mt-0.5">{hint}</p>
                 </div>
@@ -595,7 +618,7 @@ function S3ImageField({ label, hint, aspect, value, onChange, onBeforeUpload }: 
                     {previewUrl ? (
                         <div className={`relative ${previewAspect}`}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={previewUrl} alt={label} className="w-full h-full object-cover" />
+                            <img src={previewUrl} alt={label} className={`w-full h-full ${preserveOriginal ? "object-contain p-4" : "object-cover"}`} />
                             {uploading ? (
                                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                                     <Loader2 size={20} className="animate-spin text-white" />
@@ -1306,6 +1329,7 @@ const DEFAULT_FORM_VALUES: VideoFormValues = {
     video_url: "",
     thumbnails: {
         video_banner: "",
+        video_title_image: "",
         video_h_thumbnail: "",
         video_w_thumbnail: "",
     },
@@ -1667,6 +1691,7 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
                 status,
                 thumbnails: {
                     video_banner: thumbnails.video_banner || null,
+                    video_title_image: thumbnails.video_title_image || null,
                     video_h_thumbnail: thumbnails.video_h_thumbnail || null,
                     video_w_thumbnail: thumbnails.video_w_thumbnail || null,
                     [field]: url || null,
@@ -1767,6 +1792,7 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
             video_url: data.video_url || null,
             thumbnails: {
                 video_banner: data.thumbnails.video_banner || null,
+                video_title_image: data.thumbnails.video_title_image || null,
                 video_h_thumbnail: data.thumbnails.video_h_thumbnail || null,
                 video_w_thumbnail: data.thumbnails.video_w_thumbnail || null,
             },
@@ -2646,6 +2672,9 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
                                     <SectionHeading>Banner</SectionHeading>
                                     <Controller name="thumbnails.video_banner" control={control} render={({ field }) => (
                                         <S3ImageField label="Video Banner (1920 × 1080 px)" hint="16:9 wide banner used in hero and detail pages" aspect="16:9" value={field.value ?? ""} onChange={(url) => persistThumbnail("video_banner", url)} onBeforeUpload={ensureDraftBeforeUpload} />
+                                    )} />
+                                    <Controller name="thumbnails.video_title_image" control={control} render={({ field }) => (
+                                        <S3ImageField label="Title Image (optional)" hint="Transparent PNG or WebP recommended. Original size and transparency are preserved; text is used when no image is set." aspect="16:9" preserveOriginal value={field.value ?? ""} onChange={(url) => persistThumbnail("video_title_image", url)} onBeforeUpload={ensureDraftBeforeUpload} />
                                     )} />
                                 </section>
                             </TabsContent>

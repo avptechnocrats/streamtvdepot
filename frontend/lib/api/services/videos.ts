@@ -99,6 +99,7 @@ export interface VideoSeo {
 }
 
 export interface VideoThumbnails {
+    video_title_image?: string | null;
     video_banner: string | null;
     video_h_thumbnail: string | null;
     video_w_thumbnail: string | null;

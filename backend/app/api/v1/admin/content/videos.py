@@ -135,6 +135,7 @@ def _enrich_thumbnails(videos: list[Video]) -> list[VideoOut]:
         t = s.thumbnails
         s.thumbnails = VideoThumbnails(
             video_banner=_freshen_thumbnail_url(t.video_banner),
+            video_title_image=_freshen_thumbnail_url(t.video_title_image),
             video_h_thumbnail=_freshen_thumbnail_url(t.video_h_thumbnail),
             video_w_thumbnail=_freshen_thumbnail_url(t.video_w_thumbnail),
         )

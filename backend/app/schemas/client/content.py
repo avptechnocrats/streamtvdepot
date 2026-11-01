@@ -332,12 +332,14 @@ class VideoSeo(BaseModel):
 
 class VideoThumbnails(BaseModel):
     video_banner: str | None = None
+    video_title_image: str | None = None
     video_h_thumbnail: str | None = None
     video_w_thumbnail: str | None = None
 
     @model_validator(mode="after")
     def refresh_presigned_urls(self) -> "VideoThumbnails":
         self.video_banner = _refresh_s3_url(self.video_banner)
+        self.video_title_image = _refresh_s3_url(self.video_title_image)
         self.video_h_thumbnail = _refresh_s3_url(self.video_h_thumbnail)
         self.video_w_thumbnail = _refresh_s3_url(self.video_w_thumbnail)
         return self
