@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useUserPrefs } from "@/hooks/use-user-prefs";
 import { useBannerVideos, type BannerSlide } from "@/hooks/use-banner-videos";
 import { BannerSkeleton } from "@/components/BannerSkeleton";
+import { BannerTrailer, useBannerHover } from "@/components/BannerTrailer";
 import { useEffect, useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSiteSettings } from "@/hooks/use-site-settings";
@@ -16,7 +17,8 @@ import { toast } from "@/hooks/use-toast";
 type SlideData = {
   id: string; image: string; badge: string; titleA: string; titleB: string;
   desc: string; match: string; year: string; formats: string[]; duration: string;
-  videoUrl: string | null;
+  trailerUrl: string | null;
+  trailerHlsUrl: string | null;
 };
 
 /**
@@ -66,7 +68,8 @@ function mapToSlide(s: BannerSlide): SlideData {
     year: s.year,
     formats: ["4K"],
     duration: s.duration,
-    videoUrl: s.videoUrl,
+    trailerUrl: s.trailerUrl,
+    trailerHlsUrl: s.trailerHlsUrl,
   };
 }
 
@@ -82,9 +85,11 @@ function StaticBanner({ slides }: { slides: SlideData[] }) {
   );
 }
 
-function SliderBanner({ slides }: { slides: SlideData[] }) {
+function SliderBanner({ slides, withTrailers = false }: { slides: SlideData[]; withTrailers?: boolean }) {
   const [current, setCurrent] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
+  const { hovered, hoverProps } = useBannerHover();
+  const trailerActive = withTrailers && hovered;
 
   const goTo = useCallback((idx: number) => {
     if (transitioning) return;
@@ -98,16 +103,17 @@ function SliderBanner({ slides }: { slides: SlideData[] }) {
   const prev = () => goTo((current - 1 + slides.length) % slides.length);
   const next = useCallback(() => goTo((current + 1) % slides.length), [current, goTo, slides.length]);
 
-  // Auto-advance every 6s
+  // Auto-advance every 6s; held while the pointer is on a video-slider banner
   useEffect(() => {
+    if (trailerActive) return;
     const t = setTimeout(next, 6000);
     return () => clearTimeout(t);
-  }, [current, next]);
+  }, [current, next, trailerActive]);
 
   const slide = slides[current];
 
   return (
-    <section className="relative w-full h-[85vh] min-h-[500px] overflow-hidden group">
+    <section {...hoverProps} className="relative w-full h-[85vh] min-h-[500px] overflow-hidden group">
       {/* Slide images — fade transition */}
       {slides.map((s, i) => (
         <img
@@ -119,6 +125,7 @@ function SliderBanner({ slides }: { slides: SlideData[] }) {
           height={800}
         />
       ))}
+      <BannerTrailer key={slide.id} src={slide.trailerUrl} hlsSrc={slide.trailerHlsUrl} hovered={trailerActive} />
       <div className="banner-overlay absolute inset-0" />
       <div className="banner-bottom-fade absolute inset-0 pointer-events-none" />
 
@@ -219,32 +226,6 @@ function BannerContent({ slide }: { slide: SlideData }) {
   );
 }
 
-function VideoBanner({ slides }: { slides: SlideData[] }) {
-  const slide = slides[0];
-  const videoSrc = slide.videoUrl;
-  return (
-    <section className="relative w-full h-[85vh] min-h-[500px] overflow-hidden">
-      {videoSrc ? (
-        <video
-          autoPlay
-          muted
-          loop
-          playsInline
-          poster={slide.image}
-          className="absolute inset-0 w-full h-full object-cover"
-        >
-          <source src={videoSrc} type="video/mp4" />
-        </video>
-      ) : (
-        <img src={slide.image} alt="Featured movie" className="absolute inset-0 w-full h-full object-cover" width={1920} height={800} />
-      )}
-      <div className="banner-overlay absolute inset-0" />
-      <div className="banner-bottom-fade absolute inset-0 pointer-events-none" />
-      <BannerContent slide={slide} />
-    </section>
-  );
-}
-
 const Banner = () => {
   const { prefs, prefsReady } = useUserPrefs();
   const { slides: apiSlides, isLoading } = useBannerVideos();
@@ -253,7 +234,7 @@ const Banner = () => {
   if (apiSlides.length === 0) return <EmptyBanner />;
 
   const slides = apiSlides.map(mapToSlide);
-  if (prefs.bannerStyle === "video") return <VideoBanner slides={slides} />;
+  if (prefs.bannerStyle === "video") return <SliderBanner slides={slides} withTrailers />;
   if (prefs.bannerStyle === "slider") return <SliderBanner slides={slides} />;
   return <StaticBanner slides={slides} />;
 };

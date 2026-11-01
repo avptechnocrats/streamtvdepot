@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserPrefs } from "@/hooks/use-user-prefs";
 import { useBannerVideos, type BannerSlide } from "@/hooks/use-banner-videos";
 import { BannerSkeleton } from "@/components/BannerSkeleton";
+import { BannerTrailer, useBannerHover } from "@/components/BannerTrailer";
 import { addToWatchlist, removeFromWatchlist, getWatchlist, type WatchlistItem } from "@/lib/services/watchlist";
 import { toast } from "@/hooks/use-toast";
 
@@ -47,10 +48,12 @@ const continueWatching = [
 export default function Banner() {
     const [current, setCurrent] = useState(0);
     const { prefs } = useUserPrefs();
+    const { hovered, hoverProps } = useBannerHover();
+    const trailerActive = hovered && prefs.bannerStyle === "video";
     const { slides: apiSlides, isLoading } = useBannerVideos();
     const featured = apiSlides.map(mapToFeatured);
     const next = useCallback(() => setCurrent((c) => (c + 1) % featured.length), [featured.length]);
-    useEffect(() => { if (prefs.bannerStyle === "static") return; const t = setTimeout(next, 9000); return () => clearTimeout(t); }, [current, next, prefs.bannerStyle]);
+    useEffect(() => { if (prefs.bannerStyle === "static" || trailerActive) return; const t = setTimeout(next, 9000); return () => clearTimeout(t); }, [current, next, prefs.bannerStyle, trailerActive]);
     const f = featured[current];
 
     const { user } = useAuth();
@@ -77,7 +80,7 @@ export default function Banner() {
     return (
         <section className="pt-[88px] bg-background">
             {/* ── Main billboard ── */}
-            <div className="relative overflow-hidden">
+            <div {...hoverProps} className="relative overflow-hidden">
                 {/* Background image */}
                 {featured.map((fi, i) => (
                     <img
@@ -87,15 +90,9 @@ export default function Banner() {
                     />
                 ))}
 
-                {/* Video background — shown when bannerStyle is "video" */}
-                {prefs.bannerStyle === "video" && apiSlides.length > 0 && apiSlides[0].videoUrl && (
-                    <video
-                        autoPlay muted loop playsInline
-                        poster={apiSlides[0].image}
-                        className="absolute inset-0 w-full h-full object-cover z-[1]"
-                    >
-                        <source src={apiSlides[0].videoUrl} type="video/mp4" />
-                    </video>
+                {/* Trailer — plays on hover over the artwork (video slider only) */}
+                {f && (
+                    <BannerTrailer key={apiSlides[current]?.id} src={apiSlides[current]?.trailerUrl ?? null} hlsSrc={apiSlides[current]?.trailerHlsUrl ?? null} hovered={trailerActive} />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-background/30" />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
