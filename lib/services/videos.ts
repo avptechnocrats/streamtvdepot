@@ -114,6 +114,8 @@ export interface VideoOut {
     thumbnails: VideoThumbnails;
     trailer_type: TrailerType | null;
     trailer_url: string | null;
+    trailer_display_url?: string | null; // playable direct-file trailer; null for embeds such as YouTube
+    trailer_hls_url?: string | null;     // adaptive preview, present once the trailer has been transcoded
     access_type: AccessType;
     subscription_plan_ids: string[];
     ppv_price: number | null;

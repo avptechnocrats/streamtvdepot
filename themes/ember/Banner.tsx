@@ -11,8 +11,10 @@ import { ChevronLeft, ChevronRight, Film, Play } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState, type PointerEvent } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BannerTrailer, useBannerHover } from "@/components/BannerTrailer";
 import { useBannerVideos } from "@/hooks/use-banner-videos";
 import { useSiteSettings } from "@/hooks/use-site-settings";
+import { useUserPrefs } from "@/hooks/use-user-prefs";
 
 const NAV_OFFSET = "pt-14";
 const HERO_HEIGHT = "h-[480px] sm:h-[540px] lg:h-[580px]";
@@ -38,7 +40,10 @@ function EmptyBanner() {
 
 export default function Banner() {
     const { slides, isLoading } = useBannerVideos();
+    const { prefs } = useUserPrefs();
     const [current, setCurrent] = useState(0);
+    const { hovered, hoverProps } = useBannerHover();
+    const trailerActive = hovered && prefs.bannerStyle === "video";
 
     const count = slides.length;
     const next = useCallback(() => setCurrent((i) => (i + 1) % Math.max(count, 1)), [count]);
@@ -51,10 +56,10 @@ export default function Banner() {
     };
 
     useEffect(() => {
-        if (count < 2) return;
+        if (count < 2 || trailerActive) return;
         const t = setTimeout(next, 6000);
         return () => clearTimeout(t);
-    }, [current, count, next]);
+    }, [current, count, next, trailerActive]);
 
     if (isLoading) {
         return (
@@ -71,7 +76,7 @@ export default function Banner() {
 
     return (
         <section className={`${NAV_OFFSET} bg-background`}>
-            <div className={`group/banner relative ${HERO_HEIGHT} overflow-hidden`}>
+            <div {...hoverProps} className={`group/banner relative ${HERO_HEIGHT} overflow-hidden`}>
                 {slides.map((s, i) => (
                     <img
                         key={s.id}
@@ -80,6 +85,13 @@ export default function Banner() {
                         className={`absolute inset-0 w-full h-full object-cover object-[70%_30%] transition-opacity duration-500 ${i === current ? "opacity-100" : "opacity-0"}`}
                     />
                 ))}
+                <BannerTrailer
+                    key={slide.id}
+                    src={slide.trailerUrl}
+                    hlsSrc={slide.trailerHlsUrl}
+                    hovered={trailerActive}
+                    positionClassName="object-[70%_30%]"
+                />
                 <div className="absolute inset-0 bg-gradient-to-r from-background via-background/70 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent" />
 

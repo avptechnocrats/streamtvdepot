@@ -26,8 +26,12 @@ export interface BannerSlide {
     rating: string;
     /** content_classification or "Featured" */
     classification: string;
-    /** video_url from the record, used by VideoBanner mode */
+    /** video_url from the record */
     videoUrl: string | null;
+    /** playable trailer file, or null when the title has no uploaded trailer */
+    trailerUrl: string | null;
+    /** adaptive HLS preview of the trailer; preferred over trailerUrl when present */
+    trailerHlsUrl: string | null;
     raw: VideoOut;
 }
 
@@ -69,6 +73,8 @@ function toSlide(v: VideoOut): BannerSlide {
         rating: v.age_rating ?? "",
         classification: v.content_classification ?? "Featured",
         videoUrl: v.video_url,
+        trailerUrl: v.trailer_display_url ?? null,
+        trailerHlsUrl: v.trailer_hls_url ?? null,
         raw: v,
     };
 }

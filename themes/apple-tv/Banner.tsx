@@ -19,6 +19,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useUserPrefs } from "@/hooks/use-user-prefs";
 import { useBannerVideos, type BannerSlide } from "@/hooks/use-banner-videos";
 import { BannerSkeleton } from "@/components/BannerSkeleton";
+import { BannerTrailer, useBannerHover } from "@/components/BannerTrailer";
 
 type SlideData = {
     image: string; eyebrow: string; title: string;
@@ -41,6 +42,8 @@ export default function Banner() {
     const [current, setCurrent] = useState(0);
     const [transitioning, setTransitioning] = useState(false);
     const { prefs } = useUserPrefs();
+    const { hovered, hoverProps } = useBannerHover();
+    const trailerActive = hovered && prefs.bannerStyle === "video";
     const { slides: apiSlides, isLoading } = useBannerVideos();
     const slides = apiSlides.map(mapToSlide);
 
@@ -54,17 +57,17 @@ export default function Banner() {
     const next = useCallback(() => goTo((current + 1) % slides.length), [current, goTo, slides.length]);
 
     useEffect(() => {
-        if (prefs.bannerStyle === "static") return;
+        if (prefs.bannerStyle === "static" || trailerActive) return;
         const t = setTimeout(next, 8000);
         return () => clearTimeout(t);
-    }, [current, next, prefs.bannerStyle]);
+    }, [current, next, prefs.bannerStyle, trailerActive]);
 
     const slide = slides[current];
 
     if (isLoading) return <BannerSkeleton />;
 
     return (
-        <section className="relative w-full h-[88vh] min-h-[500px] overflow-hidden">
+        <section {...hoverProps} className="relative w-full h-[88vh] min-h-[500px] overflow-hidden">
 
             {/* Slide images */}
             {slides.map((s, i) => (
@@ -78,15 +81,9 @@ export default function Banner() {
                 />
             ))}
 
-            {/* Video background — shown when bannerStyle is "video" */}
-            {prefs.bannerStyle === "video" && apiSlides.length > 0 && apiSlides[0].videoUrl && (
-                <video
-                    autoPlay muted loop playsInline
-                    poster={apiSlides[0].image}
-                    className="absolute inset-0 w-full h-full object-cover z-[1]"
-                >
-                    <source src={apiSlides[0].videoUrl} type="video/mp4" />
-                </video>
+            {/* Trailer — plays on hover over the artwork (video slider only) */}
+            {slide && (
+                <BannerTrailer key={apiSlides[current]?.id} src={apiSlides[current]?.trailerUrl ?? null} hlsSrc={apiSlides[current]?.trailerHlsUrl ?? null} hovered={trailerActive} />
             )}
 
             {/* Gradient: black bleeds from left + bottom — strengthened for bright images */}
