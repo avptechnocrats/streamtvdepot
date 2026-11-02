@@ -18,12 +18,40 @@ export function useBannerHover() {
   return { hovered, hoverProps };
 }
 
+export function useBannerAutoplay() {
+  const [element, setElement] = useState<HTMLElement | null>(null);
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    if (!element) return;
+    let inView = false;
+    const update = () => setActive(inView && document.visibilityState === "visible" && document.hasFocus());
+    const deactivate = () => setActive(false);
+    const observer = new IntersectionObserver(([entry]) => {
+      inView = entry.isIntersecting && entry.intersectionRatio >= 0.5;
+      update();
+    }, { threshold: [0, 0.5] });
+    observer.observe(element);
+    document.addEventListener("visibilitychange", update);
+    window.addEventListener("focus", update);
+    window.addEventListener("blur", deactivate);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", update);
+      window.removeEventListener("focus", update);
+      window.removeEventListener("blur", deactivate);
+    };
+  }, [element]);
+
+  return { active, bannerRef: setElement };
+}
+
 interface BannerTrailerProps {
   /** Original trailer file; used when there is no HLS preview or it fails. */
   src: string | null;
   /** Adaptive HLS preview, preferred when present. */
   hlsSrc?: string | null;
-  /** True while the pointer is over the banner. */
+  /** Whether the banner currently permits trailer playback. */
   hovered: boolean;
   delayMs?: number;
   /** Matches the theme's artwork focal point, e.g. "object-[70%_30%]". */
@@ -71,7 +99,7 @@ export function BannerTrailer({ src, hlsSrc = null, hovered, delayMs = HOVER_DEL
   // Attach the stream: native HLS on Safari, hls.js (loaded on demand) elsewhere, else the original file.
   useEffect(() => {
     const video = videoRef.current;
-    if (!mounted || !video) return;
+    if (!mounted || !video || !hovered) return;
     let cancelled = false;
     let hls: { destroy: () => void } | null = null;
 
@@ -108,21 +136,24 @@ export function BannerTrailer({ src, hlsSrc = null, hovered, delayMs = HOVER_DEL
 
     return () => {
       cancelled = true;
+      video.pause();
       hls?.destroy();
     };
-  }, [mounted, hlsSrc, src, mp4Fallback]);
+  }, [mounted, hovered, hlsSrc, src, mp4Fallback]);
 
   if (!eligible || !mounted) return null;
 
   return (
     <video
       ref={videoRef}
-      autoPlay
       muted
       playsInline
       preload="auto"
       aria-hidden="true"
-      onPlaying={() => setPlaying(true)}
+      onPlaying={event => {
+        if (hovered) setPlaying(true);
+        else event.currentTarget.pause();
+      }}
       onEnded={() => setPlaying(false)}
       onError={() => (hlsSrc && src && !mp4Fallback ? setMp4Fallback(true) : setFailed(true))}
       className={`absolute inset-0 h-full w-full object-cover ${positionClassName} transition-opacity duration-500 ${playing && hovered ? "opacity-100" : "opacity-0"}`}
