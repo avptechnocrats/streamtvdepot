@@ -22,13 +22,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { addToWatchlist, getWatchlist, removeFromWatchlist } from "@/lib/services/watchlist";
 
-const NAV_OFFSET = "pt-14";
 const HERO_HEIGHT = "h-[480px] sm:h-[540px] lg:h-[clamp(600px,65svh,720px)]";
 
 function EmptyBanner() {
     const { site_title, tagline } = useSiteSettings();
     return (
-        <section className={`${NAV_OFFSET} bg-background`}>
+        <section className="bg-background">
             <div className={`relative ${HERO_HEIGHT} flex items-center justify-center bg-gradient-to-br from-background via-secondary/40 to-background`}>
                 <div className="text-center px-6 space-y-3 max-w-xl">
                     <Film className="mx-auto text-primary" size={36} />
@@ -88,7 +87,7 @@ export default function Banner() {
 
     if (isLoading) {
         return (
-            <section className={NAV_OFFSET}>
+            <section>
                 <Skeleton className={`w-full ${HERO_HEIGHT} rounded-none`} />
             </section>
         );
@@ -101,7 +100,7 @@ export default function Banner() {
     const shadow = { textShadow: "0 2px 12px rgba(0,0,0,0.8)" };
 
     return (
-        <section className={`${NAV_OFFSET} bg-background`}>
+        <section className="bg-background">
             <div ref={bannerRef} className={`group/banner relative ${HERO_HEIGHT} overflow-hidden`}>
                 {slides.map((s, i) => (
                     <img
@@ -119,7 +118,8 @@ export default function Banner() {
                     delayMs={0}
                     showSoundControl
                     soundControlPlacement="top-right"
-                    soundControlTopInset={24}
+                    soundControlTopInset={88}
+                    soundControlAlignToNav
                     positionClassName="object-[70%_30%]"
                 />
                 <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(0,5,12,0.98)_0%,rgba(0,5,12,0.85)_24%,rgba(0,5,12,0.45)_46%,rgba(0,5,12,0)_72%)]" />
