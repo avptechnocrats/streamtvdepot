@@ -10,6 +10,7 @@ import {
     ImageIcon, Film,
 } from "lucide-react";
 import { LabeledSwitch } from "@/components/ui/labeled-switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
     createCategory, updateCategory, listCategories,
     type CategoryOut, type CategoryCreate, CATEGORY_CONTENT_TYPES,
@@ -17,6 +18,8 @@ import {
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import apiClient from "@/lib/api/client";
 import { resolveMediaUrl, resolveThumbnailUrl, resolveBannerUrl } from "@/lib/media";
+
+const labelCls = "block text-sm font-medium leading-none text-foreground";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -30,17 +33,17 @@ function toSlug(name: string) {
 }
 
 function inputCls(hasError = false) {
-    return `w-full h-9 rounded-lg bg-secondary border ${hasError ? "border-red-500/60" : "border-border"
-        } px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
+    return `w-full h-10 rounded-md bg-background border ${hasError ? "border-red-500/60" : "border-input"
+        } px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors`;
 }
 
 function selectCls(hasError = false) {
-    return `w-full h-9 rounded-lg bg-secondary border ${hasError ? "border-red-500/60" : "border-border"
-        } px-3 pr-8 text-sm text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
+    return `w-full h-10 rounded-md bg-background border ${hasError ? "border-red-500/60" : "border-input"
+        } px-3 py-2 pr-8 text-sm text-foreground appearance-none ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 transition-colors`;
 }
 
 function textareaCls() {
-    return `w-full rounded-lg bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none`;
+    return `w-full rounded-md bg-background border border-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none`;
 }
 
 function FieldError({ msg }: { msg?: string }) {
@@ -170,10 +173,10 @@ function ImageField({ label, hint, aspect, value, onChange, onChangeAssetId, onO
     return (
         <div className="space-y-2">
             <div>
-                <label className="block text-xs font-semibold text-muted-foreground">
+                <label className={labelCls}>
                     {label} <span className="font-normal opacity-50">({aspect})</span>
                 </label>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{hint}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
             </div>
 
             {/* Drop zone / preview */}
@@ -199,7 +202,7 @@ function ImageField({ label, hint, aspect, value, onChange, onChangeAssetId, onO
                                 <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
-                                    className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 text-white text-xs font-medium transition-opacity"
+                                    className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 text-white text-sm font-medium transition-opacity"
                                 >
                                     <Upload size={12} /> Replace
                                 </button>
@@ -225,8 +228,8 @@ function ImageField({ label, hint, aspect, value, onChange, onChangeAssetId, onO
                         ) : (
                             <>
                                 <ImageIcon size={18} />
-                                <p className="text-xs font-medium">Click or drag image here</p>
-                                <p className="text-[11px] opacity-60">JPG, PNG, WebP</p>
+                                <p className="text-sm font-medium">Click or drag image here</p>
+                                <p className="text-xs opacity-60">JPG, PNG, WebP</p>
                             </>
                         )}
                     </div>
@@ -245,14 +248,14 @@ function ImageField({ label, hint, aspect, value, onChange, onChangeAssetId, onO
                 }}
             />
 
-            {uploadError && <p className="text-[11px] text-red-400">{uploadError}</p>}
+            {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
 
             <div className="flex gap-2">
                 <button
                     type="button"
                     disabled={uploading}
                     onClick={() => inputRef.current?.click()}
-                    className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors disabled:opacity-50"
                 >
                     <Upload size={12} /> {uploading ? "Uploading…" : "Upload"}
                 </button>
@@ -260,7 +263,7 @@ function ImageField({ label, hint, aspect, value, onChange, onChangeAssetId, onO
                     type="button"
                     disabled={uploading}
                     onClick={onOpenLibrary}
-                    className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors disabled:opacity-50"
                 >
                     <ImageIcon size={12} /> Media Library
                 </button>
@@ -369,6 +372,7 @@ const schema = z.object({
     is_parent: z.boolean(),
     parent_id: z.string().nullable().optional(),
     content_types: z.array(z.string()).default([]),
+    thumbnail_view: z.enum(["landscape", "portrait"]),
     thumbnail_asset_id: z.string().nullable().optional(),
     thumbnail_url: z.string().nullable().optional(),
     banner_asset_id: z.string().nullable().optional(),
@@ -388,6 +392,7 @@ export function categoryToFormValues(c: CategoryOut): CategoryFormValues {
         is_parent: c.is_parent,
         parent_id: c.parent_id,
         content_types: c.content_types ?? [],
+        thumbnail_view: c.thumbnail_view ?? "landscape",
         thumbnail_asset_id: c.thumbnail_asset_id,
         // Pre-fill with the presigned display URL so the preview renders correctly
         thumbnail_url: resolveThumbnailUrl(c),
@@ -412,6 +417,7 @@ const DEFAULT_VALUES: CategoryFormValues = {
     is_parent: false,
     parent_id: null,
     content_types: [],
+    thumbnail_view: "landscape",
     thumbnail_asset_id: null,
     thumbnail_url: null,
     banner_asset_id: null,
@@ -465,6 +471,7 @@ export function CategoryForm({ mode, categoryId, defaultValues }: CategoryFormPr
             is_parent: data.is_parent,
             parent_id: data.is_parent ? null : (data.parent_id || null),
             content_types: (data.content_types ?? []) as CategoryCreate["content_types"],
+            thumbnail_view: data.thumbnail_view,
             thumbnail_asset_id: data.thumbnail_asset_id || null,
             thumbnail_url: data.thumbnail_url || null,
             banner_asset_id: data.banner_asset_id || null,
@@ -498,7 +505,7 @@ export function CategoryForm({ mode, categoryId, defaultValues }: CategoryFormPr
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                                <label className="block text-xs font-semibold text-muted-foreground">Name *</label>
+                                <label className={labelCls}>Name *</label>
                                 <input
                                     {...register("name")}
                                     autoFocus
@@ -508,7 +515,7 @@ export function CategoryForm({ mode, categoryId, defaultValues }: CategoryFormPr
                                 <FieldError msg={errors.name?.message} />
                             </div>
                             <div className="space-y-1">
-                                <label className="block text-xs font-semibold text-muted-foreground">Slug *</label>
+                                <label className={labelCls}>Slug *</label>
                                 <input
                                     {...register("slug", { onChange: () => { slugSetByUser.current = true; } })}
                                     placeholder="action-movies"
@@ -520,7 +527,7 @@ export function CategoryForm({ mode, categoryId, defaultValues }: CategoryFormPr
                         </div>
 
                         <div className="space-y-1">
-                            <label className="block text-xs font-semibold text-muted-foreground">Description</label>
+                            <label className={labelCls}>Description</label>
                             <textarea
                                 {...register("description")}
                                 rows={3}
@@ -549,52 +556,9 @@ export function CategoryForm({ mode, categoryId, defaultValues }: CategoryFormPr
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="block text-xs font-semibold text-muted-foreground">Sort Order</label>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    {...register("sort_order")}
-                                    className={inputCls()}
-                                />
-                                <p className="text-[11px] text-muted-foreground">Lower numbers appear first</p>
-                            </div>
-
-                            <div className="space-y-1 col-span-2">
-                                <label className="block text-xs font-semibold text-muted-foreground">Content Types</label>
-                                <div className="flex flex-wrap gap-2 pt-0.5">
-                                    {CATEGORY_CONTENT_TYPES.map((ct) => {
-                                        const selected = (watch("content_types") ?? []).includes(ct.value);
-                                        return (
-                                            <button
-                                                key={ct.value}
-                                                type="button"
-                                                onClick={() => {
-                                                    const current = watch("content_types") ?? [];
-                                                    setValue("content_types",
-                                                        selected
-                                                            ? current.filter((v) => v !== ct.value)
-                                                            : [...current, ct.value],
-                                                    );
-                                                }}
-                                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
-                                                    selected
-                                                        ? "border-primary bg-primary/10 text-primary"
-                                                        : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                                                }`}
-                                            >
-                                                {selected && <Check size={11} />}
-                                                {ct.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                                <p className="text-[11px] text-muted-foreground">Select all content types this category applies to (e.g. Video + Series for "Action")</p>
-                            </div>
-
                             {!isParent && (
-                                <div className="space-y-1">
-                                    <label className="block text-xs font-semibold text-muted-foreground">
+                                <div className="col-span-2 space-y-1">
+                                    <label className={labelCls}>
                                         Parent Category
                                     </label>
                                     <div className="relative">
@@ -617,6 +581,70 @@ export function CategoryForm({ mode, categoryId, defaultValues }: CategoryFormPr
                                     </div>
                                 </div>
                             )}
+                            <div className="space-y-1">
+                                <label className={labelCls}>Sort Order</label>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    {...register("sort_order")}
+                                    className={inputCls()}
+                                />
+                                <p className="text-xs text-muted-foreground">Lower numbers appear first</p>
+                            </div>
+
+                            <div className="space-y-1 col-span-2">
+                                <label className={labelCls}>Content Types</label>
+                                <div className="flex flex-wrap gap-2 pt-0.5">
+                                    {CATEGORY_CONTENT_TYPES.map((ct) => {
+                                        const selected = (watch("content_types") ?? []).includes(ct.value);
+                                        return (
+                                            <button
+                                                key={ct.value}
+                                                type="button"
+                                                onClick={() => {
+                                                    const current = watch("content_types") ?? [];
+                                                    setValue("content_types",
+                                                        selected
+                                                            ? current.filter((v) => v !== ct.value)
+                                                            : [...current, ct.value],
+                                                    );
+                                                }}
+                                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                                                    selected
+                                                        ? "border-primary bg-primary/10 text-primary"
+                                                        : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                                                }`}
+                                            >
+                                                {selected && <Check size={11} />}
+                                                {ct.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-xs text-muted-foreground">Select all content types this category applies to (e.g. Video + Series for "Action")</p>
+                            </div>
+
+                            <fieldset className="col-span-2 space-y-3">
+                                <legend className={labelCls}>Thumbnail View</legend>
+                                <Controller
+                                    name="thumbnail_view"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <RadioGroup value={field.value} onValueChange={field.onChange} onBlur={field.onBlur} className="flex flex-wrap gap-6" aria-label="Thumbnail View">
+                                            <div className="flex items-center gap-2">
+                                                <RadioGroupItem value="landscape" id="thumbnail-view-landscape" />
+                                                <label htmlFor="thumbnail-view-landscape" className="cursor-pointer text-sm font-medium">Landscape</label>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <RadioGroupItem value="portrait" id="thumbnail-view-portrait" />
+                                                <label htmlFor="thumbnail-view-portrait" className="cursor-pointer text-sm font-medium">Portrait</label>
+                                            </div>
+                                        </RadioGroup>
+                                    )}
+                                />
+                                <FieldError msg={errors.thumbnail_view?.message} />
+                            </fieldset>
+
                         </div>
                     </section>
 

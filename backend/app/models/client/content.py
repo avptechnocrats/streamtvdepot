@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, Enum, Float, ForeignKey, Index, Integer, Numeric, String, Table, Text, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Column, DateTime, Enum, Float, ForeignKey, Index, Integer, Numeric, String, Table, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,6 +36,9 @@ class MediaAsset(Base, UUIDMixin, TimestampMixin):
 class Category(Base, UUIDMixin, TimestampMixin):
     """Hierarchical content category, scoped per client."""
     __tablename__ = "content_categories"
+    __table_args__ = (
+        CheckConstraint("thumbnail_view IN ('landscape', 'portrait')", name="ck_category_thumbnail_view"),
+    )
 
     client_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
@@ -62,6 +65,7 @@ class Category(Base, UUIDMixin, TimestampMixin):
     )
     banner_url: Mapped[str | None] = mapped_column(Text)       # 16:9 / 1280x720 — denormalised from asset
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    thumbnail_view: Mapped[str] = mapped_column(String(10), default="landscape", server_default="landscape", nullable=False)
     content_types: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)  # ["video","series",...]
 
     # Relationship: categories ↔ videos (many-to-many via video_categories)

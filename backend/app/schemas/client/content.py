@@ -137,6 +137,7 @@ class CategoryCreate(BaseModel):
     banner_asset_id: uuid.UUID | None = None
     banner_url: str | None = None
     sort_order: int = 0
+    thumbnail_view: Literal["landscape", "portrait"] = "landscape"
     content_types: list[str] = Field(default_factory=list)
 
 
@@ -160,6 +161,7 @@ class CategoryOut(BaseModel):
     banner_url: str | None
     banner_display_url: str | None = None       # presigned GET URL — populated at serve time
     sort_order: int
+    thumbnail_view: Literal["landscape", "portrait"] = "landscape"
     content_types: list[str]
     created_at: datetime
     updated_at: datetime
@@ -897,6 +899,7 @@ class HomeCategoryRow(BaseModel):
     category_name: str
     category_slug: str
     content_type: str  # video | series | livestream | audio
+    thumbnail_view: Literal["landscape", "portrait"] = "landscape"
     items: list[HomeContentItem]
 
 
