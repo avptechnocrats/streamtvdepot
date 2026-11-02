@@ -102,7 +102,7 @@ export function PosterCard({ movie, rank }: { movie: Movie; rank?: number }) {
                 <p className="text-xs font-medium text-foreground truncate">{movie.title}</p>
                 {movie.year && <p className="text-[11px] text-muted-foreground">{movie.year}</p>}
             </div>
-            {rank && <span aria-hidden="true" data-content-rank={rank} className={`pointer-events-none absolute left-0 top-0 flex items-center ${rank === 10 ? "justify-start" : "justify-end"} font-display font-800 leading-none text-transparent`} style={{ width: rank === 10 ? "100%" : "calc(var(--rank-gutter) + (100cqw - var(--rank-gutter)) * 0.35)", height: "calc((100cqw - var(--rank-gutter)) * 1.5)", fontSize: "calc((100cqw - var(--rank-gutter)) * 1.9)", transform: rank === 10 ? "scaleX(0.6)" : undefined, transformOrigin: "left center", WebkitTextStroke: "2px hsl(var(--foreground) / 0.4)" }}>{rank}</span>}
+            {rank && <span aria-hidden="true" data-content-rank={rank} className="pointer-events-none absolute top-0 flex items-center justify-end font-display font-800 leading-none text-transparent" style={{ left: rank === 1 ? -20 : -12, width: "calc(var(--rank-gutter) + (100cqw - var(--rank-gutter)) * 0.35)", height: "calc((100cqw - var(--rank-gutter)) * 1.5)", fontSize: "calc((100cqw - var(--rank-gutter)) * 1.425)", transform: rank === 10 ? "scaleX(0.85)" : undefined, transformOrigin: "right center", WebkitTextStroke: "2px hsl(var(--foreground) / 0.4)" }}>{rank}</span>}
 
             <div
                 data-preview-edge={edge}
@@ -172,7 +172,7 @@ export default function ContentRow({ title, movies, href }: ContentRowProps) {
         scrollRef.current?.scrollBy({ left: dir === "left" ? -480 : 480, behavior: "smooth" });
 
     return (
-        <section className="px-4 sm:px-6 lg:px-10 space-y-3">
+        <section className="storefront-row space-y-3">
             <div className="flex items-center justify-between">
                 <h3 className="text-lg md:text-xl font-display font-700 text-foreground">{title}</h3>
                 {href && (
@@ -181,10 +181,10 @@ export default function ContentRow({ title, movies, href }: ContentRowProps) {
                     </Link>
                 )}
             </div>
-            <div className="relative group">
+            <div className="relative group [--row-artwork-height:16.5rem] sm:[--row-artwork-height:18rem] lg:[--row-artwork-height:19.5rem]">
                 <button
                     onClick={() => scroll("left")}
-                    className="absolute -left-3 top-[40%] -translate-y-1/2 z-40 w-8 h-8 rounded-full bg-background/90 border border-border text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="storefront-row-arrow -left-3"
                     aria-label="Scroll left"
                 >
                     <ChevronLeft size={18} />
@@ -196,7 +196,7 @@ export default function ContentRow({ title, movies, href }: ContentRowProps) {
                 </div>
                 <button
                     onClick={() => scroll("right")}
-                    className="absolute -right-3 top-[40%] -translate-y-1/2 z-40 w-8 h-8 rounded-full bg-background/90 border border-border text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="storefront-row-arrow -right-3"
                     aria-label="Scroll right"
                 >
                     <ChevronRight size={18} />

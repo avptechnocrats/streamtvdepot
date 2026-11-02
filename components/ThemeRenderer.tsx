@@ -58,7 +58,7 @@ export default function ThemeRenderer() {
         function measureRow() {
             const viewport = window.innerWidth;
             const style = getComputedStyle(area!);
-            const rowPadding = viewport >= 1024 ? 80 : viewport >= 640 ? 48 : 32;
+            const rowPadding = viewport >= 1024 ? (activeTheme.id === "ember" ? 112 : 80) : viewport >= 640 ? 48 : 32;
             const posterWidth = viewport >= 1024 ? 208 : viewport >= 640 ? 192 : 176;
             const gap = viewport >= 640 ? 24 : 20;
             const available = area!.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - rowPadding;
@@ -69,7 +69,7 @@ export default function ThemeRenderer() {
         observer.observe(area);
         window.addEventListener("resize", measureRow);
         return () => { observer.disconnect(); window.removeEventListener("resize", measureRow); };
-    }, []);
+    }, [activeTheme.id]);
     const visibleRows = minimumRowCount === null ? [] : rows.filter(row => row.items.length >= minimumRowCount);
 
     useEffect(() => {
@@ -118,7 +118,7 @@ export default function ThemeRenderer() {
             <LiveTvLogoRow />
             <TopTenRow />
             <ManagedBannerSlot page="/" position="top" />
-            <div ref={contentArea} className="space-y-10 py-10 lg:px-8">
+            <div ref={contentArea} className={`space-y-10 py-10 ${activeTheme.id === "ember" ? "" : "lg:px-8"}`}>
                 {rows.length === 0 && loading ? (
                     <>
                         <ContentRowSkeleton />

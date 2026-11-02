@@ -37,12 +37,12 @@ export default function CategoryGrid({ type, showName = true }: CategoryGridProp
         scrollRef.current?.scrollBy({ left: dir === "left" ? -480 : 480, behavior: "smooth" });
 
     return (
-        <section className="px-4 sm:px-6 lg:px-10 space-y-3">
+        <section className="storefront-row space-y-3">
             <h3 className="text-lg md:text-xl font-display font-700 text-foreground">Browse by Category</h3>
-            <div className="relative group">
+            <div className="relative group [--row-artwork-height:8.25rem] sm:[--row-artwork-height:9rem] lg:[--row-artwork-height:9.75rem] [--row-artwork-offset:32px]">
                 <button
                     onClick={() => scroll("left")}
-                    className="absolute -left-3 top-[35%] -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-background/90 border border-border text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="storefront-row-arrow -left-3"
                     aria-label="Scroll left"
                 >
                     <ChevronLeft size={18} />
@@ -78,7 +78,7 @@ export default function CategoryGrid({ type, showName = true }: CategoryGridProp
                 </div>
                 <button
                     onClick={() => scroll("right")}
-                    className="absolute -right-3 top-[35%] -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-background/90 border border-border text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="storefront-row-arrow -right-3"
                     aria-label="Scroll right"
                 >
                     <ChevronRight size={18} />
