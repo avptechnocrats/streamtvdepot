@@ -364,6 +364,7 @@ class VideoCreate(BaseModel):
     is_active: bool = True
     status: ContentStatus = ContentStatus.DRAFT
     is_slider: bool = False
+    is_movie_slider: bool = False
     is_thumbnail: bool = False
     advertisement: Advertisement = Field(default_factory=Advertisement)
     video_url: str | None = None
@@ -398,6 +399,7 @@ class VideoUpdate(BaseModel):
     is_active: bool | None = None
     status: ContentStatus | None = None
     is_slider: bool | None = None
+    is_movie_slider: bool | None = None
     is_thumbnail: bool | None = None
     advertisement: Advertisement | None = None
     video_url: str | None = None
@@ -433,6 +435,7 @@ class VideoOut(BaseModel):
     is_active: bool
     status: ContentStatus
     is_slider: bool
+    is_movie_slider: bool = False
     is_thumbnail: bool
     advertisement: Advertisement = Field(default_factory=Advertisement)
     video_url: str | None
@@ -505,6 +508,7 @@ class PublicVideoOut(BaseModel):
     is_featured: bool = False
     is_active: bool = True
     is_slider: bool = False
+    is_movie_slider: bool = False
     video_url: str | None
     video_display_url: str | None = None        # presigned GET URL — populated at serve time
     hls_url: str | None = None

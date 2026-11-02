@@ -134,6 +134,7 @@ export const videoFormSchema = z.object({
     is_active: z.boolean(),
     status: z.enum(["draft", "published", "archived", "scheduled"]),
     is_slider: z.boolean(),
+    is_movie_slider: z.boolean(),
     is_thumbnail: z.boolean(),
 
     // Advertisement
@@ -294,6 +295,7 @@ export function videoToFormValues(v: VideoOut): VideoFormValues {
         is_active: v.is_active,
         status: v.status ?? "published",
         is_slider: v.is_slider,
+        is_movie_slider: v.is_movie_slider ?? false,
         is_thumbnail: v.is_thumbnail,
         advertisement: {
             pre_ad_id: v.advertisement.pre_ad_id ?? "",
@@ -1315,6 +1317,7 @@ const DEFAULT_FORM_VALUES: VideoFormValues = {
     is_active: true,
     status: "draft",
     is_slider: false,
+    is_movie_slider: false,
     is_thumbnail: false,
     advertisement: {
         pre_ad_id: "", post_ad_id: "",
@@ -1766,6 +1769,7 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
             is_active: data.is_active,
             status: targetStatus,
             is_slider: data.is_slider,
+            is_movie_slider: data.is_movie_slider,
             is_thumbnail: data.is_thumbnail,
             advertisement: {
                 pre_ad_id: data.advertisement.pre_ad_id || null,
@@ -2776,6 +2780,10 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
                             <div className="border-t border-border" />
                             <Controller name="is_slider" control={control} render={({ field }) => (
                                 <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Slider" description="Include in homepage slider" />
+                            )} />
+                            <div className="border-t border-border" />
+                            <Controller name="is_movie_slider" control={control} render={({ field }) => (
+                                <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Movie Slider" description="Include in Movies page slider" />
                             )} />
                             <div className="border-t border-border" />
                             <Controller name="is_thumbnail" control={control} render={({ field }) => (

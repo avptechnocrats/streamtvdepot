@@ -260,6 +260,7 @@ class Video(Base, UUIDMixin, TimestampMixin):
         Enum(ContentStatus), default=ContentStatus.DRAFT, nullable=False, index=True
     )
     is_slider: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_movie_slider: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_thumbnail: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     advertisement: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     video_url: Mapped[str | None] = mapped_column(Text)
