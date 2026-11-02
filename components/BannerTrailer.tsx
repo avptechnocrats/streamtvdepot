@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { Volume2, VolumeX } from "lucide-react";
 
 const HOVER_DELAY_MS = 600;
 const FADE_MS = 500;
@@ -56,6 +57,7 @@ interface BannerTrailerProps {
   delayMs?: number;
   /** Matches the theme's artwork focal point, e.g. "object-[70%_30%]". */
   positionClassName?: string;
+  showSoundControl?: boolean;
 }
 
 function canPlayTrailer() {
@@ -69,16 +71,21 @@ function canPlayTrailer() {
  * Fades a muted trailer in over the slide artwork once the pointer has rested on the banner,
  * and fades it back out when the pointer leaves. Key it by slide id so state resets per slide.
  */
-export function BannerTrailer({ src, hlsSrc = null, hovered, delayMs = HOVER_DELAY_MS, positionClassName = "" }: BannerTrailerProps) {
+export function BannerTrailer({ src, hlsSrc = null, hovered, delayMs = HOVER_DELAY_MS, positionClassName = "", showSoundControl = false }: BannerTrailerProps) {
   const [mounted, setMounted] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [failed, setFailed] = useState(false);
   const [mp4Fallback, setMp4Fallback] = useState(false);
+  const [muted, setMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const eligible = !!(src || hlsSrc) && !failed && canPlayTrailer();
 
   useEffect(() => {
+    if (!hovered) {
+      setMuted(true);
+      if (videoRef.current) videoRef.current.muted = true;
+    }
     if (!eligible) return;
     if (hovered) {
       const timer = setTimeout(() => setMounted(true), delayMs);
@@ -143,10 +150,10 @@ export function BannerTrailer({ src, hlsSrc = null, hovered, delayMs = HOVER_DEL
 
   if (!eligible || !mounted) return null;
 
-  return (
+  return <>
     <video
       ref={videoRef}
-      muted
+      muted={muted}
       playsInline
       preload="auto"
       aria-hidden="true"
@@ -155,8 +162,27 @@ export function BannerTrailer({ src, hlsSrc = null, hovered, delayMs = HOVER_DEL
         else event.currentTarget.pause();
       }}
       onEnded={() => setPlaying(false)}
+      onVolumeChange={event => setMuted(event.currentTarget.muted)}
       onError={() => (hlsSrc && src && !mp4Fallback ? setMp4Fallback(true) : setFailed(true))}
       className={`absolute inset-0 h-full w-full object-cover ${positionClassName} transition-opacity duration-500 ${playing && hovered ? "opacity-100" : "opacity-0"}`}
     />
-  );
+    {showSoundControl && playing && hovered && <button
+      type="button"
+      aria-label={muted ? "Unmute trailer" : "Mute trailer"}
+      title={muted ? "Unmute trailer" : "Mute trailer"}
+      aria-pressed={!muted}
+      onClick={event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const video = videoRef.current;
+        if (!video) return;
+        video.muted = !video.muted;
+        setMuted(video.muted);
+      }}
+      style={{ borderRadius: "50%" }}
+      className="pointer-events-auto absolute right-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-full border-0 bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+    >
+      {muted ? <VolumeX size={16} strokeWidth={2.5} aria-hidden="true" /> : <Volume2 size={16} strokeWidth={2.5} aria-hidden="true" />}
+    </button>}
+  </>;
 }

@@ -147,6 +147,7 @@ export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie
                     hlsSrc={movie.trailerHlsUrl}
                     hovered={expanded && previewActive}
                     delayMs={1000}
+                    showSoundControl
                     positionClassName="object-center"
                 />
             </div>
