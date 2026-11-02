@@ -1,11 +1,14 @@
 import publicApiClient from "./public-client";
 
+export type ThumbnailView = "landscape" | "portrait";
+
 export interface Category {
     id: string;
     name: string;
     slug: string;
     description: string | null;
     content_type: string;
+    thumbnail_view?: ThumbnailView;
     thumbnail_url: string | null;
     thumbnail_display_url: string | null;
     banner_url: string | null;
