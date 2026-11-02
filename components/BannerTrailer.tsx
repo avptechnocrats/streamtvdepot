@@ -60,6 +60,7 @@ interface BannerTrailerProps {
   showSoundControl?: boolean;
   soundControlPlacement?: "top-right" | "bottom-right";
   soundControlTopInset?: number;
+  soundControlAlignToNav?: boolean;
 }
 
 function canPlayTrailer() {
@@ -73,7 +74,7 @@ function canPlayTrailer() {
  * Fades a muted trailer in over the slide artwork once the pointer has rested on the banner,
  * and fades it back out when the pointer leaves. Key it by slide id so state resets per slide.
  */
-export function BannerTrailer({ src, hlsSrc = null, hovered, delayMs = HOVER_DELAY_MS, positionClassName = "", showSoundControl = false, soundControlPlacement = "top-right", soundControlTopInset = 12 }: BannerTrailerProps) {
+export function BannerTrailer({ src, hlsSrc = null, hovered, delayMs = HOVER_DELAY_MS, positionClassName = "", showSoundControl = false, soundControlPlacement = "top-right", soundControlTopInset = 12, soundControlAlignToNav = false }: BannerTrailerProps) {
   const [mounted, setMounted] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -182,7 +183,7 @@ export function BannerTrailer({ src, hlsSrc = null, hovered, delayMs = HOVER_DEL
         setMuted(video.muted);
       }}
       style={{ borderRadius: "50%", top: soundControlPlacement === "top-right" ? soundControlTopInset : undefined, bottom: soundControlPlacement === "bottom-right" ? "32px" : undefined }}
-      className="pointer-events-auto absolute right-3 z-20 flex h-8 w-8 items-center justify-center rounded-full border-0 bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      className={`pointer-events-auto absolute ${soundControlAlignToNav ? "right-[60px] sm:right-[68px] md:right-6 lg:right-14" : "right-3"} z-20 flex h-8 w-8 items-center justify-center rounded-full border-0 bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white`}
     >
       {muted ? <VolumeX size={16} strokeWidth={2.5} aria-hidden="true" /> : <Volume2 size={16} strokeWidth={2.5} aria-hidden="true" />}
     </button>}

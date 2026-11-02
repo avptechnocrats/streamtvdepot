@@ -10,7 +10,7 @@
 import { ChevronDown, Menu, Search, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import SiteLogo from "@/components/SiteLogo";
 import SearchOverlay from "@/components/SearchOverlay";
@@ -35,6 +35,20 @@ export default function Navbar() {
     const pathname = usePathname();
     const [searchOpen, setSearchOpen] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [moreOpen, setMoreOpen] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
+    const solid = scrolled || mobileOpen || moreOpen || searchOpen;
+    const textShadow = solid ? undefined : "0 1px 3px rgba(0,0,0,0.95), 0 2px 8px rgba(0,0,0,0.85), 0 0 16px rgba(0,0,0,0.6)";
+    const iconShadow = solid ? undefined : "drop-shadow(0 1px 3px rgba(0,0,0,0.95)) drop-shadow(0 2px 8px rgba(0,0,0,0.85)) drop-shadow(0 0 16px rgba(0,0,0,0.6))";
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setScrolled(window.scrollY > 24);
+        };
+        handleScroll();
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, [pathname]);
 
     const { data: menus } = useQuery({
         queryKey: ["active-menus"],
@@ -57,10 +71,17 @@ export default function Navbar() {
         return pathname.startsWith(href);
     }
 
-    function renderLink(item: PublicMenuLink, className: string, onClick?: () => void) {
+    function renderMenuLabel(label: string) {
+        return <span style={{ textShadow }}>
+            {label}
+        </span>;
+    }
+
+    function renderLink(item: PublicMenuLink, className: string, onClick?: () => void, backdrop = false) {
+        const label = backdrop ? renderMenuLabel(item.label) : item.label;
         return item.url.startsWith("/") ? (
             <Link key={item.id} href={item.url} className={className} onClick={onClick}>
-                {item.label}
+                {label}
             </Link>
         ) : (
             <a
@@ -71,7 +92,7 @@ export default function Navbar() {
                 className={className}
                 onClick={onClick}
             >
-                {item.label}
+                {label}
             </a>
         );
     }
@@ -79,7 +100,9 @@ export default function Navbar() {
     return (
         <>
             <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
-            <nav className="fixed top-0 left-0 right-0 py-2 z-50 bg-background/95 backdrop-blur-md border-b border-border/60">
+            <nav
+                className={`fixed top-0 left-0 right-0 py-2 z-50 border-b transition-colors duration-300 motion-reduce:transition-none ${solid ? "bg-background/95 backdrop-blur-md border-border/60" : "bg-transparent border-transparent"}`}
+            >
                 <div className="flex items-center justify-between gap-4 px-4 sm:px-6 lg:px-14 h-14">
                     <div className="flex items-center gap-6 lg:gap-10 min-w-0">
                         <SiteLogo
@@ -93,15 +116,17 @@ export default function Navbar() {
                                     item,
                                     `relative px-3 py-4 text-[14px] font-medium transition-colors ${isActive(item.url)
                                         ? "text-foreground after:absolute after:left-3 after:right-3 after:bottom-2 after:h-[2px] after:rounded-full after:bg-primary"
-                                        : "text-muted-foreground hover:text-foreground"
+                                        : solid ? "text-muted-foreground hover:text-foreground" : "text-white/85 hover:text-white"
                                     }`,
+                                    undefined,
+                                    true,
                                 ),
                             )}
                             {overflowLinks.length > 0 && (
-                                <DropdownMenu>
+                                <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
                                     <DropdownMenuTrigger asChild>
-                                        <button className="flex items-center gap-1 px-3 py-4 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors focus:outline-none">
-                                            More <ChevronDown size={13} />
+                                        <button className={`flex items-center gap-1 px-3 py-4 text-[13px] font-medium transition-colors focus:outline-none ${solid ? "text-muted-foreground hover:text-foreground" : "text-white/85 hover:text-white"}`}>
+                                            {renderMenuLabel("More")} <ChevronDown size={13} />
                                         </button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="start" className="min-w-44">
@@ -116,19 +141,21 @@ export default function Navbar() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 lg:gap-3">
+                    <div className="flex items-center gap-2 lg:gap-3" style={{ textShadow }}>
                         <button
                             onClick={() => setSearchOpen(true)}
-                            className="relative hidden lg:flex h-10 w-10 items-center justify-center rounded-lg  text-muted-foreground hover:text-black transition-colors before:absolute before:inset-1.5 before:rounded-full before:bg-transparent before:transition-colors hover:before:bg-foreground hover:text-background"
+                            className={`hidden lg:flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${solid ? "text-foreground" : "text-white"}`}
                             aria-label="Search"
+                            title="Search"
                         >
-                            <Search size={18} strokeWidth={2.8} className="relative z-10" />
+                            <Search size={22} strokeWidth={3} style={{ filter: iconShadow }} />
                         </button>
                         <StorefrontActions
-                            scrolled
+                            scrolled={solid}
+                            iconShadow={iconShadow}
                             className="flex items-center gap-1"
-                            buttonClassName="lg:hidden p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors"
-                            accountClassName="flex items-center gap-1.5 px-1.5 py-1 rounded-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                            buttonClassName={`lg:hidden flex h-10 w-10 items-center justify-center rounded-md hover:text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${solid ? "text-foreground" : "text-white"}`}
+                            accountClassName={`flex h-10 items-center gap-2 px-2 py-1 rounded-full text-base font-bold hover:text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${solid ? "text-foreground" : "text-white"}`}
                         />
                         <button
                             className="md:hidden p-2 rounded-md text-muted-foreground hover:text-foreground transition-colors"

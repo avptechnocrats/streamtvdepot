@@ -22,6 +22,7 @@ interface StorefrontActionsProps {
     className?: string;
     buttonClassName?: string;
     accountClassName?: string;
+    iconShadow?: string;
 }
 
 export default function StorefrontActions({
@@ -29,6 +30,7 @@ export default function StorefrontActions({
     className = "flex items-center gap-2",
     buttonClassName = "p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors",
     accountClassName = "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors",
+    iconShadow,
 }: StorefrontActionsProps) {
     const router = useRouter();
     const { user, logout } = useAuth();
@@ -44,7 +46,7 @@ export default function StorefrontActions({
             <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
             <div className={className}>
                 <button onClick={() => setSearchOpen(true)} className={buttonClassName} aria-label="Search">
-                    <Search size={18} />
+                    <Search size={18} style={{ filter: iconShadow }} />
                 </button>
                 <NotificationsDropdown scrolled={scrolled} />
                 {user ? (
@@ -89,7 +91,7 @@ export default function StorefrontActions({
                     </DropdownMenu>
                 ) : (
                     <Link href="/login" className={accountClassName} aria-label="Sign in">
-                        <User size={18} />
+                        <User size={18} style={{ filter: iconShadow }} />
                         <span className="hidden md:block text-[14px]">Sign In</span>
                     </Link>
                 )}
