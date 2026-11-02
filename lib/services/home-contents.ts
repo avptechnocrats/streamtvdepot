@@ -13,6 +13,10 @@ interface HomeVideoItemThumbnails {
 export interface HomeVideoItem {
     id: string;
     title: string;
+    categories?: string[];
+    age_rating?: string | null;
+    duration?: number | null;
+    content_classification?: string | null;
     rating: number | null;
     publish_at: string | null;
     created_at: string;

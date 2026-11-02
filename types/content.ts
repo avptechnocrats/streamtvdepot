@@ -9,12 +9,20 @@ export interface Movie {
     image: string;
     year: string;
     rating: string;
+    categories?: string[];
+    ageRating?: string | null;
+    duration?: number | null;
+    classification?: string | null;
+    previewImage?: string | null;
+    trailerUrl?: string | null;
+    trailerHlsUrl?: string | null;
     id?: string; // Add id for linking
 }
 
 export interface ContentRowProps {
     title: string;
     movies: Movie[];
+    variant?: "portrait" | "landscape" | "featured";
     /** Optional link to the full category page (used by themes that render a "View All" action). */
     href?: string;
 }

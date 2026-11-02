@@ -96,6 +96,7 @@ export interface VideoOut {
     short_description: string | null;
     long_description: string | null;
     category: string | null;
+    categories?: string[];
     age_rating: string | null;
     content_classification: string | null;
     language: string[];
@@ -108,6 +109,7 @@ export interface VideoOut {
     is_featured: boolean;
     is_active: boolean;
     is_slider: boolean;
+    is_movie_slider: boolean;
     is_thumbnail: boolean;
     advertisement: Advertisement;
     video_url: string | null;
@@ -145,6 +147,7 @@ export interface ListVideosParams {
     category?: string;
     is_active?: boolean;
     is_slider?: boolean;
+    is_movie_slider?: boolean;
     is_featured?: boolean;
 }
 

@@ -23,7 +23,7 @@ const FALLBACK_FOOTER_LINKS: PublicMenuLink[] = [
 ];
 
 const PERKS = [
-    { icon: Play, title: "Free Content", text: "Enjoy a selection of movies and shows.", tint: "bg-primary/90" },
+    { icon: Play, title: "Free Content", text: "Enjoy a selection of movies and shows.", tint: "bg-[#ff5126]" },
     { icon: Crown, title: "Premium Subscription", text: "Get unlimited access to exclusive content.", tint: "bg-amber-500" },
     { icon: ShoppingCart, title: "Pay-Per-View", text: "Rent the latest blockbusters.", tint: "bg-rose-500" },
 ];
@@ -128,34 +128,37 @@ export default function Footer() {
     return (
         <footer>
             {!user && (
-                <section className="mx-4 sm:mx-6 lg:mx-20 my-8 border border-primary/30 bg-gradient-to-r from-primary/10 via-card to-card px-6 py-6 flex flex-col lg:flex-row lg:items-center gap-6">
-                    <div className="lg:w-1/4 space-y-1">
-                        <h3 className="text-xl font-display font-800 text-gradient-gold leading-tight">
-                            Unlimited Entertainment On Your Terms
+                <section aria-label="Entertainment options" className="mt-8 px-4 sm:px-6 lg:px-14 bg-[#03080c] bg-[linear-gradient(110deg,rgba(0,70,100,0.12)_0%,transparent_45%,rgba(225,0,65,0.12)_100%)]">
+                    <div className="mx-auto grid max-w-[100rem] items-center gap-7 py-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,3fr)_auto] xl:gap-8">
+                    <div className="min-w-0 space-y-2">
+                        <h3 className="font-display text-2xl font-extrabold leading-[1.15] tracking-normal bg-[image:var(--ember-gradient)] bg-clip-text text-transparent lg:text-[28px]">
+                            <span className="block">Unlimited Entertainment</span>
+                            <span className="block">On Your Terms</span>
                         </h3>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs font-medium leading-relaxed text-white/85">
                             Watch free titles, subscribe for more, or rent the latest releases.
                         </p>
                     </div>
-                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-3 xl:gap-6">
                         {PERKS.map(({ icon: Icon, title, text, tint }) => (
-                            <div key={title} className="flex items-center gap-3">
-                                <span className={`w-10 h-10 shrink-0 rounded-md ${tint} text-white flex items-center justify-center`}>
-                                    <Icon size={18} fill={Icon === Play ? "currentColor" : "none"} />
+                            <div key={title} className="flex min-w-0 items-start gap-3">
+                                <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded ${tint} text-black shadow-[0_2px_8px_rgba(0,0,0,0.35)]`}>
+                                    <Icon size={24} strokeWidth={2.5} fill={Icon === Play ? "currentColor" : "none"} aria-hidden="true" />
                                 </span>
-                                <div>
-                                    <p className="text-sm font-semibold text-foreground">{title}</p>
-                                    <p className="text-xs text-muted-foreground">{text}</p>
+                                <div className="min-w-0 space-y-1">
+                                    <p className="text-sm font-bold leading-5 text-white">{title}</p>
+                                    <p className="text-xs font-medium leading-5 text-white/80">{text}</p>
                                 </div>
                             </div>
                         ))}
                     </div>
                     <Link
                         href="/signup"
-                        className="shrink-0 inline-flex items-center justify-center h-10 px-6 rounded-md text-sm font-semibold text-white bg-[image:var(--ember-gradient)] hover:brightness-110 transition"
+                        className="inline-flex min-h-12 w-full items-center justify-center justify-self-start rounded px-7 py-3 text-center text-base font-bold text-white bg-[image:var(--ember-gradient)] hover:brightness-110 transition sm:w-auto sm:min-w-48 xl:justify-self-end focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
                     >
                         Join {label}
                     </Link>
+                    </div>
                 </section>
             )}
 
