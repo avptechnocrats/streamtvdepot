@@ -117,6 +117,9 @@ export default function Banner() {
                     hlsSrc={slide.trailerHlsUrl}
                     hovered={trailerActive}
                     delayMs={0}
+                    showSoundControl
+                    soundControlPlacement="top-right"
+                    soundControlTopInset={24}
                     positionClassName="object-[70%_30%]"
                 />
                 <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(0,5,12,0.98)_0%,rgba(0,5,12,0.85)_24%,rgba(0,5,12,0.45)_46%,rgba(0,5,12,0)_72%)]" />
