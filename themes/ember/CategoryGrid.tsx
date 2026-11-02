@@ -8,9 +8,10 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchCategories, getCategoryImageUrl, type Category } from "@/lib/services/categories";
 import type { CategoryGridProps } from "@/types/category";
+import { useRowScroll } from "@/hooks/use-row-scroll";
 
 const GRADIENTS = [
     "from-rose-700 to-orange-800",
@@ -23,7 +24,7 @@ const GRADIENTS = [
 
 export default function CategoryGrid({ type, showName = true }: CategoryGridProps) {
     const [categories, setCategories] = useState<Category[]>([]);
-    const scrollRef = useRef<HTMLDivElement>(null);
+    const { scrollRef, canScrollLeft, canScrollRight } = useRowScroll(categories.length);
 
     useEffect(() => {
         fetchCategories(type)
@@ -42,6 +43,7 @@ export default function CategoryGrid({ type, showName = true }: CategoryGridProp
             <div className="relative group [--row-artwork-height:8.25rem] sm:[--row-artwork-height:9rem] lg:[--row-artwork-height:9.75rem] [--row-artwork-offset:32px]">
                 <button
                     onClick={() => scroll("left")}
+                    disabled={!canScrollLeft}
                     className="storefront-row-arrow -left-3"
                     aria-label="Scroll left"
                 >
@@ -78,6 +80,7 @@ export default function CategoryGrid({ type, showName = true }: CategoryGridProp
                 </div>
                 <button
                     onClick={() => scroll("right")}
+                    disabled={!canScrollRight}
                     className="storefront-row-arrow -right-3"
                     aria-label="Scroll right"
                 >

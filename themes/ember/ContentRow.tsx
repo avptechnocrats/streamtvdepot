@@ -11,12 +11,13 @@ import { ChevronDown, ChevronLeft, ChevronRight, Check, Play, Plus } from "lucid
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type SyntheticEvent } from "react";
+import { useState, type SyntheticEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { addToWatchlist, getWatchlist, removeFromWatchlist, type WatchlistItem } from "@/lib/services/watchlist";
 import type { ContentRowProps, Movie } from "@/types/content";
+import { useRowScroll } from "@/hooks/use-row-scroll";
 
 export function PosterCard({ movie, rank }: { movie: Movie; rank?: number }) {
     const router = useRouter();
@@ -95,7 +96,7 @@ export function PosterCard({ movie, rank }: { movie: Movie; rank?: number }) {
             onFocus={preparePreview}
             onBlur={releasePreview}
             style={{ zIndex: layer, containerType: rank ? "inline-size" : undefined, marginLeft: rank === 1 ? "calc(var(--rank-gutter) * -0.64)" : undefined }}
-            className={`group/card pointer-events-auto relative shrink-0 ${rank ? "w-52 sm:w-56 lg:w-60 [--rank-gutter:96px] sm:[--rank-gutter:104px] lg:[--rank-gutter:112px]" : "w-44 sm:w-48 lg:w-52"} rounded-lg hover:z-30 focus-visible:z-30 focus-visible:outline-none`}
+            className={`group/card pointer-events-auto relative shrink-0 ${rank ? "w-56 sm:w-60 lg:w-64 [--rank-gutter:96px] sm:[--rank-gutter:104px] lg:[--rank-gutter:112px]" : "w-44 sm:w-48 lg:w-52"} rounded-lg hover:z-30 focus-visible:z-30 focus-visible:outline-none`}
         >
             <div className="aspect-[2/3]" style={{ marginLeft: rank ? "var(--rank-gutter)" : undefined }} aria-hidden="true" />
             <div className="mt-1.5 px-0.5" style={{ marginLeft: rank ? "var(--rank-gutter)" : undefined, opacity: expanded ? 0 : 1, transition: reducedMotion ? "none" : "opacity 120ms linear" }}>
@@ -119,7 +120,7 @@ export function PosterCard({ movie, rank }: { movie: Movie; rank?: number }) {
                             alt={movie.title}
                             fill
                             className="object-cover"
-                            sizes={rank ? "(min-width: 1024px) 154px, (min-width: 640px) 144px, 135px" : "(min-width: 1024px) 250px, (min-width: 640px) 231px, 212px"}
+                            sizes={rank ? "(min-width: 1024px) 173px, (min-width: 640px) 164px, 154px" : "(min-width: 1024px) 250px, (min-width: 640px) 231px, 212px"}
                         />
                     </div>
                     <div className="grid" style={{ gridTemplateRows: expanded ? "1fr" : "0fr", opacity: expanded ? 1 : 0, transition: reducedMotion ? "none" : "grid-template-rows 500ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease" }}>
@@ -166,7 +167,7 @@ export function PosterCard({ movie, rank }: { movie: Movie; rank?: number }) {
 }
 
 export default function ContentRow({ title, movies, href }: ContentRowProps) {
-    const scrollRef = useRef<HTMLDivElement>(null);
+    const { scrollRef, canScrollLeft, canScrollRight } = useRowScroll(movies.length);
 
     const scroll = (dir: "left" | "right") =>
         scrollRef.current?.scrollBy({ left: dir === "left" ? -480 : 480, behavior: "smooth" });
@@ -184,6 +185,7 @@ export default function ContentRow({ title, movies, href }: ContentRowProps) {
             <div className="relative group [--row-artwork-height:16.5rem] sm:[--row-artwork-height:18rem] lg:[--row-artwork-height:19.5rem]">
                 <button
                     onClick={() => scroll("left")}
+                    disabled={!canScrollLeft}
                     className="storefront-row-arrow -left-3"
                     aria-label="Scroll left"
                 >
@@ -196,6 +198,7 @@ export default function ContentRow({ title, movies, href }: ContentRowProps) {
                 </div>
                 <button
                     onClick={() => scroll("right")}
+                    disabled={!canScrollRight}
                     className="storefront-row-arrow -right-3"
                     aria-label="Scroll right"
                 >

@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type PointerEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BannerTrailer, useBannerHover } from "@/components/BannerTrailer";
+import { BannerTrailer, useBannerAutoplay } from "@/components/BannerTrailer";
 import BannerTitle from "@/components/BannerTitle";
 import { useBannerVideos } from "@/hooks/use-banner-videos";
 import { useSiteSettings } from "@/hooks/use-site-settings";
@@ -67,8 +67,8 @@ export default function Banner() {
         onError: () => toast({ title: "Couldn't update your list", variant: "destructive" }),
     });
     const [current, setCurrent] = useState(0);
-    const { hovered, hoverProps } = useBannerHover();
-    const trailerActive = hovered && prefs.bannerStyle === "video";
+    const { active, bannerRef } = useBannerAutoplay();
+    const trailerActive = active && prefs.bannerStyle === "video";
 
     const count = slides.length;
     const next = useCallback(() => setCurrent((i) => (i + 1) % Math.max(count, 1)), [count]);
@@ -102,7 +102,7 @@ export default function Banner() {
 
     return (
         <section className={`${NAV_OFFSET} bg-background`}>
-            <div {...hoverProps} className={`group/banner relative ${HERO_HEIGHT} overflow-hidden`}>
+            <div ref={bannerRef} className={`group/banner relative ${HERO_HEIGHT} overflow-hidden`}>
                 {slides.map((s, i) => (
                     <img
                         key={s.id}
@@ -116,6 +116,7 @@ export default function Banner() {
                     src={slide.trailerUrl}
                     hlsSrc={slide.trailerHlsUrl}
                     hovered={trailerActive}
+                    delayMs={0}
                     positionClassName="object-[70%_30%]"
                 />
                 <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(0,5,12,0.98)_0%,rgba(0,5,12,0.85)_24%,rgba(0,5,12,0.45)_46%,rgba(0,5,12,0)_72%)]" />

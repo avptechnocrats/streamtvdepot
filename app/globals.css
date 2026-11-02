@@ -17,6 +17,11 @@
     .group:hover > .storefront-row-arrow {
         opacity: 1;
     }
+
+    .storefront-row-arrow:disabled {
+        visibility: hidden;
+        pointer-events: none;
+    }
 }
 
 /* ─── Gold Dark (default) ─────────────────────────────────────────── */
