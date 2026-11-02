@@ -809,6 +809,7 @@ async def list_public_categories(
             "banner_url": cat.banner_url,
             "banner_display_url": _refresh_s3_url(cat.banner_url) if cat.banner_url else None,
             "sort_order": cat.sort_order,
+            "thumbnail_view": cat.thumbnail_view,
             "content_types": cat.content_types,
             "created_at": cat.created_at,
             "updated_at": cat.updated_at,
@@ -864,6 +865,7 @@ async def get_public_category_detail(
         "banner_url": category.banner_url,
         "banner_display_url": _refresh_s3_url(category.banner_url) if category.banner_url else None,
         "sort_order": category.sort_order,
+        "thumbnail_view": category.thumbnail_view,
         "content_types": category.content_types,
         "created_at": category.created_at,
         "updated_at": category.updated_at,
@@ -2183,6 +2185,7 @@ async def get_home_contents(
                     category_name=cat.name,
                     category_slug=cat.slug,
                     content_type=ctype,
+                    thumbnail_view=cat.thumbnail_view,
                     items=items,
                 )
             )
