@@ -13,7 +13,7 @@ export default function TopTenRow() {
     if (isError || !videos.length) return null;
     return <section aria-label="Top 10 content" className="storefront-row pt-8 pb-2">
         <h2 className="mb-3 text-lg font-semibold md:text-xl">Top 10 Movies of the Month</h2>
-        <div className="relative group [--row-artwork-height:12rem] sm:[--row-artwork-height:12.75rem] lg:[--row-artwork-height:13.5rem]">
+        <div className="relative group [--rank-poster-width:9rem] sm:[--rank-poster-width:9.5rem] lg:[--rank-poster-width:10rem] [--row-artwork-height:13.5rem] sm:[--row-artwork-height:14.25rem] lg:[--row-artwork-height:15rem]">
             <button type="button" aria-label="Previous top 10 titles" title="Previous top 10 titles" disabled={!canScrollLeft} onClick={() => rail.current?.scrollBy({ left: -480, behavior: "smooth" })} className="storefront-row-arrow -left-3"><ChevronLeft size={18} /></button>
             <div ref={rail} className="pointer-events-none flex gap-5 overflow-x-auto scrollbar-hide pt-32 pb-64 sm:gap-6" style={{ marginTop: -124, marginBottom: -248 }}>
                 {videos.map((video, index) => <PosterCard key={video.id} rank={index + 1} movie={{ id: video.id, title: video.title, image: video.thumbnails.video_h_thumbnail || video.thumbnails.video_w_thumbnail || video.thumbnails.video_banner || "/images/hero-banner.jpg", year: String(new Date(video.publish_at || video.created_at).getFullYear()), rating: video.rating != null ? `★ ${video.rating.toFixed(1)}` : "", categories: video.categories ?? (video.category ? [video.category] : []), ageRating: video.age_rating, duration: video.duration, classification: video.content_classification }} />)}

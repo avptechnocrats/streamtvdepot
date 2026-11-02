@@ -9,6 +9,29 @@
  * If the URL strategy changes (e.g. switching to CloudFront), update this file only.
  */
 
+import type { VideoOut } from "@/lib/services/videos";
+import type { Movie } from "@/types/content";
+
+export function videoToMovie(video: VideoOut, landscape = false): Movie {
+    const portrait = video.thumbnails.video_h_thumbnail || video.thumbnails.video_w_thumbnail || video.thumbnails.video_banner || "/images/hero-banner.jpg";
+    const wide = video.thumbnails.video_w_thumbnail || video.thumbnails.video_banner || portrait;
+    const date = new Date(video.publish_at || video.created_at);
+    return {
+        id: video.id,
+        title: video.title,
+        image: landscape ? wide : portrait,
+        year: Number.isNaN(date.getTime()) ? "" : date.getFullYear().toString(),
+        rating: video.rating != null ? `\u2605 ${video.rating.toFixed(1)}` : "",
+        categories: video.categories ?? (video.category ? [video.category] : []),
+        ageRating: video.age_rating,
+        duration: video.duration,
+        classification: video.content_classification,
+        previewImage: video.thumbnails.video_banner || wide,
+        trailerUrl: video.trailer_display_url,
+        trailerHlsUrl: video.trailer_hls_url,
+    };
+}
+
 /** For MediaAsset API responses */
 export function resolveMediaUrl(
     asset: { url: string; display_url?: string | null } | null | undefined,

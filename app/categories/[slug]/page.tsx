@@ -23,12 +23,12 @@ function HeroSkeleton() {
     );
 }
 
-function CardGridSkeleton({ count = 12 }: { count?: number }) {
+function CardGridSkeleton({ count = 12, landscape = true }: { count?: number; landscape?: boolean }) {
     return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <div className={`grid gap-4 ${landscape ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"}`}>
             {Array.from({ length: count }).map((_, i) => (
                 <div key={i} className="space-y-2">
-                    <Skeleton className="w-full aspect-[2/3] rounded-lg" />
+                    <Skeleton className={`w-full ${landscape ? "aspect-video" : "aspect-[2/3]"} rounded-lg`} />
                     <Skeleton className="h-3.5 w-3/4 rounded" />
                     <Skeleton className="h-3 w-1/2 rounded" />
                 </div>
@@ -37,11 +37,12 @@ function CardGridSkeleton({ count = 12 }: { count?: number }) {
     );
 }
 
-function getImage(item: CategoryItem): string {
+function getImage(item: CategoryItem, landscape: boolean): string {
     return (
+        (landscape ? item.thumbnails.video_w_thumbnail : item.thumbnails.video_h_thumbnail) ||
+        item.thumbnails.video_banner ||
         item.thumbnails.video_h_thumbnail ||
         item.thumbnails.video_w_thumbnail ||
-        item.thumbnails.video_banner ||
         "/images/hero-banner.jpg"
     );
 }
@@ -105,6 +106,7 @@ export default function CategoryDetailPage() {
     }, [hasMore, loading]);
 
     const bannerUrl = category ? getCategoryImageUrl(category) : null;
+    const landscape = category?.thumbnail_view !== "portrait";
 
     return (
         <div className="min-h-screen">
@@ -139,7 +141,7 @@ export default function CategoryDetailPage() {
             {/* Content grid */}
             <div className="px-6 md:px-12 py-8">
                 {items.length === 0 && loading ? (
-                    <CardGridSkeleton count={12} />
+                    <CardGridSkeleton count={12} landscape={landscape} />
                 ) : (
                     <>
                         {items.length === 0 && !loading && (
@@ -154,17 +156,17 @@ export default function CategoryDetailPage() {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                        <div className={`grid gap-4 ${landscape ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"}`}>
                             {items.map((item) => (
                                 <Link
                                     key={item.id}
                                     href={`/movies/${item.id}`}
                                     className="group cursor-pointer"
                                 >
-                                    <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-secondary">
+                                    <div className={`relative ${landscape ? "aspect-video" : "aspect-[2/3]"} rounded-lg overflow-hidden bg-secondary`}>
                                         <div
                                             className="absolute inset-0 bg-cover bg-center transition-transform duration-300 group-hover:scale-105"
-                                            style={{ backgroundImage: `url(${getImage(item)})` }}
+                                            style={{ backgroundImage: `url(${getImage(item, landscape)})` }}
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                         {item.rating !== null && (
@@ -187,7 +189,7 @@ export default function CategoryDetailPage() {
                         {hasMore && <div ref={sentinelRef} style={{ height: 1 }} />}
                         {loading && (
                             <div className="mt-6">
-                                <CardGridSkeleton count={6} />
+                                <CardGridSkeleton count={6} landscape={landscape} />
                             </div>
                         )}
                     </>

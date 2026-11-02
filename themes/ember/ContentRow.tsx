@@ -176,6 +176,33 @@ export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie
         </div>
     );
 
+    const previewActions = <div className="flex items-center gap-2">
+        <span
+            role="link"
+            tabIndex={-1}
+            aria-label={`Play ${movie.title}`}
+            onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (movie.id) router.push(`/movies/${movie.id}?play=true`);
+            }}
+            className="w-7 h-7 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer hover:brightness-110"
+        >
+            <Play size={12} fill="currentColor" className="ml-0.5" />
+        </span>
+        <button
+            onClick={handleToggle}
+            disabled={toggleList.isPending}
+            aria-label={inList ? "Remove from My List" : "Add to My List"}
+            className="w-7 h-7 shrink-0 rounded-full border border-foreground/40 text-foreground flex items-center justify-center hover:border-foreground transition-colors"
+        >
+            {inList ? <Check size={12} /> : <Plus size={12} />}
+        </button>
+        <span className="ml-auto w-7 h-7 shrink-0 rounded-full border border-foreground/40 text-foreground flex items-center justify-center">
+            <ChevronDown size={12} />
+        </span>
+    </div>;
+
     return (
         <Link
             href={href}
@@ -184,13 +211,13 @@ export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie
             onPointerLeave={releasePreview}
             onFocus={preparePreview}
             onBlur={releasePreview}
-            style={{ zIndex: layer, containerType: rank ? "inline-size" : undefined, marginLeft: rank === 1 ? "calc(var(--rank-gutter) * -0.64)" : undefined }}
-            className={`group/card pointer-events-auto relative shrink-0 ${rank ? "w-56 sm:w-60 lg:w-64 [--rank-gutter:96px] sm:[--rank-gutter:104px] lg:[--rank-gutter:112px]" : landscape ? "w-56 sm:w-60 lg:w-64" : "w-44 sm:w-48 lg:w-52"} rounded-lg hover:z-30 focus-visible:z-30 focus-visible:outline-none`}
+            style={{ zIndex: layer, containerType: rank ? "inline-size" : undefined, width: rank ? "calc(var(--rank-gutter) + var(--rank-poster-width, 9rem))" : undefined, marginLeft: rank === 1 ? "calc(var(--rank-gutter) * -0.64)" : undefined }}
+            className={`group/card pointer-events-auto relative shrink-0 ${rank ? "[--rank-gutter:96px] sm:[--rank-gutter:104px] lg:[--rank-gutter:112px]" : landscape ? "w-56 sm:w-60 lg:w-64" : "w-44 sm:w-48 lg:w-52"} rounded-lg hover:z-30 focus-visible:z-30 focus-visible:outline-none`}
         >
             <div className={landscape ? "aspect-video" : "aspect-[2/3]"} style={{ marginLeft: rank ? "var(--rank-gutter)" : undefined }} aria-hidden="true" />
             {!landscape && <div className="mt-1.5 px-0.5" style={{ marginLeft: rank ? "var(--rank-gutter)" : undefined, opacity: expanded ? 0 : 1, transition: reducedMotion ? "none" : "opacity 120ms linear" }}>
-                <p className="text-xs font-medium text-foreground truncate">{movie.title}</p>
-                {movie.year && <p className="text-[11px] text-muted-foreground">{movie.year}</p>}
+                <p className={`${rank ? "text-sm font-bold" : "text-xs font-medium"} text-foreground truncate`}>{movie.title}</p>
+                {!rank && movie.year && <p className="text-[11px] text-muted-foreground">{movie.year}</p>}
             </div>}
             {rank && <span aria-hidden="true" data-content-rank={rank} className="pointer-events-none absolute top-0 flex items-center justify-end font-display font-800 leading-none text-transparent" style={{ left: rank === 1 ? -20 : -12, width: "calc(var(--rank-gutter) + (100cqw - var(--rank-gutter)) * 0.35)", height: "calc((100cqw - var(--rank-gutter)) * 1.5)", fontSize: "calc((100cqw - var(--rank-gutter)) * 1.425)", transform: rank === 10 ? "scaleX(0.85)" : undefined, transformOrigin: "right center", WebkitTextStroke: "2px hsl(var(--foreground) / 0.4)" }}>{rank}</span>}
 
@@ -209,48 +236,28 @@ export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie
                             alt={movie.title}
                             fill
                             className="object-cover"
-                            sizes={rank ? "(min-width: 1024px) 173px, (min-width: 640px) 164px, 154px" : landscape ? "(min-width: 1024px) 308px, (min-width: 640px) 288px, 269px" : "(min-width: 1024px) 250px, (min-width: 640px) 231px, 212px"}
+                            sizes={rank ? "(min-width: 1024px) 192px, (min-width: 640px) 183px, 173px" : landscape ? "(min-width: 1024px) 308px, (min-width: 640px) 288px, 269px" : "(min-width: 1024px) 250px, (min-width: 640px) 231px, 212px"}
                         />
+                        {rank && <div
+                            data-top-ten-actions
+                            className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent px-3 pb-2 pt-8"
+                            style={{ opacity: expanded ? 1 : 0, transform: expanded ? "translateY(0)" : "translateY(8px)", visibility: expanded ? "visible" : "hidden", pointerEvents: expanded ? "auto" : "none", transition: reducedMotion ? "none" : "opacity 250ms ease, transform 300ms ease" }}
+                        >{previewActions}</div>}
                     </div>
                     <div className="grid" style={{ gridTemplateRows: expanded ? "1fr" : "0fr", opacity: expanded ? 1 : 0, transition: reducedMotion ? "none" : "grid-template-rows 500ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease" }}>
                     <div className="min-h-0 overflow-hidden">
-                    <div className="p-3 space-y-2">
-                        <div className="flex items-center gap-2">
-                            <span
-                                role="link"
-                                tabIndex={-1}
-                                aria-label={`Play ${movie.title}`}
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    if (movie.id) router.push(`/movies/${movie.id}?play=true`);
-                                }}
-                                className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer hover:brightness-110"
-                            >
-                                <Play size={14} fill="currentColor" className="ml-0.5" />
-                            </span>
-                            <button
-                                onClick={handleToggle}
-                                disabled={toggleList.isPending}
-                                aria-label={inList ? "Remove from My List" : "Add to My List"}
-                                className="w-8 h-8 rounded-full border border-foreground/40 text-foreground flex items-center justify-center hover:border-foreground transition-colors"
-                            >
-                                {inList ? <Check size={14} /> : <Plus size={14} />}
-                            </button>
-                            <span className="ml-auto w-8 h-8 rounded-full border border-foreground/40 text-foreground flex items-center justify-center">
-                                <ChevronDown size={14} />
-                            </span>
-                        </div>
+                    <div className="px-3 py-2 space-y-1.5">
+                        {!rank && previewActions}
                         <div className="flex min-w-0 items-center gap-2">
-                            <p className="min-w-0 truncate text-sm font-semibold text-foreground" title={movie.title}>{movie.title}</p>
-                            {movie.rating && <span className="shrink-0 text-xs font-medium text-primary">{movie.rating}</span>}
+                            <p className={`min-w-0 truncate text-sm ${rank ? "font-bold" : "font-semibold"} text-foreground`} title={movie.title}>{movie.title}</p>
+                            {movie.rating && <span className="shrink-0 text-xs font-medium text-primary" style={{ fontSize: rank ? "11px" : undefined }}>{movie.rating}</span>}
                         </div>
-                        {(movie.classification || movie.ageRating || runtime) && <p data-content-metadata className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                        {(movie.classification || movie.ageRating || runtime) && <p data-content-metadata className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground" style={{ fontSize: rank ? "11px" : undefined }}>
                             {movie.classification && <span>{movie.classification}</span>}
                             {movie.ageRating && <span className="rounded-sm border border-foreground/40 px-1.5 py-0.5 leading-none text-foreground/80">{movie.ageRating}</span>}
                             {runtime && <span className="whitespace-nowrap">{runtime}</span>}
                         </p>}
-                        {categoryText && <p data-content-categories className="truncate text-xs leading-5 text-foreground/90" title={categoryText}>{categoryText}</p>}
+                        {categoryText && <p data-content-categories className="truncate text-xs leading-5 text-foreground/90" style={{ fontSize: rank ? "11px" : undefined, lineHeight: rank ? "16px" : undefined }} title={categoryText}>{categoryText}</p>}
                     </div>
                     </div>
                     </div>

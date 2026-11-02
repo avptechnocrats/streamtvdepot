@@ -9,13 +9,17 @@ import ContentRowSkeleton from "@/components/ContentRowSkeleton";
 import ManagedBannerSlot from "@/components/ManagedBannerSlot";
 import LiveTvLogoRow from "@/components/LiveTvLogoRow";
 import TopTenRow from "@/components/TopTenRow";
+import NewReleasesRow from "@/components/NewReleasesRow";
+import FeaturedRow from "@/components/FeaturedRow";
 import type { Movie } from "@/types/content";
+import { useCategoryRowMinimum } from "@/hooks/use-row-scroll";
 
-function getMovieImage(row: HomeCategoryRow["items"][number]): string {
+function getMovieImage(row: HomeCategoryRow["items"][number], landscape: boolean): string {
     return (
+        (landscape ? row.thumbnails.video_w_thumbnail : row.thumbnails.video_h_thumbnail) ||
+        row.thumbnails.video_banner ||
         row.thumbnails.video_h_thumbnail ||
         row.thumbnails.video_w_thumbnail ||
-        row.thumbnails.video_banner ||
         "/images/hero-banner.jpg"
     );
 }
@@ -31,13 +35,16 @@ function mapRowMovies(row: HomeCategoryRow): Movie[] {
     return row.items.map((item) => ({
         id: item.id,
         title: item.title,
-        image: getMovieImage(item),
+        image: getMovieImage(item, row.thumbnail_view !== "portrait"),
         year: getMovieYear(item),
         rating: item.rating !== null ? `★ ${item.rating.toFixed(1)}` : "",
         categories: item.categories?.length ? item.categories : [row.category_name],
         ageRating: item.age_rating,
         duration: item.duration,
         classification: item.content_classification,
+        previewImage: item.thumbnails.video_banner || item.thumbnails.video_w_thumbnail || getMovieImage(item, true),
+        trailerUrl: item.trailer_display_url,
+        trailerHlsUrl: item.trailer_hls_url,
     }));
 }
 
@@ -54,27 +61,8 @@ export default function ThemeRenderer() {
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
     const contentArea = useRef<HTMLDivElement>(null);
-    const [minimumRowCount, setMinimumRowCount] = useState<number | null>(null);
-
-    useEffect(() => {
-        const area = contentArea.current;
-        if (!area) return;
-        function measureRow() {
-            const viewport = window.innerWidth;
-            const style = getComputedStyle(area!);
-            const rowPadding = viewport >= 1024 ? (activeTheme.id === "ember" ? 112 : 80) : viewport >= 640 ? 48 : 32;
-            const posterWidth = viewport >= 1024 ? 208 : viewport >= 640 ? 192 : 176;
-            const gap = viewport >= 640 ? 24 : 20;
-            const available = area!.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - rowPadding;
-            setMinimumRowCount(Math.max(1, Math.ceil((available + gap) / (posterWidth + gap))));
-        }
-        measureRow();
-        const observer = new ResizeObserver(measureRow);
-        observer.observe(area);
-        window.addEventListener("resize", measureRow);
-        return () => { observer.disconnect(); window.removeEventListener("resize", measureRow); };
-    }, [activeTheme.id]);
-    const visibleRows = minimumRowCount === null ? [] : rows.filter(row => row.items.length >= minimumRowCount);
+    const minimumRowCounts = useCategoryRowMinimum(contentArea, activeTheme.id);
+    const visibleRows = minimumRowCounts === null ? [] : rows.filter(row => row.items.length >= minimumRowCounts[row.thumbnail_view ?? "landscape"]);
 
     useEffect(() => {
         let cancelled = false;
@@ -83,7 +71,15 @@ export default function ThemeRenderer() {
             try {
                 const data = await fetchHomeVideoRows({ page });
                 if (!cancelled) {
-                    setRows(prev => page === 1 ? data.rows : [...prev, ...data.rows]);
+                    const categoryRows = data.rows.map(row => {
+                        const items = [...row.items];
+                        for (let index = items.length - 1; index > 0; index--) {
+                            const randomIndex = Math.floor(Math.random() * (index + 1));
+                            [items[index], items[randomIndex]] = [items[randomIndex], items[index]];
+                        }
+                        return { ...row, items };
+                    });
+                    setRows(prev => page === 1 ? categoryRows : [...prev, ...categoryRows]);
                     setHasMore(data.has_more);
                 }
             } catch {
@@ -121,6 +117,8 @@ export default function ThemeRenderer() {
             <Banner />
             <LiveTvLogoRow />
             <TopTenRow />
+            <NewReleasesRow />
+            <FeaturedRow />
             <ManagedBannerSlot page="/" position="top" />
             <div ref={contentArea} className={`space-y-10 py-10 ${activeTheme.id === "ember" ? "" : "lg:px-8"}`}>
                 {rows.length === 0 && loading ? (
@@ -137,6 +135,7 @@ export default function ThemeRenderer() {
                                 title={row.category_name}
                                 movies={mapRowMovies(row)}
                                 href={`/categories/${row.category_slug}`}
+                                variant={row.thumbnail_view === "portrait" ? "featured" : "landscape"}
                             />
                         ))}
                         {rows.length >= 1 && <CategoryGrid type="video" showName={false} />}
@@ -147,11 +146,12 @@ export default function ThemeRenderer() {
                                 title={row.category_name}
                                 movies={mapRowMovies(row)}
                                 href={`/categories/${row.category_slug}`}
+                                variant={row.thumbnail_view === "portrait" ? "featured" : "landscape"}
                             />
                         ))}
                         <ManagedBannerSlot page="/" position="middle_2" />
                         {visibleRows.slice(3).map((row) => (
-                            <ContentRow key={row.category_id} title={row.category_name} movies={mapRowMovies(row)} href={`/categories/${row.category_slug}`} />
+                            <ContentRow key={row.category_id} title={row.category_name} movies={mapRowMovies(row)} href={`/categories/${row.category_slug}`} variant={row.thumbnail_view === "portrait" ? "featured" : "landscape"} />
                         ))}
                         {/* Infinite scroll sentinel */}
                         {hasMore && (

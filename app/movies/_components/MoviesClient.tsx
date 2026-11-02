@@ -2,14 +2,16 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Film } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 
 import { useTheme } from "@/hooks/use-theme";
-import { fetchHomeVideoRows, listVideos, type HomeCategoryRow, type HomeVideoItem } from "@/lib/services";
+import { fetchHomeVideoRows, type HomeCategoryRow, type HomeVideoItem } from "@/lib/services";
 import ContentRowSkeleton from "@/components/ContentRowSkeleton";
 import ManagedBannerSlot from "@/components/ManagedBannerSlot";
 import TopTenRow from "@/components/TopTenRow";
+import NewReleasesRow from "@/components/NewReleasesRow";
+import FeaturedRow from "@/components/FeaturedRow";
 import type { Movie } from "@/types/content";
+import { useCategoryRowMinimum } from "@/hooks/use-row-scroll";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,11 +41,14 @@ function mapMovie(item: HomeVideoItem, landscape = false, categories = item.cate
         ageRating: item.age_rating,
         duration: item.duration,
         classification: item.content_classification,
+        previewImage: item.thumbnails.video_banner || item.thumbnails.video_w_thumbnail || getItemImage(item),
+        trailerUrl: item.trailer_display_url,
+        trailerHlsUrl: item.trailer_hls_url,
     };
 }
 
 function mapRowToMovies(row: HomeCategoryRow): Movie[] {
-    return row.items.map(item => mapMovie(item, true, item.categories?.length ? item.categories : [row.category_name]));
+    return row.items.map(item => mapMovie(item, row.thumbnail_view !== "portrait", item.categories?.length ? item.categories : [row.category_name]));
 }
 
 // ─── Skeletons ────────────────────────────────────────────────────────────────
@@ -53,59 +58,14 @@ function mapRowToMovies(row: HomeCategoryRow): Movie[] {
 export default function MoviesClient() {
     const { activeTheme } = useTheme();
     const { Banner, ContentRow } = activeTheme.components;
-    const { data: newReleases = [], isLoading: releasesLoading, isError: releasesError } = useQuery({
-        queryKey: ["movies-new-releases"],
-        queryFn: () => listVideos({ sort_by: "latest", page_size: 10 }),
-        staleTime: 60_000,
-        retry: 1,
-    });
-    const latestMovies = newReleases.slice(0, 10).map(item => mapMovie(item, true, item.categories ?? (item.category ? [item.category] : [])));
-    const { data: featured = [], isLoading: featuredLoading, isError: featuredError } = useQuery({
-        queryKey: ["movies-featured"],
-        queryFn: () => listVideos({ is_featured: true, page_size: 10 }),
-        staleTime: 60_000,
-        retry: 1,
-    });
-    const featuredMovies = featured.filter(item => item.is_featured && item.is_active).slice(0, 10)
-        .map(item => ({
-            ...mapMovie(item, false, item.categories ?? (item.category ? [item.category] : [])),
-            previewImage: item.thumbnails.video_banner || item.thumbnails.video_w_thumbnail || getItemImage(item),
-            trailerUrl: item.trailer_display_url,
-            trailerHlsUrl: item.trailer_hls_url,
-        }));
 
     const [rows, setRows] = useState<HomeCategoryRow[]>([]);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
     const contentArea = useRef<HTMLDivElement>(null);
-    const [minimumRowCount, setMinimumRowCount] = useState<number | null>(null);
-
-    useEffect(() => {
-        const area = contentArea.current;
-        if (!area) return;
-        const measureRow = () => {
-            const viewport = window.innerWidth;
-            const style = getComputedStyle(area);
-            const isEmber = activeTheme.id === "ember";
-            const rowPadding = viewport >= 1024 ? (isEmber ? 112 : 80) : viewport >= 640 ? 48 : 32;
-            const posterWidth = isEmber
-                ? (viewport >= 1024 ? 256 : viewport >= 640 ? 240 : 224)
-                : (viewport >= 1024 ? 208 : viewport >= 640 ? 192 : 176);
-            const gap = isEmber ? 12 : viewport >= 640 ? 24 : 20;
-            const available = area.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - rowPadding;
-            setMinimumRowCount(Math.max(1, Math.ceil((available + gap) / (posterWidth + gap))));
-        };
-        measureRow();
-        const observer = new ResizeObserver(measureRow);
-        observer.observe(area);
-        window.addEventListener("resize", measureRow);
-        return () => {
-            observer.disconnect();
-            window.removeEventListener("resize", measureRow);
-        };
-    }, [activeTheme.id]);
-    const visibleRows = minimumRowCount === null ? [] : rows.filter(row => row.items.length >= minimumRowCount);
+    const minimumRowCounts = useCategoryRowMinimum(contentArea, activeTheme.id);
+    const visibleRows = minimumRowCounts === null ? [] : rows.filter(row => row.items.length >= minimumRowCounts[row.thumbnail_view ?? "landscape"]);
 
     useEffect(() => {
         let cancelled = false;
@@ -154,16 +114,8 @@ export default function MoviesClient() {
             {/* Hero Banner */}
             <Banner />
             <TopTenRow />
-            {!releasesError && (releasesLoading || latestMovies.length > 0) && (
-                <div className="pt-8 pb-2">
-                    {releasesLoading ? <ContentRowSkeleton count={10} variant="landscape" /> : <ContentRow title="New Releases" movies={latestMovies} variant="landscape" />}
-                </div>
-            )}
-            {!featuredError && (featuredLoading || featuredMovies.length > 0) && (
-                <div className="pt-8 pb-2">
-                    {featuredLoading ? <ContentRowSkeleton count={10} /> : <ContentRow title="Featured" movies={featuredMovies} variant="featured" />}
-                </div>
-            )}
+            <NewReleasesRow />
+            <FeaturedRow />
             <ManagedBannerSlot page="/movies" position="top" />
 
             {/* Content rows */}
@@ -191,13 +143,13 @@ export default function MoviesClient() {
                                 key={row.category_id}
                                 title={row.category_name}
                                 movies={mapRowToMovies(row)}
-                                variant="landscape"
+                                variant={row.thumbnail_view === "portrait" ? "featured" : "landscape"}
                             />
                         ))}
                         <ManagedBannerSlot page="/movies" position="middle_1" />
-                        {visibleRows.slice(1, 3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant="landscape" />)}
+                        {visibleRows.slice(1, 3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant={row.thumbnail_view === "portrait" ? "featured" : "landscape"} />)}
                         <ManagedBannerSlot page="/movies" position="middle_2" />
-                        {visibleRows.slice(3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant="landscape" />)}
+                        {visibleRows.slice(3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant={row.thumbnail_view === "portrait" ? "featured" : "landscape"} />)}
                         {hasMore && <div ref={sentinelRef} style={{ height: 1 }} />}
                         {loading && (
                             <>

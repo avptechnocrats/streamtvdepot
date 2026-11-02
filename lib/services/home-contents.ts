@@ -1,5 +1,6 @@
 import axios from "axios";
 import publicApiClient from "./public-client";
+import type { ThumbnailView } from "./categories";
 
 export const HOME_CONTENT_ITEMS_PER_ROW = 12;
 
@@ -17,6 +18,8 @@ export interface HomeVideoItem {
     age_rating?: string | null;
     duration?: number | null;
     content_classification?: string | null;
+    trailer_display_url?: string | null;
+    trailer_hls_url?: string | null;
     rating: number | null;
     publish_at: string | null;
     created_at: string;
@@ -28,6 +31,7 @@ export interface HomeCategoryRow {
     category_name: string;
     category_slug: string;
     content_type: string;
+    thumbnail_view?: ThumbnailView;
     items: HomeVideoItem[];
 }
 
