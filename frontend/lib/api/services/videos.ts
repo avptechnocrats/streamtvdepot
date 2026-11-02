@@ -127,6 +127,7 @@ export interface VideoOut {
     is_active: boolean;
     status: VideoStatus;
     is_slider: boolean;
+    is_movie_slider: boolean;
     is_thumbnail: boolean;
     advertisement: Advertisement;
     video_url: string | null;

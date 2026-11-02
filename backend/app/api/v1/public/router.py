@@ -962,6 +962,7 @@ async def get_public_category_detail(
 async def list_public_videos(
     slug: str = Query(..., description="Client platform slug, e.g. 'kalingo-tv'"),
     is_slider: bool | None = Query(None, description="Filter to slider/banner videos"),
+    is_movie_slider: bool | None = Query(None, description="Filter to Movies page slider videos"),
     is_featured: bool | None = Query(None, description="Filter to featured videos"),
     category: str | None = Query(None, description="Filter by category name"),
     search: str | None = Query(None, description="Search by title"),
@@ -983,6 +984,8 @@ async def list_public_videos(
     )
     if is_slider is not None:
         q = q.where(Video.is_slider.is_(is_slider))
+    if is_movie_slider is not None:
+        q = q.where(Video.is_movie_slider.is_(is_movie_slider))
     if is_featured is not None:
         q = q.where(Video.is_featured.is_(is_featured))
     if category:
@@ -1020,6 +1023,7 @@ async def list_public_videos(
             "is_featured": video.is_featured,
             "is_active": video.is_active,
             "is_slider": video.is_slider,
+            "is_movie_slider": video.is_movie_slider,
             "video_url": video_url,
             "video_display_url": video_display_url,
             "hls_url": hls_url,
@@ -1078,6 +1082,7 @@ async def get_public_video(
         "is_featured": video.is_featured,
         "is_active": video.is_active,
         "is_slider": video.is_slider,
+        "is_movie_slider": video.is_movie_slider,
         "video_url": video_url,
         "video_display_url": video_display_url,
         "hls_url": hls_url,
@@ -2047,6 +2052,7 @@ async def _fetch_category_items(
                 "is_featured": v.is_featured,
                 "is_active": v.is_active,
                 "is_slider": v.is_slider,
+                "is_movie_slider": v.is_movie_slider,
                 "video_url": video_url,
                 "video_display_url": video_display_url,
                 "hls_url": hls_url,
