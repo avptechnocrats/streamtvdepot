@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { listSliderVideos, type VideoOut } from "@/lib/services";
+import { usePathname } from "next/navigation";
+import { listSliderVideos, listVideos, type VideoOut } from "@/lib/services";
 
 /**
  * Fetches videos that are active and marked as slider (is_slider=true).
@@ -82,10 +83,29 @@ function toSlide(v: VideoOut): BannerSlide {
 }
 
 export function useBannerVideos() {
+    const isMoviesPage = usePathname() === "/movies";
     const { data, isLoading, isError } = useQuery({
-        queryKey: ["banner-videos"],
-        queryFn: listSliderVideos,
-        staleTime: 5 * 60 * 1000, // 5 min
+        queryKey: isMoviesPage ? ["movie-banner-videos", "selected-or-random"] : ["banner-videos"],
+        queryFn: isMoviesPage ? async () => {
+            const videos = await listVideos({ is_movie_slider: true, page_size: 100 });
+            const assigned = Array.from(new Map(videos
+                .filter(video => video.is_active && video.is_movie_slider && video.thumbnails.video_banner)
+                .map(video => [video.id, video])).values());
+            if (assigned.length > 0) return assigned;
+
+            const fallback = await listVideos({ is_active: true, page_size: 100 });
+            const candidates = Array.from(new Map(fallback
+                .filter(video => video.is_active && video.thumbnails.video_banner)
+                .map(video => [video.id, video])).values());
+            for (let index = candidates.length - 1; index > 0; index--) {
+                const randomIndex = Math.floor(Math.random() * (index + 1));
+                [candidates[index], candidates[randomIndex]] = [candidates[randomIndex], candidates[index]];
+            }
+            return candidates.slice(0, 5);
+        } : listSliderVideos,
+        staleTime: isMoviesPage ? 0 : 5 * 60 * 1000,
+        refetchOnWindowFocus: isMoviesPage ? false : undefined,
+        refetchOnReconnect: isMoviesPage ? false : undefined,
         retry: 1,
     });
 

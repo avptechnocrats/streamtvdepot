@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import Link from "next/link";
-import { Play, Plus, Info, ChevronLeft, ChevronRight, Film } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Film } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 import { useTheme } from "@/hooks/use-theme";
-import { fetchHomeVideoRows, type HomeCategoryRow, type HomeVideoItem } from "@/lib/services";
-import { Button } from "@/components/ui/button";
+import { fetchHomeVideoRows, listVideos, type HomeCategoryRow, type HomeVideoItem } from "@/lib/services";
 import ContentRowSkeleton from "@/components/ContentRowSkeleton";
-import { BannerSkeleton } from "@/components/BannerSkeleton";
 import ManagedBannerSlot from "@/components/ManagedBannerSlot";
-import BannerTitle from "@/components/BannerTitle";
+import TopTenRow from "@/components/TopTenRow";
 import type { Movie } from "@/types/content";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -24,174 +22,28 @@ function getItemImage(item: HomeVideoItem): string {
     );
 }
 
-function getBannerImage(item: HomeVideoItem): string {
-    return (
-        item.thumbnails.video_banner ||
-        item.thumbnails.video_h_thumbnail ||
-        item.thumbnails.video_w_thumbnail ||
-        "/images/hero-banner.jpg"
-    );
-}
-
 function getItemYear(item: HomeVideoItem): string {
     const rawDate = item.publish_at || item.created_at;
     const date = new Date(rawDate);
     return Number.isNaN(date.getTime()) ? "" : date.getFullYear().toString();
 }
 
-function mapRowToMovies(row: HomeCategoryRow): Movie[] {
-    return row.items.map((item) => ({
+function mapMovie(item: HomeVideoItem, landscape = false, categories = item.categories ?? []): Movie {
+    return {
         id: item.id,
         title: item.title,
-        image: getItemImage(item),
+        image: landscape ? item.thumbnails.video_w_thumbnail || item.thumbnails.video_banner || getItemImage(item) : getItemImage(item),
         year: getItemYear(item),
         rating: item.rating != null ? `★ ${item.rating.toFixed(1)}` : "",
-    }));
+        categories,
+        ageRating: item.age_rating,
+        duration: item.duration,
+        classification: item.content_classification,
+    };
 }
 
-function splitTitle(title: string): [string, string] {
-    const words = title.trim().split(/\s+/);
-    if (words.length === 1) return [title, ""];
-    const last = words.pop()!;
-    return [words.join(" "), last];
-}
-
-// ─── Hero Banner ──────────────────────────────────────────────────────────────
-
-function HeroBanner({ rows }: { rows: HomeCategoryRow[] }) {
-    const featured = rows
-        .flatMap((r) => r.items)
-        .find((item) => item.thumbnails.video_banner || item.thumbnails.video_h_thumbnail);
-    const items = rows.flatMap((r) => r.items).slice(0, 8);
-
-    const [currentIdx, setCurrentIdx] = useState(0);
-    const [transitioning, setTransitioning] = useState(false);
-
-    const goTo = useCallback(
-        (idx: number) => {
-            if (transitioning || idx === currentIdx) return;
-            setTransitioning(true);
-            setTimeout(() => {
-                setCurrentIdx(idx);
-                setTransitioning(false);
-            }, 300);
-        },
-        [transitioning, currentIdx]
-    );
-
-    const prev = () => goTo((currentIdx - 1 + items.length) % items.length);
-    const next = useCallback(
-        () => goTo((currentIdx + 1) % items.length),
-        [currentIdx, goTo, items.length]
-    );
-
-    useEffect(() => {
-        if (items.length <= 1) return;
-        const t = setTimeout(next, 7000);
-        return () => clearTimeout(t);
-    }, [currentIdx, next, items.length]);
-
-    if (!featured || items.length === 0) return null;
-
-    const slide = items[currentIdx];
-    const [titleA, titleB] = splitTitle(slide.title);
-
-    return (
-        <section className="relative w-full h-[85vh] min-h-[500px] overflow-hidden">
-            {/* Slide images */}
-            {items.map((item, i) => (
-                <img
-                    key={item.id}
-                    src={getBannerImage(item)}
-                    alt={item.title}
-                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${i === currentIdx ? "opacity-100" : "opacity-0"}`}
-                    width={1920}
-                    height={800}
-                />
-            ))}
-
-            <div className="banner-overlay absolute inset-0" />
-            <div className="banner-bottom-fade absolute inset-0 pointer-events-none" />
-
-            {/* Content */}
-            <div
-                className={`absolute bottom-0 left-0 right-0 px-6 lg:px-12 pb-20 space-y-5 transition-opacity duration-300 ${transitioning ? "opacity-0" : "opacity-100"}`}
-            >
-                <span className="inline-block px-3 py-1 text-xs font-semibold tracking-wider uppercase bg-primary/20 text-primary border border-primary/30 rounded-full">
-                    🎬 Movie
-                </span>
-                <BannerTitle title={slide.title} imageUrl={slide.thumbnails.video_title_image} className="text-4xl md:text-6xl lg:text-7xl font-display font-800 leading-tight max-w-2xl text-white">
-                    {titleA}
-                    {titleB && (
-                        <>
-                            {" "}
-                            <span className="text-gradient-gold">{titleB}</span>
-                        </>
-                    )}
-                </BannerTitle>
-                <div className="flex items-center gap-3">
-                    <Button
-                        asChild
-                        className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-6 py-3 h-auto text-base gap-2"
-                    >
-                        <Link href={`/movies/${slide.id}`}>
-                            <Play size={18} fill="currentColor" /> Watch Now
-                        </Link>
-                    </Button>
-                    <Button
-                        variant="outline"
-                        className="bg-transparent border-white/40 text-white hover:bg-white/10 font-medium px-5 py-3 h-auto text-base gap-2"
-                    >
-                        <Plus size={18} /> My List
-                    </Button>
-                    <Button variant="ghost" className="text-white/70 hover:text-white hover:bg-white/10 p-3 h-auto">
-                        <Info size={18} />
-                    </Button>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-white/70">
-                    {getItemYear(slide) && <span>{getItemYear(slide)}</span>}
-                    {slide.rating != null && (
-                        <span className="px-1.5 py-0.5 border border-white/40 rounded text-[10px]">
-                            ★ {slide.rating.toFixed(1)}
-                        </span>
-                    )}
-                </div>
-            </div>
-
-            {/* Arrows */}
-            {items.length > 1 && (
-                <>
-                    <button
-                        onClick={prev}
-                        className="absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 z-10 p-2.5 rounded-full bg-background/40 backdrop-blur-sm border border-border/50 text-foreground hover:bg-background/70 transition-colors"
-                        aria-label="Previous"
-                    >
-                        <ChevronLeft size={22} />
-                    </button>
-                    <button
-                        onClick={next}
-                        className="absolute right-4 lg:right-8 top-1/2 -translate-y-1/2 z-10 p-2.5 rounded-full bg-background/40 backdrop-blur-sm border border-border/50 text-foreground hover:bg-background/70 transition-colors"
-                        aria-label="Next"
-                    >
-                        <ChevronRight size={22} />
-                    </button>
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-                        {items.map((_, i) => (
-                            <button
-                                key={i}
-                                onClick={() => goTo(i)}
-                                className={`transition-all duration-300 rounded-full ${i === currentIdx ? "w-6 h-2 bg-primary" : "w-2 h-2 bg-foreground/40 hover:bg-foreground/70"}`}
-                                aria-label={`Go to slide ${i + 1}`}
-                            />
-                        ))}
-                    </div>
-                    <div className="absolute bottom-6 right-6 lg:right-12 text-xs text-muted-foreground font-medium tabular-nums z-10">
-                        {currentIdx + 1} / {items.length}
-                    </div>
-                </>
-            )}
-        </section>
-    );
+function mapRowToMovies(row: HomeCategoryRow): Movie[] {
+    return row.items.map(item => mapMovie(item, true, item.categories?.length ? item.categories : [row.category_name]));
 }
 
 // ─── Skeletons ────────────────────────────────────────────────────────────────
@@ -200,24 +52,78 @@ function HeroBanner({ rows }: { rows: HomeCategoryRow[] }) {
 
 export default function MoviesClient() {
     const { activeTheme } = useTheme();
-    const { ContentRow } = activeTheme.components;
+    const { Banner, ContentRow } = activeTheme.components;
+    const { data: newReleases = [], isLoading: releasesLoading, isError: releasesError } = useQuery({
+        queryKey: ["movies-new-releases"],
+        queryFn: () => listVideos({ sort_by: "latest", page_size: 10 }),
+        staleTime: 60_000,
+        retry: 1,
+    });
+    const latestMovies = newReleases.slice(0, 10).map(item => mapMovie(item, true, item.categories ?? (item.category ? [item.category] : [])));
+    const { data: featured = [], isLoading: featuredLoading, isError: featuredError } = useQuery({
+        queryKey: ["movies-featured"],
+        queryFn: () => listVideos({ is_featured: true, page_size: 10 }),
+        staleTime: 60_000,
+        retry: 1,
+    });
+    const featuredMovies = featured.filter(item => item.is_featured && item.is_active).slice(0, 10)
+        .map(item => ({
+            ...mapMovie(item, false, item.categories ?? (item.category ? [item.category] : [])),
+            previewImage: item.thumbnails.video_banner || item.thumbnails.video_w_thumbnail || getItemImage(item),
+            trailerUrl: item.trailer_display_url,
+            trailerHlsUrl: item.trailer_hls_url,
+        }));
 
     const [rows, setRows] = useState<HomeCategoryRow[]>([]);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
-    const [bannerReady, setBannerReady] = useState(false);
+    const contentArea = useRef<HTMLDivElement>(null);
+    const [minimumRowCount, setMinimumRowCount] = useState<number | null>(null);
+
+    useEffect(() => {
+        const area = contentArea.current;
+        if (!area) return;
+        const measureRow = () => {
+            const viewport = window.innerWidth;
+            const style = getComputedStyle(area);
+            const isEmber = activeTheme.id === "ember";
+            const rowPadding = viewport >= 1024 ? (isEmber ? 112 : 80) : viewport >= 640 ? 48 : 32;
+            const posterWidth = isEmber
+                ? (viewport >= 1024 ? 256 : viewport >= 640 ? 240 : 224)
+                : (viewport >= 1024 ? 208 : viewport >= 640 ? 192 : 176);
+            const gap = isEmber ? 12 : viewport >= 640 ? 24 : 20;
+            const available = area.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - rowPadding;
+            setMinimumRowCount(Math.max(1, Math.ceil((available + gap) / (posterWidth + gap))));
+        };
+        measureRow();
+        const observer = new ResizeObserver(measureRow);
+        observer.observe(area);
+        window.addEventListener("resize", measureRow);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener("resize", measureRow);
+        };
+    }, [activeTheme.id]);
+    const visibleRows = minimumRowCount === null ? [] : rows.filter(row => row.items.length >= minimumRowCount);
 
     useEffect(() => {
         let cancelled = false;
         async function loadPage() {
             setLoading(true);
             try {
-                const data = await fetchHomeVideoRows({ page, contentType: "movie" });
+                const data = await fetchHomeVideoRows({ page, contentType: "video" });
                 if (!cancelled) {
-                    setRows((prev) => (page === 1 ? data.rows : [...prev, ...data.rows]));
+                    const movieRows = data.rows.filter(row => row.content_type === "video").map(row => {
+                        const items = [...row.items];
+                        for (let index = items.length - 1; index > 0; index--) {
+                            const randomIndex = Math.floor(Math.random() * (index + 1));
+                            [items[index], items[randomIndex]] = [items[randomIndex], items[index]];
+                        }
+                        return { ...row, items };
+                    });
+                    setRows((prev) => (page === 1 ? movieRows : [...prev, ...movieRows]));
                     setHasMore(data.has_more);
-                    if (page === 1) setBannerReady(true);
                 }
             } finally {
                 if (!cancelled) setLoading(false);
@@ -246,17 +152,27 @@ export default function MoviesClient() {
     return (
         <>
             {/* Hero Banner */}
-            {isInitialLoad && <BannerSkeleton />}
-            {bannerReady && rows.length > 0 && <HeroBanner rows={rows} />}
+            <Banner />
+            <TopTenRow />
+            {!releasesError && (releasesLoading || latestMovies.length > 0) && (
+                <div className="pt-8 pb-2">
+                    {releasesLoading ? <ContentRowSkeleton count={10} variant="landscape" /> : <ContentRow title="New Releases" movies={latestMovies} variant="landscape" />}
+                </div>
+            )}
+            {!featuredError && (featuredLoading || featuredMovies.length > 0) && (
+                <div className="pt-8 pb-2">
+                    {featuredLoading ? <ContentRowSkeleton count={10} /> : <ContentRow title="Featured" movies={featuredMovies} variant="featured" />}
+                </div>
+            )}
             <ManagedBannerSlot page="/movies" position="top" />
 
             {/* Content rows */}
-            <div className="space-y-10 py-10 lg:px-8">
+            <div ref={contentArea} className={`space-y-10 py-10 ${activeTheme.id === "ember" ? "" : "lg:px-8"}`}>
                 {isInitialLoad ? (
                     <>
-                        <ContentRowSkeleton />
-                        <ContentRowSkeleton />
-                        <ContentRowSkeleton />
+                        <ContentRowSkeleton variant="landscape" />
+                        <ContentRowSkeleton variant="landscape" />
+                        <ContentRowSkeleton variant="landscape" />
                     </>
                 ) : rows.length === 0 ? (
                     <>
@@ -270,22 +186,23 @@ export default function MoviesClient() {
                     </>
                 ) : (
                     <>
-                        {rows.slice(0, 1).map((row) => (
+                        {visibleRows.slice(0, 1).map((row) => (
                             <ContentRow
                                 key={row.category_id}
                                 title={row.category_name}
                                 movies={mapRowToMovies(row)}
+                                variant="landscape"
                             />
                         ))}
                         <ManagedBannerSlot page="/movies" position="middle_1" />
-                        {rows.slice(1, 3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} />)}
+                        {visibleRows.slice(1, 3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant="landscape" />)}
                         <ManagedBannerSlot page="/movies" position="middle_2" />
-                        {rows.slice(3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} />)}
+                        {visibleRows.slice(3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant="landscape" />)}
                         {hasMore && <div ref={sentinelRef} style={{ height: 1 }} />}
                         {loading && (
                             <>
-                                <ContentRowSkeleton />
-                                <ContentRowSkeleton />
+                                <ContentRowSkeleton variant="landscape" />
+                                <ContentRowSkeleton variant="landscape" />
                             </>
                         )}
                     </>

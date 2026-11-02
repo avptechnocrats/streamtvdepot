@@ -34,6 +34,10 @@ function mapRowMovies(row: HomeCategoryRow): Movie[] {
         image: getMovieImage(item),
         year: getMovieYear(item),
         rating: item.rating !== null ? `★ ${item.rating.toFixed(1)}` : "",
+        categories: item.categories?.length ? item.categories : [row.category_name],
+        ageRating: item.age_rating,
+        duration: item.duration,
+        classification: item.content_classification,
     }));
 }
 
