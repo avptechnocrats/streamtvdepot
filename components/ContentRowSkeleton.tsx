@@ -8,7 +8,7 @@ export default function ContentRowSkeleton({ count = HOME_CONTENT_ITEMS_PER_ROW 
     const { activeTheme } = useTheme();
     const isEmber = activeTheme.id === "ember";
     return (
-        <section aria-label="Loading content row" data-skeleton-row className={isEmber ? "px-4 sm:px-6 lg:px-10 space-y-3" : "px-6 lg:px-12 space-y-4"}>
+        <section aria-label="Loading content row" data-skeleton-row className={isEmber ? "storefront-row space-y-3" : "px-6 lg:px-12 space-y-4"}>
             <Skeleton className="h-6 w-44 rounded" />
             <div className={isEmber ? "flex gap-5 sm:gap-6 overflow-hidden pt-1 pb-2 px-10 -mx-10" : "flex gap-4 overflow-hidden py-2 px-1"}>
                 {Array.from({ length: count }, (_, index) => (
