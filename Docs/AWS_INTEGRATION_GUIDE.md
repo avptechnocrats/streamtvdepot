@@ -124,6 +124,96 @@ Generates invoices in multiple formats:
 
 ## Configuration
 
+### VOD Segment Delivery Through CloudFront
+
+HLS manifests remain behind the backend playback authorization and DRM key
+endpoints. By default their segments use private S3 presigned URLs. To use
+CloudFront edge caching for movie and uploaded-trailer segments, open
+**SuperAdmin > Settings > AWS** and save **CloudFront Domain**, **VOD CloudFront
+Public Key ID**, and **VOD CloudFront Private Key (PEM)**.
+
+These values use the existing `superadmin_settings.config["aws"]` JSON object;
+no database migration is needed. The private key is Fernet-encrypted as
+`vod_cf_private_key_pem_encrypted` using the existing secret-encryption mechanism.
+It is never returned by the settings API, which exposes only
+`vod_cf_private_key_pem_set`. Leave the private-key input blank to keep the saved
+key, enter a new PEM to replace it, or select **Clear saved VOD private key** to
+remove it. The signing pair is applied immediately in the saving worker and
+within 60 seconds in other workers. An incomplete database signing pair falls
+back to the environment pair, never a mixture of database and environment keys.
+
+Environment variables remain an optional fallback, not a requirement for
+database-configured deployments:
+
+```dotenv
+CLOUDFRONT_DOMAIN=d1234567890abc.cloudfront.net
+VOD_CF_KEY_PAIR_ID=your-cloudfront-public-key-id
+VOD_CF_PRIVATE_KEY_PEM="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+```
+
+Keep the private key in encrypted platform settings or protected deployment
+secrets, never in source control.
+The public key ID is not a distribution ID or a key-group ID. Use a dedicated
+2048-bit RSA key pair, add its public key to a CloudFront trusted key group, and
+attach the group to the HLS segment cache behavior. Live-channel signing settings
+are separate and are not changed by this feature.
+
+Before enabling these settings on the live backend:
+
+1. Point the CloudFront segment behavior at the **MediaConvert output bucket**
+   (`MEDIACONVERT_OUTPUT_BUCKET`, or `AWS_S3_BUCKET` when unset). Preserve the full
+   output key path; do not duplicate `MEDIACONVERT_OUTPUT_PREFIX` in the origin path.
+   Use S3 Origin Access Control and grant that distribution `s3:GetObject` in the
+   private bucket policy. Keep S3 Block Public Access enabled.
+2. Create an HLS-only behavior matching the output prefix and `.ts` files, such as
+   `hls/*.ts`. Require signed URLs via the trusted key group on this behavior;
+   do not restrict unrelated image/static behaviors that use unsigned URLs.
+3. Use a cache policy with no viewer query strings, cookies, or headers in the
+   cache key. CloudFront still validates its reserved `Policy`, `Signature`, and
+   `Key-Pair-Id` URL parameters before serving cached objects. Do not forward S3
+   SigV4 query parameters to this origin. Start with a one-day default segment TTL;
+   keep `CLOUDFRONT_DISTRIBUTION_ID` configured so regeneration can invalidate
+   overwritten media. Do not mark reused object paths immutable.
+4. Attach a response headers policy that **overrides origin CORS** with
+   `Access-Control-Allow-Origin: *`, allows `GET`, `HEAD`, and `OPTIONS`, and does
+   not enable credentialed CORS. VOD segments use URL signatures, not cookies.
+   Allow request headers needed for range requests and expose `Content-Length`,
+   `Content-Range`, and `Accept-Ranges`. Do not apply this policy to backend DRM
+   or account endpoints. This override avoids caching one tenant's S3 CORS origin
+   and replaying it to another tenant.
+5. Confirm the CDN hostname/certificate, bucket permissions, behavior matching,
+   and trusted public key before saving the signing settings. An invalid key
+   or distribution configuration must be fixed, not bypassed by making S3 public.
+
+The backend signs one six-hour policy per quality-playlist response, scoped to
+that video's output directory, and reuses it across segment URLs. RSA key parsing
+is cached in-process. Playback authorization, DRM key-token binding, and manifest
+`no-store` headers remain unchanged. No object migration or re-encoding is needed.
+If any of the three resolved runtime settings is absent, delivery retains the
+signed-S3 fallback. Clearing database values restores any environment fallback;
+to disable signing entirely, remove the signing pair from both sources.
+Fully configured but invalid signing settings fail rather than emit unsigned URLs.
+
+Verify on the live deployment before considering the rollout complete:
+
+- An authorized quality playlist contains the configured CDN hostname and signed
+  URL parameters, and its DRM key URL retains the correct playback token.
+- A signed segment returns `200` (or `206` for a range request); removing or
+  altering its signature returns `403`. Also test an expired signature and a
+  signature reused outside the authorized video's directory.
+- Repeating the exact same segment URL produces a CloudFront cache hit, then
+  repeat with a newly authorized session URL to verify the shared cache key.
+- Both storefront and admin origins receive usable CORS responses. Test seeking
+  and quality switching in Chrome and Safari without broadening DRM access.
+- Compare startup time, segment download time versus segment duration, buffering
+  events, and CloudWatch CloudFront cache-hit/error metrics before and after.
+
+This change does not provision AWS resources, alter live-channel pipelines, or
+automatically enable CloudFront. Keep the existing S3 fallback available during
+rollout. Review CloudFront requests/data transfer and S3 origin requests together;
+cache hits should reduce origin traffic, but cost savings depend on actual usage
+and AWS pricing. Cache policies and response headers require live verification.
+
 ### Environment Variables
 
 Add to `.env`:

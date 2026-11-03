@@ -85,6 +85,8 @@ class Settings(BaseSettings):
     # CloudFront CDN (optional – serves HLS segments; falls back to S3 URLs)
     CLOUDFRONT_DOMAIN: str = ""               # e.g. d1234567890abc.cloudfront.net
     CLOUDFRONT_DISTRIBUTION_ID: str = ""      # e.g. E1234ABCDEFGHIJ – required for cache invalidation on HLS regeneration
+    VOD_CF_KEY_PAIR_ID: str = ""
+    VOD_CF_PRIVATE_KEY_PEM: str = ""
 
     # Public URL of this backend service as seen by browsers.
     # Used to construct HLS proxy URLs returned in the API.
