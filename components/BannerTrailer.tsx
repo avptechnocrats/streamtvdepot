@@ -61,6 +61,9 @@ interface BannerTrailerProps {
   soundControlPlacement?: "top-right" | "bottom-right";
   soundControlTopInset?: number;
   soundControlAlignToNav?: boolean;
+  manualPlayback?: boolean;
+  onEnded?: () => void;
+  onPlaybackError?: () => void;
 }
 
 function canPlayTrailer() {
@@ -74,7 +77,7 @@ function canPlayTrailer() {
  * Fades a muted trailer in over the slide artwork once the pointer has rested on the banner,
  * and fades it back out when the pointer leaves. Key it by slide id so state resets per slide.
  */
-export function BannerTrailer({ src, hlsSrc = null, hovered, delayMs = HOVER_DELAY_MS, positionClassName = "", showSoundControl = false, soundControlPlacement = "top-right", soundControlTopInset = 12, soundControlAlignToNav = false }: BannerTrailerProps) {
+export function BannerTrailer({ src, hlsSrc = null, hovered, delayMs = HOVER_DELAY_MS, positionClassName = "", showSoundControl = false, soundControlPlacement = "top-right", soundControlTopInset = 12, soundControlAlignToNav = false, manualPlayback = false, onEnded, onPlaybackError }: BannerTrailerProps) {
   const [mounted, setMounted] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -82,7 +85,11 @@ export function BannerTrailer({ src, hlsSrc = null, hovered, delayMs = HOVER_DEL
   const [muted, setMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const eligible = !!(src || hlsSrc) && !failed && canPlayTrailer();
+  const eligible = !!(src || hlsSrc) && !failed && (manualPlayback || canPlayTrailer());
+
+  useEffect(() => {
+    if (failed) onPlaybackError?.();
+  }, [failed, onPlaybackError]);
 
   useEffect(() => {
     if (!hovered) {
@@ -164,7 +171,7 @@ export function BannerTrailer({ src, hlsSrc = null, hovered, delayMs = HOVER_DEL
         if (hovered) setPlaying(true);
         else event.currentTarget.pause();
       }}
-      onEnded={() => setPlaying(false)}
+      onEnded={() => { setPlaying(false); onEnded?.(); }}
       onVolumeChange={event => setMuted(event.currentTarget.muted)}
       onError={() => (hlsSrc && src && !mp4Fallback ? setMp4Fallback(true) : setFailed(true))}
       className={`absolute inset-0 h-full w-full object-cover ${positionClassName} transition-opacity duration-500 ${playing && hovered ? "opacity-100" : "opacity-0"}`}
