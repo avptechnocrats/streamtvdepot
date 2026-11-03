@@ -48,6 +48,8 @@ class AwsSettingsIn(BaseModel):
     aws_s3_storage_class: Optional[str] = Field(None, max_length=100)
     cloudfront_domain: Optional[str] = Field(None, max_length=500)
     cloudfront_distribution_id: Optional[str] = Field(None, max_length=255)
+    vod_cf_key_pair_id: Optional[str] = Field(None, max_length=255)
+    vod_cf_private_key_pem: Optional[str] = Field(None, max_length=16384, description="Leave absent to keep existing; empty string clears it")
     mediaconvert_endpoint: Optional[str] = Field(None, max_length=500)
     mediaconvert_role_arn: Optional[str] = Field(None, max_length=500)
 
@@ -61,6 +63,8 @@ class AwsSettingsOut(BaseModel):
     aws_s3_storage_class: str = "STANDARD"
     cloudfront_domain: Optional[str] = None
     cloudfront_distribution_id: Optional[str] = None
+    vod_cf_key_pair_id: Optional[str] = None
+    vod_cf_private_key_pem_set: bool = False
     mediaconvert_endpoint: Optional[str] = None
     mediaconvert_role_arn: Optional[str] = None
 

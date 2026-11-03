@@ -444,6 +444,8 @@ export interface SuperadminAwsSettingsOut {
     aws_s3_storage_class: string;
     cloudfront_domain: string | null;
     cloudfront_distribution_id: string | null;
+    vod_cf_key_pair_id: string | null;
+    vod_cf_private_key_pem_set: boolean;
     mediaconvert_endpoint: string | null;
     mediaconvert_role_arn: string | null;
 }
@@ -525,6 +527,8 @@ export interface SuperadminAwsSettingsIn {
     aws_s3_storage_class?: string | null;
     cloudfront_domain?: string | null;
     cloudfront_distribution_id?: string | null;
+    vod_cf_key_pair_id?: string | null;
+    vod_cf_private_key_pem?: string | null;
     mediaconvert_endpoint?: string | null;
     mediaconvert_role_arn?: string | null;
 }

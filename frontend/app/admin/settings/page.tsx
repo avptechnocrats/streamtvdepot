@@ -75,6 +75,8 @@ const DEFAULT_SUPERADMIN_AWS_SETTINGS: SuperadminSettingsOut["aws"] = {
     aws_s3_storage_class: "STANDARD",
     cloudfront_domain: null,
     cloudfront_distribution_id: null,
+    vod_cf_key_pair_id: null,
+    vod_cf_private_key_pem_set: false,
     mediaconvert_endpoint: null,
     mediaconvert_role_arn: null,
 };
@@ -1059,6 +1061,9 @@ function SAAwsTab({ data, onSaved, pushToast }: { data: SuperadminSettingsOut["a
     const [storageClass, setStorageClass] = useState(data.aws_s3_storage_class ?? "STANDARD");
     const [cloudFrontDomain, setCloudFrontDomain] = useState(data.cloudfront_domain ?? "");
     const [cloudFrontDistributionId, setCloudFrontDistributionId] = useState(data.cloudfront_distribution_id ?? "");
+    const [vodCfKeyPairId, setVodCfKeyPairId] = useState(data.vod_cf_key_pair_id ?? "");
+    const [vodCfPrivateKeyPem, setVodCfPrivateKeyPem] = useState("");
+    const [clearVodCfPrivateKey, setClearVodCfPrivateKey] = useState(false);
     const [mediaConvertEndpoint, setMediaConvertEndpoint] = useState(data.mediaconvert_endpoint ?? "");
     const [mediaConvertRoleArn, setMediaConvertRoleArn] = useState(data.mediaconvert_role_arn ?? "");
     const [saving, setSaving] = useState(false);
@@ -1068,6 +1073,7 @@ function SAAwsTab({ data, onSaved, pushToast }: { data: SuperadminSettingsOut["a
         setS3Bucket(data.aws_s3_bucket ?? ""); setRegion(data.aws_region ?? "us-east-1");
         setStorageClass(data.aws_s3_storage_class ?? "STANDARD"); setCloudFrontDomain(data.cloudfront_domain ?? "");
         setCloudFrontDistributionId(data.cloudfront_distribution_id ?? ""); setMediaConvertEndpoint(data.mediaconvert_endpoint ?? "");
+        setVodCfKeyPairId(data.vod_cf_key_pair_id ?? ""); setVodCfPrivateKeyPem(""); setClearVodCfPrivateKey(false);
         setMediaConvertRoleArn(data.mediaconvert_role_arn ?? ""); setSecretAccessKey("");
     }, [data]);
 
@@ -1083,12 +1089,15 @@ function SAAwsTab({ data, onSaved, pushToast }: { data: SuperadminSettingsOut["a
                 aws_s3_storage_class: storageClass || null,
                 cloudfront_domain: cloudFrontDomain || null,
                 cloudfront_distribution_id: cloudFrontDistributionId || null,
+                vod_cf_key_pair_id: vodCfKeyPairId.trim() || null,
                 mediaconvert_endpoint: mediaConvertEndpoint || null,
                 mediaconvert_role_arn: mediaConvertRoleArn || null,
             };
             if (secretAccessKey) payload.aws_secret_access_key = secretAccessKey;
+            if (clearVodCfPrivateKey) payload.vod_cf_private_key_pem = "";
+            else if (vodCfPrivateKeyPem.trim()) payload.vod_cf_private_key_pem = vodCfPrivateKeyPem;
             const saved = await saveSuperadminSettings({ aws: payload });
-            onSaved(saved.aws); setSecretAccessKey(""); pushToast("AWS settings saved.");
+            onSaved(saved.aws); setSecretAccessKey(""); setVodCfPrivateKeyPem(""); setClearVodCfPrivateKey(false); pushToast("AWS settings saved.");
         } catch (error) {
             pushToast(parseApiError(error).message || "Failed to save AWS settings.", "error");
         } finally {
@@ -1127,6 +1136,22 @@ function SAAwsTab({ data, onSaved, pushToast }: { data: SuperadminSettingsOut["a
                     <div className="space-y-4">
                         <Field label="CloudFront Domain"><input type="text" value={cloudFrontDomain} onChange={(event) => setCloudFrontDomain(event.target.value)} placeholder="d1234567890abc.cloudfront.net" className={inputCls} /></Field>
                         <Field label="CloudFront Distribution ID"><input type="text" value={cloudFrontDistributionId} onChange={(event) => setCloudFrontDistributionId(event.target.value)} placeholder="E1234ABCDEFGHIJ" className={inputCls} /></Field>
+                        <Field label="VOD CloudFront Public Key ID">
+                            <input aria-label="VOD CloudFront Public Key ID" type="text" value={vodCfKeyPairId} onChange={(event) => setVodCfKeyPairId(event.target.value)} maxLength={255} className={inputCls} />
+                        </Field>
+                        <Field label="VOD CloudFront Private Key (PEM)" hint={data.vod_cf_private_key_pem_set ? "A private key is saved. Leave blank to keep it." : undefined}>
+                            <div role="status" className={`flex items-center gap-2 mb-2 text-sm ${data.vod_cf_private_key_pem_set ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+                                {data.vod_cf_private_key_pem_set ? <Check size={16} aria-hidden="true" /> : <X size={16} aria-hidden="true" />}
+                                {data.vod_cf_private_key_pem_set ? "Private key saved" : "No private key saved"}
+                            </div>
+                            <textarea aria-label="VOD CloudFront Private Key (PEM)" value={vodCfPrivateKeyPem} onChange={(event) => setVodCfPrivateKeyPem(event.target.value)} rows={6} maxLength={16384} autoComplete="off" spellCheck={false} disabled={clearVodCfPrivateKey} className={`${inputCls} h-auto py-2 font-mono resize-y`} />
+                        </Field>
+                        {data.vod_cf_private_key_pem_set && (
+                            <label className="flex items-center gap-2 text-sm text-foreground">
+                                <input type="checkbox" checked={clearVodCfPrivateKey} onChange={(event) => setClearVodCfPrivateKey(event.target.checked)} />
+                                Clear saved VOD private key
+                            </label>
+                        )}
                         <Field label="MediaConvert Endpoint"><input type="url" value={mediaConvertEndpoint} onChange={(event) => setMediaConvertEndpoint(event.target.value)} placeholder="https://endpoint.mediaconvert.us-east-1.amazonaws.com" className={inputCls} /></Field>
                         <Field label="MediaConvert Role ARN"><input type="text" value={mediaConvertRoleArn} onChange={(event) => setMediaConvertRoleArn(event.target.value)} placeholder="arn:aws:iam::123456789012:role/MediaConvert" className={inputCls} /></Field>
                     </div>

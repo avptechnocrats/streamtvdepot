@@ -170,6 +170,8 @@ def _build_response(cfg: dict) -> SuperadminSettingsOut:
             aws_s3_storage_class=aws.get("aws_s3_storage_class", "STANDARD"),
             cloudfront_domain=aws.get("cloudfront_domain"),
             cloudfront_distribution_id=aws.get("cloudfront_distribution_id"),
+            vod_cf_key_pair_id=aws.get("vod_cf_key_pair_id"),
+            vod_cf_private_key_pem_set=bool(aws.get("vod_cf_private_key_pem_encrypted")),
             mediaconvert_endpoint=aws.get("mediaconvert_endpoint"),
             mediaconvert_role_arn=aws.get("mediaconvert_role_arn"),
         ),
@@ -282,6 +284,7 @@ async def update_settings(
             "aws_s3_storage_class",
             "cloudfront_domain",
             "cloudfront_distribution_id",
+            "vod_cf_key_pair_id",
             "mediaconvert_endpoint",
             "mediaconvert_role_arn",
         ):
@@ -291,6 +294,7 @@ async def update_settings(
             elif field in payload.aws.model_fields_set:
                 aws.pop(field, None)
         _update_secret(aws, "aws_secret_access_key_encrypted", payload.aws.aws_secret_access_key)
+        _update_secret(aws, "vod_cf_private_key_pem_encrypted", payload.aws.vod_cf_private_key_pem)
         cfg["aws"] = aws
         aws_credentials.apply(aws)  # take effect now; other workers pick it up on their next refresh
 

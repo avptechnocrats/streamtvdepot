@@ -36,10 +36,13 @@ _PLAIN_FIELDS = {
 }
 _KEY_ID_ATTR = "AWS_ACCESS_KEY_ID"
 _SECRET_ATTR = "AWS_SECRET_ACCESS_KEY"
+_VOD_KEY_ID_ATTR = "VOD_CF_KEY_PAIR_ID"
+_VOD_SECRET_ATTR = "VOD_CF_PRIVATE_KEY_PEM"
 
 # What `.env` provided, captured once so a cleared database value reverts to it.
 _ENV_VALUES: dict[str, str] = {
-    attr: getattr(settings, attr) for attr in (*_PLAIN_FIELDS.values(), _KEY_ID_ATTR, _SECRET_ATTR)
+    attr: getattr(settings, attr)
+    for attr in (*_PLAIN_FIELDS.values(), _KEY_ID_ATTR, _SECRET_ATTR, _VOD_KEY_ID_ATTR, _VOD_SECRET_ATTR)
 }
 
 
@@ -71,6 +74,22 @@ def apply(aws_config: dict | None) -> None:
     else:
         setattr(settings, _KEY_ID_ATTR, _ENV_VALUES[_KEY_ID_ATTR])
         setattr(settings, _SECRET_ATTR, _ENV_VALUES[_SECRET_ATTR])
+
+    vod_key_id = aws_config.get("vod_cf_key_pair_id")
+    encrypted_vod_key = aws_config.get("vod_cf_private_key_pem_encrypted")
+    vod_pair: tuple[str, str] | None = None
+    if _has_value(vod_key_id) and _has_value(encrypted_vod_key):
+        try:
+            vod_pair = (str(vod_key_id).strip(), decrypt_secret(encrypted_vod_key))
+        except RuntimeError:
+            logger.warning("Stored VOD signing key could not be decrypted; falling back to .env signing settings")
+
+    if vod_pair:
+        setattr(settings, _VOD_KEY_ID_ATTR, vod_pair[0])
+        setattr(settings, _VOD_SECRET_ATTR, vod_pair[1])
+    else:
+        setattr(settings, _VOD_KEY_ID_ATTR, _ENV_VALUES[_VOD_KEY_ID_ATTR])
+        setattr(settings, _VOD_SECRET_ATTR, _ENV_VALUES[_VOD_SECRET_ATTR])
 
 
 async def refresh_from_db() -> None:

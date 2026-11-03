@@ -8,11 +8,10 @@ on custom domains (e.g. kalingo.tv) when the cache was first seeded by an admin
 panel request (e.g. admin.streamtvdepot.com).
 
 This module proxies HLS manifest files (.m3u8) through the FastAPI backend so
-that browsers never contact CloudFront/S3 for manifests.  Segment files (.ts) are
-served directly from S3 via short-lived presigned GET URLs embedded in the
-rewritten sub-playlists — S3's per-request CORS headers work correctly because
-each presigned URL carries SigV4 authentication in the query string and S3
-evaluates CORS independently.
+that browsers never contact CloudFront/S3 for manifests. Segment files (.ts)
+use CloudFront signed URLs when VOD signing is configured, otherwise short-lived
+S3 presigned URLs. CloudFront must override origin CORS headers for segment
+responses; see Docs/AWS_INTEGRATION_GUIDE.md for the required configuration.
 
 Flow
 ----
@@ -25,15 +24,15 @@ Flow
 2.  Player requests a quality sub-playlist:
         GET /api/v1/media/stream/{video_id}/{filename:.+\\.m3u8}
     Backend fetches the quality-specific .m3u8 from S3, rewrites relative .ts
-    segment lines to presigned S3 GET URLs (6-hour expiry), and returns the
+    segment lines to signed CloudFront or S3 URLs (6-hour expiry), and returns the
     modified sub-playlist.  The ``#EXT-X-KEY`` URI's query string is rewritten to
     carry the same playback token — the browser's native media stack fetches the
     key directly for some request types (bypassing the player's JS request hooks
     entirely), so the token can't rely on an Authorization header being injected.
 
-3.  Segment files (.ts) are served directly from S3 via short-lived presigned
-        GET URLs embedded in the rewritten sub-playlists.  The configured S3 CORS
-        policy allows each client storefront to fetch these URLs directly.
+3.  Segment files (.ts) are served from CloudFront edge caches when VOD signing
+    is configured. A single custom policy authorizes only the video's output
+    directory. Without VOD signing, the existing S3 presigned URLs are retained.
 
 Access control
 --------------
@@ -47,12 +46,17 @@ it can load the manifest.
 import logging
 import re
 import uuid as _uuid_module
+from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 from typing import Any
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 import boto3
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
+from botocore.signers import CloudFrontSigner
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy import select
@@ -92,6 +96,36 @@ def _make_s3_client() -> Any:
 def _dir_prefix(s3_key: str) -> str:
     """Return the directory portion of an S3 key including the trailing slash."""
     return s3_key.rsplit("/", 1)[0] + "/" if "/" in s3_key else ""
+
+
+@lru_cache(maxsize=1)
+def _cloudfront_signer(key_pair_id: str, private_key_pem: str) -> CloudFrontSigner:
+    private_key = serialization.load_pem_private_key(
+        private_key_pem.replace("\\n", "\n").encode(), password=None,
+    )
+    if not isinstance(private_key, rsa.RSAPrivateKey):
+        raise ValueError("VOD CloudFront signing requires an RSA private key")
+
+    def sign(message: bytes) -> bytes:
+        return private_key.sign(message, padding.PKCS1v15(), hashes.SHA1())
+
+    return CloudFrontSigner(key_pair_id, sign)
+
+
+def _cloudfront_segment_base(dir_prefix: str) -> tuple[str, str] | None:
+    domain = settings.CLOUDFRONT_DOMAIN.strip().strip("/")
+    if not (dir_prefix and domain and settings.VOD_CF_KEY_PAIR_ID and settings.VOD_CF_PRIVATE_KEY_PEM):
+        return None
+    parsed = urlsplit(f"https://{domain}")
+    if not parsed.hostname or parsed.path or parsed.query or parsed.fragment or parsed.username:
+        raise ValueError("CLOUDFRONT_DOMAIN must contain only the CDN hostname")
+    prefix = f"https://{domain}/{quote(dir_prefix, safe='/')}"
+    signer = _cloudfront_signer(settings.VOD_CF_KEY_PAIR_ID, settings.VOD_CF_PRIVATE_KEY_PEM)
+    policy = signer.build_policy(
+        prefix + "*", datetime.now(timezone.utc) + timedelta(seconds=_SEGMENT_PRESIGN_TTL),
+    )
+    signed = signer.generate_presigned_url(prefix + "*", policy=policy)
+    return prefix, urlsplit(signed).query
 
 
 def _fetch_s3_text(bucket: str, key: str) -> str:
@@ -151,7 +185,8 @@ def _rewrite_sub_playlist(
     token: str | None = None,
 ) -> str:
     """Rewrite segments and bind shared HLS key delivery to the requesting video."""
-    s3 = _make_s3_client()
+    cloudfront = _cloudfront_segment_base(dir_prefix)
+    s3 = None
     lines = content.splitlines(keepends=True)
     out: list[str] = []
     for line in lines:
@@ -167,11 +202,17 @@ def _rewrite_sub_playlist(
         elif stripped and not stripped.startswith("#") and stripped.endswith(".ts"):
             segment_key = dir_prefix + stripped
             try:
-                presigned = s3.generate_presigned_url(
-                    "get_object",
-                    Params={"Bucket": bucket, "Key": segment_key},
-                    ExpiresIn=_SEGMENT_PRESIGN_TTL,
-                )
+                if cloudfront:
+                    prefix, query = cloudfront
+                    presigned = f"{prefix}{quote(stripped, safe='/')}?{query}"
+                else:
+                    if s3 is None:
+                        s3 = _make_s3_client()
+                    presigned = s3.generate_presigned_url(
+                        "get_object",
+                        Params={"Bucket": bucket, "Key": segment_key},
+                        ExpiresIn=_SEGMENT_PRESIGN_TTL,
+                    )
                 newline = line[len(line.rstrip()):]
                 out.append(presigned + newline)
             except (BotoCoreError, ClientError) as exc:
@@ -351,7 +392,7 @@ async def proxy_master_manifest(
 
 @router.get(
     "/{video_id}/{filename:path}",
-    summary="Proxy HLS quality sub-playlist — rewrites segments to presigned S3 URLs",
+    summary="Proxy HLS quality sub-playlist — rewrites segments to signed CDN or S3 URLs",
     response_class=Response,
     responses={
         200: {"content": {_HLS_CONTENT_TYPE: {}}, "description": "HLS quality sub-playlist"},
@@ -366,7 +407,7 @@ async def proxy_sub_playlist(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Serve HLS quality sub-playlists with segments rewritten to presigned S3 URLs.
+    Serve HLS quality sub-playlists with signed CloudFront or S3 segment URLs.
     """
     if not settings.AWS_S3_BUCKET:
         raise HTTPException(status_code=503, detail="S3 storage not configured.")
