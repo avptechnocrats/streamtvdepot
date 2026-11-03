@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2, MailCheck } from "lucide-react";
+import { AlertCircle, ArrowLeft, Clapperboard, Eye, EyeOff, Film, Loader2, MailCheck, Tv } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -12,10 +12,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { userResendVerification, userSignup, userVerifyEmail } from "@/lib/services/user-auth";
 import { fetchSocialAuthConfig, type SocialAuthConfigOut } from "@/lib/services/site-settings";
 import SiteLogo from "@/components/SiteLogo";
+import { useTenantName } from "@/hooks/use-tenant-name";
 
 export default function SignupForm() {
     const router = useRouter();
     const { login } = useAuth();
+    const tenantName = useTenantName();
 
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
@@ -110,56 +112,64 @@ export default function SignupForm() {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex">
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-background">
+            <div className="grid min-h-full lg:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)]">
             {/* ── Left panel — cinematic backdrop ─────────────────────── */}
-            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+            <div className="relative hidden min-w-0 overflow-hidden lg:sticky lg:top-0 lg:flex lg:h-[100svh]">
                 <img
                     src="/images/hero-banner.jpg"
                     alt=""
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-cover object-[60%_center]"
+                    fetchPriority="high"
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-background/60 via-background/30 to-background/80" />
-                <div className="relative z-10 flex flex-col justify-between p-12 w-full">
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.3)_0%,rgba(0,0,0,0.1)_30%,rgba(0,0,0,0.88)_100%)]" />
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.3),transparent_65%)]" />
+                <div className="relative z-10 flex w-full flex-col justify-between gap-8 p-10 xl:p-14">
                     <SiteLogo imageSize={36} showLabel={false} />
-                    <div className="space-y-4">
-                        <h2 className="text-4xl font-display font-800 text-foreground leading-tight">
-                            Unlimited <span className="text-gradient-gold">streaming</span>,<br />
-                            no limits.
-                        </h2>
-                        <p className="text-muted-foreground text-base max-w-xs">
+                    <div className="mt-auto max-w-lg space-y-6">
+                        <div className="space-y-4">
+                        <h2 className="break-words font-display text-3xl font-extrabold leading-tight tracking-normal text-white xl:text-4xl">
                             Join millions of viewers. Watch anywhere, on any device.
+                        </h2>
+                        <p className="max-w-sm text-xl font-medium leading-relaxed text-white/90">
+                            Your next great watch starts here.
                         </p>
-                        <div className="flex gap-3 flex-wrap">
-                            {["No ads on premium", "HD & 4K quality", "Download & watch offline"].map((f) => (
-                                <span key={f} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-white/5 border border-white/10 rounded-full px-3 py-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                                    {f}
-                                </span>
-                            ))}
                         </div>
+                    <div className="flex flex-wrap gap-x-6 gap-y-3 border-t border-white/20 pt-6 text-sm font-semibold text-white">
+                        {[{ icon: Film, label: "Movies" }, { icon: Tv, label: "Live TV" }, { icon: Clapperboard, label: "Series" }].map(({ icon: Icon, label }) => (
+                            <span key={label} className="inline-flex items-center gap-2">
+                                <Icon size={18} strokeWidth={2} className="shrink-0 text-primary" aria-hidden="true" />
+                                {label}
+                            </span>
+                        ))}
                     </div>
-                    <div className="flex gap-6 text-sm text-muted-foreground">
-                        <span>🎬 Movies</span>
-                        <span>📺 Live TV</span>
-                        <span>🎭 Series</span>
                     </div>
                 </div>
             </div>
 
             {/* ── Right panel — form ───────────────────────────────────── */}
-            <div className="w-full lg:w-1/2 bg-background flex items-center justify-center p-6 overflow-auto">
-                <div className="w-full max-w-sm">
+            <div
+                className="flex min-h-[100svh] min-w-0 flex-col bg-background px-6 py-6 sm:px-10 lg:px-12 xl:px-16"
+                style={{ backgroundImage: "linear-gradient(145deg, hsl(var(--primary) / 0.16) 0%, transparent 45%), linear-gradient(325deg, hsl(var(--accent) / 0.1) 0%, transparent 55%)" }}
+            >
+                <div className="mx-auto flex w-full max-w-[420px] items-center justify-between gap-4 text-sm">
+                    <Link href="/" className="inline-flex min-h-10 items-center gap-2 font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+                        <ArrowLeft size={16} aria-hidden="true" /> Browse
+                    </Link>
+                    <Link href="/login" className="inline-flex min-h-10 items-center font-semibold text-foreground transition-colors hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">Sign in</Link>
+                </div>
+                <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-8 sm:py-10">
                     {/* Mobile logo */}
-                    <div className="flex lg:hidden mb-10">
+                    <div className="mb-8 flex lg:hidden">
                         <SiteLogo imageSize={32} showLabel={false} />
                     </div>
 
                     {pendingVerification ? (
-                        <div className="space-y-5 text-center">
+                        <div className="space-y-6 text-center">
                             <MailCheck className="mx-auto h-12 w-12 text-primary" />
                             <div className="space-y-2">
-                                <h2 className="text-xl font-semibold text-foreground">Confirm your email</h2>
-                                <p className="text-sm text-muted-foreground">{notice}</p>
+                                <h1 className="text-3xl font-bold tracking-normal text-foreground">Check your inbox</h1>
+                                <p className="break-words text-sm leading-relaxed text-muted-foreground">{notice}</p>
                             </div>
 
                             <InputOTP maxLength={6} value={otp} onChange={setOtp} disabled={verifying}>
@@ -169,15 +179,15 @@ export default function SignupForm() {
                             </InputOTP>
 
                             {error && (
-                                <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5 text-left">
-                                    <span className="mt-0.5 shrink-0">⚠</span>
+                                <div role="alert" className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5 text-left">
+                                    <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
                                     <span>{error}</span>
                                 </div>
                             )}
 
                             <Button
                                 type="button"
-                                className="w-full h-11 font-semibold"
+                                className="w-full h-12 text-base font-semibold"
                                 disabled={verifying || otp.length !== 6}
                                 onClick={handleVerify}
                             >
@@ -187,7 +197,7 @@ export default function SignupForm() {
                             <Button
                                 type="button"
                                 variant="outline"
-                                className="w-full h-11 font-semibold"
+                                className="w-full h-12 text-base font-semibold"
                                 disabled={resending}
                                 onClick={handleResend}
                             >
@@ -205,8 +215,12 @@ export default function SignupForm() {
                             </Link>
                         </div>
                     ) : (
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="space-y-1.5">
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        <div className="mb-7 space-y-2">
+                            <h1 className="text-3xl font-bold leading-tight tracking-normal text-foreground">Create your account</h1>
+                            <p className="text-sm leading-relaxed text-muted-foreground">Join {tenantName} and find your next favourite.</p>
+                        </div>
+                        <div className="space-y-2">
                             <Label htmlFor="full_name" className="text-sm font-medium">Full name</Label>
                             <Input
                                 id="full_name"
@@ -214,13 +228,14 @@ export default function SignupForm() {
                                 placeholder="Jane Doe"
                                 autoComplete="name"
                                 required
+                                disabled={loading}
                                 value={fullName}
                                 onChange={(e) => setFullName(e.target.value)}
-                                className="h-11 bg-secondary/50 border-border/60 focus:border-primary/60"
+                                className="h-12 rounded-md border-border bg-card/60 px-3.5 text-base placeholder:text-muted-foreground/65 focus-visible:border-primary"
                             />
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                             <Label htmlFor="email" className="text-sm font-medium">Email address</Label>
                             <Input
                                 id="email"
@@ -228,13 +243,14 @@ export default function SignupForm() {
                                 placeholder="you@example.com"
                                 autoComplete="email"
                                 required
+                                disabled={loading}
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="h-11 bg-secondary/50 border-border/60 focus:border-primary/60"
+                                className="h-12 rounded-md border-border bg-card/60 px-3.5 text-base placeholder:text-muted-foreground/65 focus-visible:border-primary"
                             />
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                             <Label htmlFor="password" className="text-sm font-medium">Password</Label>
                             <div className="relative">
                                 <Input
@@ -244,34 +260,35 @@ export default function SignupForm() {
                                     autoComplete="new-password"
                                     required
                                     minLength={8}
+                                    disabled={loading}
+                                    aria-describedby="signup-password-help"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="h-11 bg-secondary/50 border-border/60 focus:border-primary/60 pr-11"
+                                    className="h-12 rounded-md border-border bg-card/60 pl-3.5 pr-12 text-base placeholder:text-muted-foreground/65 focus-visible:border-primary"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPass((v) => !v)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                    className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                                     aria-label={showPass ? "Hide password" : "Show password"}
+                                    aria-pressed={showPass}
                                 >
-                                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
-                            {password.length > 0 && password.length < 8 && (
-                                <p className="text-xs text-muted-foreground">Password must be at least 8 characters</p>
-                            )}
+                            <p id="signup-password-help" className="text-xs leading-relaxed text-muted-foreground">At least 8 characters.</p>
                         </div>
 
                         {error && (
-                            <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5">
-                                <span className="mt-0.5 shrink-0">⚠</span>
+                            <div role="alert" className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5">
+                                <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
                                 <span>{error}</span>
                             </div>
                         )}
 
                         <Button
                             type="submit"
-                            className="w-full h-11 font-semibold"
+                            className="w-full h-12 text-base font-semibold"
                             disabled={loading}
                         >
                             {loading
@@ -294,7 +311,7 @@ export default function SignupForm() {
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    className="w-full h-11 font-semibold"
+                                    className="w-full h-12 text-sm font-semibold"
                                     onClick={handleGoogleSignIn}
                                 >
                                     <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
@@ -313,14 +330,14 @@ export default function SignupForm() {
                     {!pendingVerification && (
                     <p className="text-center text-sm text-muted-foreground mt-6">
                         Already have an account?{" "}
-                        <Link href="/login" className="text-primary hover:text-primary/80 font-medium transition-colors">
+                        <Link href="/login" className="text-primary hover:text-primary/80 font-semibold transition-colors">
                             Sign in
                         </Link>
                     </p>
                     )}
 
                     {!pendingVerification && (
-                    <p className="text-center text-xs text-muted-foreground/60 mt-4">
+                    <p className="mt-5 text-center text-xs leading-relaxed text-muted-foreground">
                         By creating an account you agree to our{" "}
                         <span className="text-muted-foreground underline cursor-pointer">Terms of Service</span>
                         {" "}and{" "}
@@ -328,6 +345,7 @@ export default function SignupForm() {
                     </p>
                     )}
                 </div>
+            </div>
             </div>
         </div>
     );

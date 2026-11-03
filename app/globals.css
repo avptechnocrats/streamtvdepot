@@ -5,6 +5,15 @@
 @tailwind utilities;
 
 @layer components {
+    [data-theme="ember"] .primary-action {
+        background-image: var(--ember-gradient);
+        color: #fff;
+    }
+
+    [data-theme="ember"] .primary-action:hover {
+        filter: brightness(1.1);
+    }
+
     .storefront-row {
         @apply px-4 sm:px-6 lg:px-14;
     }
