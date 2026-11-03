@@ -8,6 +8,8 @@ const MULTIPART_CONCURRENCY = 4;
 const PART_MAX_RETRIES = 3;
 const SESSION_PREFIX = "streamtvdepot:multipart-upload";
 const SESSION_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+// A transfer with no byte progress for this long is treated as a dropped connection and retried.
+const STALL_TIMEOUT_MS = 90_000;
 
 export interface UploadProgress {
     stage: "preparing" | "uploading" | "completing" | "registering";
@@ -30,11 +32,14 @@ interface StoredMultipartSession {
     totalParts: number;
     completedParts: UploadedPart[];
     updatedAt: number;
+    // Set once S3 has assembled the object; a resume must then skip straight to registration.
+    completed?: boolean;
 }
 
 interface UploadCallbacks {
     onProgress?: (progress: UploadProgress) => void;
     onCheckpoint?: (session: StoredMultipartSession) => void;
+    signal?: AbortSignal;
 }
 
 interface UploadResult {
@@ -102,7 +107,15 @@ function loadSession(file: File): StoredMultipartSession | null {
         const raw = window.localStorage.getItem(key);
         if (!raw) return null;
         const parsed = JSON.parse(raw) as StoredMultipartSession;
-        if (!parsed || Date.now() - parsed.updatedAt > SESSION_MAX_AGE_MS) {
+        const valid =
+            parsed &&
+            parsed.fileSize === file.size &&
+            Array.isArray(parsed.completedParts) &&
+            typeof parsed.uploadId === "string" &&
+            typeof parsed.s3Key === "string" &&
+            parsed.partSize > 0 &&
+            parsed.totalParts > 0;
+        if (!valid || Date.now() - parsed.updatedAt > SESSION_MAX_AGE_MS) {
             window.localStorage.removeItem(key);
             return null;
         }
@@ -155,53 +168,84 @@ function xhrPut(
     headers: Record<string, string>,
     onProgress?: (loaded: number) => void,
     attempt: number = 1,
+    signal?: AbortSignal,
 ): Promise<XMLHttpRequest> {
     return new Promise((resolve, reject) => {
+        if (signal?.aborted) {
+            reject(new Error("Upload aborted"));
+            return;
+        }
         const xhr = new XMLHttpRequest();
         xhr.open("PUT", url, true);
         Object.entries(headers).forEach(([key, value]) => xhr.setRequestHeader(key, value));
 
+        let stalled = false;
+        let stallTimer: ReturnType<typeof setTimeout> | undefined;
+        const onSignalAbort = () => xhr.abort();
+        const cleanup = () => {
+            clearTimeout(stallTimer);
+            signal?.removeEventListener("abort", onSignalAbort);
+        };
+        const armStallTimer = () => {
+            clearTimeout(stallTimer);
+            stallTimer = setTimeout(() => {
+                stalled = true;
+                xhr.abort();
+            }, STALL_TIMEOUT_MS);
+        };
+        const retryOrFail = (finalError: Error) => {
+            cleanup();
+            if (attempt < PART_MAX_RETRIES && !signal?.aborted) {
+                const retryDelay = Math.min(100 * Math.pow(2, attempt - 1), 3000);
+                setTimeout(() => {
+                    xhrPut(url, body, headers, onProgress, attempt + 1, signal).then(resolve).catch(reject);
+                }, retryDelay);
+                return;
+            }
+            reject(finalError);
+        };
+
+        signal?.addEventListener("abort", onSignalAbort, { once: true });
+
         xhr.upload.onprogress = (event) => {
+            armStallTimer();
             if (event.lengthComputable && onProgress) {
                 onProgress(event.loaded);
             }
         };
 
-        xhr.onerror = () => {
-            if (attempt < PART_MAX_RETRIES) {
-                const retryDelay = Math.min(100 * Math.pow(2, attempt - 1), 3000);
-                setTimeout(() => {
-                    xhrPut(url, body, headers, onProgress, attempt + 1).then(resolve).catch(reject);
-                }, retryDelay);
+        xhr.onerror = () => retryOrFail(new Error("Network error while uploading to storage"));
+        xhr.onabort = () => {
+            if (stalled) {
+                retryOrFail(new Error("Upload stalled. Check your connection and try again."));
                 return;
             }
-            reject(new Error("Network error while uploading to storage"));
+            cleanup();
+            reject(new Error("Upload aborted"));
         };
-        xhr.onabort = () => reject(new Error("Upload aborted"));
         xhr.onload = () => {
             if (xhr.status >= 200 && xhr.status < 300) {
+                cleanup();
                 resolve(xhr);
                 return;
             }
             const retryable = xhr.status === 408 || xhr.status >= 500;
-            if (retryable && attempt < PART_MAX_RETRIES) {
-                const retryDelay = Math.min(100 * Math.pow(2, attempt - 1), 3000);
-                setTimeout(() => {
-                    xhrPut(url, body, headers, onProgress, attempt + 1).then(resolve).catch(reject);
-                }, retryDelay);
+            const message =
+                xhr.status === 403
+                    ? "Upload not allowed. Storage permissions may need to be configured."
+                    : xhr.status === 413
+                        ? "File is too large to upload."
+                        : "Upload failed. Please try again.";
+            const failure = Object.assign(new Error(message), { status: xhr.status });
+            if (retryable) {
+                retryOrFail(failure);
                 return;
             }
-            reject(
-                new Error(
-                    xhr.status === 403
-                        ? "Upload not allowed. Storage permissions may need to be configured."
-                        : xhr.status === 413
-                            ? "File is too large to upload."
-                            : "Upload failed. Please try again.",
-                ),
-            );
+            cleanup();
+            reject(failure);
         };
 
+        armStallTimer();
         xhr.send(body);
     });
 }
@@ -277,7 +321,7 @@ async function uploadSinglePut(
         content_type: file.type,
         file_size: file.size,
         purpose: confirmExtras?.purpose ?? null,
-    });
+    }, { signal: callbacks.signal });
 
     const startedAt = Date.now();
     emitProgress(callbacks, "uploading", 0, file.size, startedAt);
@@ -289,7 +333,7 @@ async function uploadSinglePut(
 
     await xhrPut(presignData.upload_url, file, headers, (loaded) => {
         emitProgress(callbacks, "uploading", loaded, file.size, startedAt);
-    });
+    }, 1, callbacks.signal);
 
     emitProgress(callbacks, "registering", file.size, file.size, startedAt);
     return await finalizeUpload({
@@ -324,6 +368,7 @@ async function uploadMultipart(
                 file_size: file.size,
                 purpose: confirmExtras?.purpose ?? null,
             },
+            { signal: callbacks.signal },
         )).data;
 
     const completedPartMap = new Map<number, string>();
@@ -363,6 +408,12 @@ async function uploadMultipart(
 
     reportAggregate();
 
+    // Lets a failed part stop its sibling part uploads without touching the caller's signal.
+    const inner = new AbortController();
+    const forwardAbort = () => inner.abort();
+    if (callbacks.signal?.aborted) inner.abort();
+    else callbacks.signal?.addEventListener("abort", forwardAbort, { once: true });
+
     const uploadPart = async (partIndex: number) => {
         const partNumber = partIndex + 1;
         if (completedPartMap.has(partNumber)) {
@@ -379,12 +430,13 @@ async function uploadMultipart(
                 upload_id: initData.upload_id,
                 part_number: partNumber,
             },
+            { signal: inner.signal },
         );
 
         const xhr = await xhrPut(partData.upload_url, blob, { "Content-Type": file.type }, (loaded) => {
             loadedByPart[partIndex] = loaded;
             reportAggregate();
-        });
+        }, 1, inner.signal);
 
         loadedByPart[partIndex] = blob.size;
         const etagRaw = xhr.getResponseHeader("ETag") || "";
@@ -407,22 +459,40 @@ async function uploadMultipart(
     };
 
     try {
-        for (let i = 0; i < initData.total_parts; i += MULTIPART_CONCURRENCY) {
-            const chunk: Promise<void>[] = [];
-            for (let j = i; j < Math.min(i + MULTIPART_CONCURRENCY, initData.total_parts); j += 1) {
-                chunk.push(uploadPart(j));
-            }
-            await Promise.all(chunk);
-        }
+        if (!session.completed) {
+            // Sliding window: a slow part no longer stalls the next batch of parts.
+            let nextPart = 0;
+            let halted = false;
+            let firstError: unknown;
+            const worker = async () => {
+                while (!halted) {
+                    const partIndex = nextPart++;
+                    if (partIndex >= initData.total_parts) return;
+                    try {
+                        await uploadPart(partIndex);
+                    } catch (error) {
+                        if (firstError === undefined) firstError = error;
+                        halted = true;
+                        inner.abort();
+                        throw firstError;
+                    }
+                }
+            };
+            await Promise.all(
+                Array.from({ length: Math.min(MULTIPART_CONCURRENCY, initData.total_parts) }, worker),
+            );
 
-        emitProgress(callbacks, "completing", file.size, file.size, startedAt);
-        await apiClient.post(ENDPOINTS.admin.upload.multipartComplete, {
-            s3_key: initData.s3_key,
-            upload_id: initData.upload_id,
-            parts: Array.from(completedPartMap.entries())
-                .map(([pn, etag]) => ({ part_number: pn, etag }))
-                .sort((a, b) => a.part_number - b.part_number),
-        });
+            emitProgress(callbacks, "completing", file.size, file.size, startedAt);
+            await apiClient.post(ENDPOINTS.admin.upload.multipartComplete, {
+                s3_key: initData.s3_key,
+                upload_id: initData.upload_id,
+                parts: Array.from(completedPartMap.entries())
+                    .map(([pn, etag]) => ({ part_number: pn, etag }))
+                    .sort((a, b) => a.part_number - b.part_number),
+            }, { signal: callbacks.signal });
+            session = { ...session, completed: true, updatedAt: Date.now() };
+            saveSession(session);
+        }
 
         emitProgress(callbacks, "registering", file.size, file.size, startedAt);
         const result = await finalizeUpload({
@@ -437,9 +507,22 @@ async function uploadMultipart(
         clearSession(file);
         return result;
     } catch (error) {
+        if (callbacks.signal?.aborted && !session.completed) {
+            // User cancelled: drop the resumable session and free the orphaned parts in S3.
+            clearSession(file);
+            await apiClient.post(ENDPOINTS.admin.upload.multipartAbort, {
+                s3_key: initData.s3_key,
+                upload_id: initData.upload_id,
+            }).catch(() => undefined);
+        } else if ((error as { status?: number }).status === 404) {
+            // The multipart upload no longer exists in S3; a resume would fail forever.
+            clearSession(file);
+        }
         const err = error as Error & { session?: StoredMultipartSession };
         err.session = session;
         throw error;
+    } finally {
+        callbacks.signal?.removeEventListener("abort", forwardAbort);
     }
 }
 

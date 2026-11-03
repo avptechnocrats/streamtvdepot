@@ -27,7 +27,8 @@ export function formatBytes(bytes: number | null): string {
     if (!bytes) return "—";
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 export function formatDate(iso: string): string {
@@ -143,7 +144,7 @@ export function AssetRow({ asset, onRetry, onPreview, onDelete }: AssetRowProps)
             </p>
 
             {/* In-use badge */}
-            <div className="hidden sm:flex w-16 shrink-0 justify-start">
+            <div className="hidden sm:flex w-20 shrink-0 justify-start">
                 {asset.upload_status === "failed" ? (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-500/10 text-red-300 inline-flex items-center gap-1">
                         <AlertTriangle size={10} /> Failed
