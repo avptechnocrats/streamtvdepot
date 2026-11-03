@@ -20,8 +20,8 @@ export function AssetRowSkeleton() {
             <Bone className="h-3 w-24 shrink-0 hidden md:block" />
             {/* Uploaded — w-28 */}
             <Bone className="h-3 w-28 shrink-0 hidden lg:block" />
-            {/* Status — w-16 */}
-            <Bone className="h-5 w-12 rounded-full shrink-0 hidden sm:block" />
+            {/* Status — w-20 */}
+            <Bone className="h-5 w-16 rounded-full shrink-0 hidden sm:block" />
             {/* Actions — w-24 */}
             <div className="w-24 shrink-0 flex items-center justify-end gap-1">
                 <Bone className="h-7 w-7 rounded-md" />

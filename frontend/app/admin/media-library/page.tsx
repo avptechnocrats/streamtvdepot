@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
     ImageIcon, AlertTriangle,
@@ -22,12 +22,11 @@ import {
 import { AssetRow } from "./_components/AssetRow";
 import { AssetRowSkeleton } from "./_components/Skeletons";
 import { UploadDialog } from "./_components/UploadDialog";
+import { UploadRow } from "./_components/UploadRow";
+import { useUploadQueueContext, type UploadListener } from "./_components/UploadQueueProvider";
 import { PreviewModal } from "./_components/PreviewModal";
 import { DeleteConfirm } from "./_components/DeleteConfirm";
 import type { MediaAsset } from "./_components/AssetRow";
-import { uploadAssetToS3 } from "@/lib/upload/s3-upload";
-
-const failedFileMap = new Map<string, File>();
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
@@ -148,6 +147,72 @@ export default function MediaLibraryPage() {
 
     useEffect(() => { fetchAssets(); }, [fetchAssets]);
 
+    // ── Multi-file upload queue ──
+    const [tableDragging, setTableDragging] = useState(false);
+
+    const uploadQueue = useUploadQueueContext();
+    const { subscribe } = uploadQueue;
+
+    const queueHandlersRef = useRef<UploadListener>({});
+    useEffect(() => {
+        queueHandlersRef.current = {
+            onUploaded: (asset) => {
+                // Rows that don't belong to the current view appear after the end-of-batch refetch.
+                if (displayPage === 1 && !search.trim() && matchesType(asset, typeFilter)) upsertAsset(asset);
+            },
+            onDrained: ({ done, failed }) => {
+                if (done > 0) {
+                    showToast(
+                        failed > 0
+                            ? `${done} uploaded, ${failed} failed. Retry the failed files from the list.`
+                            : `${done} ${done === 1 ? "file" : "files"} uploaded.`,
+                        failed === 0,
+                    );
+                    // Reconcile counts and pagination with the server once the whole batch is done.
+                    void fetchAssets(true);
+                } else if (failed > 0) {
+                    showToast(`${failed} ${failed === 1 ? "upload" : "uploads"} failed. Retry from the list.`, false);
+                }
+            },
+        };
+    });
+    useEffect(() => subscribe({
+        onUploaded: (asset) => queueHandlersRef.current.onUploaded?.(asset),
+        onDrained: (summary) => queueHandlersRef.current.onDrained?.(summary),
+    }), [subscribe]);
+
+    const { addFiles } = uploadQueue;
+    const enqueueFiles = useCallback((files: File[]) => {
+        const rejected = addFiles(files);
+        if (rejected.length > 0) {
+            const first = rejected[0];
+            showToast(
+                rejected.length === 1
+                    ? `${first.name}: ${first.reason}`
+                    : `${rejected.length} files skipped (${first.name}: ${first.reason}).`,
+                false,
+            );
+        }
+        return rejected;
+    }, [addFiles]);
+
+    // A file dropped outside a drop zone would otherwise navigate the tab away and kill running uploads.
+    useEffect(() => {
+        const blockFileDrop = (e: DragEvent) => {
+            if (e.dataTransfer?.types.includes("Files")) e.preventDefault();
+        };
+        window.addEventListener("dragover", blockFileDrop);
+        window.addEventListener("drop", blockFileDrop);
+        return () => {
+            window.removeEventListener("dragover", blockFileDrop);
+            window.removeEventListener("drop", blockFileDrop);
+        };
+    }, []);
+
+    const queuedCount = uploadQueue.items.filter((i) => i.status === "queued").length;
+    const activeCount = uploadQueue.items.filter((i) => i.status === "uploading").length;
+    const failedCount = uploadQueue.items.filter((i) => i.status === "failed").length;
+
     useEffect(() => {
         const tabParam = searchParams.get("tab");
         if (tabParam && (["all", "image", "video", "audio"] as const).includes(tabParam as TypeFilter)) {
@@ -218,7 +283,7 @@ export default function MediaLibraryPage() {
                     onClick={() => setUploadOpen(true)}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:brightness-110 transition-all"
                 >
-                    <Upload size={14} /> Upload File
+                    <Upload size={14} /> Upload Files
                 </button>
             </div>
 
@@ -268,7 +333,29 @@ export default function MediaLibraryPage() {
             </div>
 
             {/* ── Table ── */}
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <div
+                className={`relative rounded-xl border bg-card overflow-hidden transition-colors ${tableDragging ? "border-primary" : "border-border"}`}
+                onDragOver={(e) => {
+                    if (!e.dataTransfer.types.includes("Files")) return;
+                    e.preventDefault();
+                    setTableDragging(true);
+                }}
+                onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setTableDragging(false);
+                }}
+                onDrop={(e) => {
+                    if (!e.dataTransfer.types.includes("Files")) return;
+                    e.preventDefault();
+                    setTableDragging(false);
+                    enqueueFiles(Array.from(e.dataTransfer.files));
+                }}
+            >
+                {tableDragging && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-primary/10 text-sm font-semibold text-primary pointer-events-none">
+                        <Upload size={16} /> Drop files to upload
+                    </div>
+                )}
+
                 {/* Column headers */}
                 <div className="flex items-center gap-4 px-4 py-2.5 border-b border-border bg-muted/30">
                     <div className="w-10 shrink-0" />
@@ -287,72 +374,69 @@ export default function MediaLibraryPage() {
                     <p className="hidden lg:block w-28 shrink-0 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                         Uploaded
                     </p>
-                    <p className="hidden sm:block w-16 shrink-0 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    <p className="hidden sm:block w-20 shrink-0 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                         Status
                     </p>
                     <div className="w-24 shrink-0" />
                 </div>
 
+                {/* Upload queue summary + rows */}
+                {uploadQueue.items.length > 0 && (
+                    <>
+                        <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-border bg-primary/[0.06] text-xs text-muted-foreground">
+                            <span>
+                                <span className="font-semibold text-foreground">Uploads</span>
+                                {" · "}
+                                {activeCount} active
+                                {queuedCount > 0 && ` · ${queuedCount} draft`}
+                                {failedCount > 0 && <span className="text-red-300">{` · ${failedCount} failed`}</span>}
+                            </span>
+                            {failedCount > 1 && (
+                                <button
+                                    onClick={uploadQueue.retryAllFailed}
+                                    className="font-semibold text-amber-300 hover:text-amber-200 transition-colors"
+                                >
+                                    Retry all failed
+                                </button>
+                            )}
+                        </div>
+                        {uploadQueue.items.map((item) => (
+                            <UploadRow
+                                key={item.id}
+                                item={item}
+                                onCancel={() => uploadQueue.cancel(item.id)}
+                                onRetry={() => uploadQueue.retry(item.id)}
+                            />
+                        ))}
+                    </>
+                )}
+
                 {loading && assets.length === 0 ? (
                     Array.from({ length: 8 }).map((_, i) => <AssetRowSkeleton key={i} />)
                 ) : pageSlice.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
-                        <ImageIcon size={32} className="opacity-30" />
-                        <p className="text-sm">
-                            {search || typeFilter !== "all"
-                                ? "No files match your filter"
-                                : "No files uploaded yet"}
-                        </p>
-                        {!search && typeFilter === "all" && (
-                            <button
-                                onClick={() => setUploadOpen(true)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-border hover:border-primary/40 transition-colors"
-                            >
-                                <Upload size={12} /> Upload your first file
-                            </button>
-                        )}
-                    </div>
+                    uploadQueue.items.length > 0 ? null : (
+                        <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+                            <ImageIcon size={32} className="opacity-30" />
+                            <p className="text-sm">
+                                {search || typeFilter !== "all"
+                                    ? "No files match your filter"
+                                    : "No files uploaded yet"}
+                            </p>
+                            {!search && typeFilter === "all" && (
+                                <button
+                                    onClick={() => setUploadOpen(true)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-border hover:border-primary/40 transition-colors"
+                                >
+                                    <Upload size={12} /> Upload your first file
+                                </button>
+                            )}
+                        </div>
+                    )
                 ) : (
                     pageSlice.map((asset) => (
                         <AssetRow
                             key={asset.id}
                             asset={asset}
-                            onRetry={asset.upload_status === "failed" ? async () => {
-                                const fileKey = asset.retry_source_file_key;
-                                const srcFile = fileKey ? failedFileMap.get(fileKey) : undefined;
-                                if (!srcFile) {
-                                    showToast("Original file is not available anymore. Please upload again.", false);
-                                    return;
-                                }
-
-                                upsertAsset({ ...asset, retrying: true, failed_error: undefined });
-                                try {
-                                    const uploaded = await uploadAssetToS3(srcFile, {
-                                        onProgress: (p) => {
-                                            upsertAsset({
-                                                ...asset,
-                                                upload_status: "failed",
-                                                uploaded_bytes: p.uploadedBytes,
-                                                remaining_bytes: p.remainingBytes,
-                                                retrying: true,
-                                                retry_source_file_key: fileKey,
-                                            });
-                                        },
-                                    });
-                                    setAssets((prev) => prev.filter((a) => a.id !== asset.id));
-                                    setAssets((prev) => [uploaded as MediaAsset, ...prev]);
-                                    showToast(`\"${srcFile.name}\" uploaded.`);
-                                } catch (err: unknown) {
-                                    const rawMsg = err instanceof Error ? err.message : "Upload failed. Please try again.";
-                                    upsertAsset({
-                                        ...asset,
-                                        upload_status: "failed",
-                                        retrying: false,
-                                        failed_error: rawMsg,
-                                    });
-                                    showToast(rawMsg, false);
-                                }
-                            } : undefined}
                             onPreview={() => setPreviewAsset(asset)}
                             onDelete={() => setConfirmAsset(asset)}
                         />
@@ -421,35 +505,7 @@ export default function MediaLibraryPage() {
             {uploadOpen && (
                 <UploadDialog
                     onClose={() => setUploadOpen(false)}
-                    onUploaded={(asset) => {
-                        setAssets((prev) => [asset, ...prev]);
-                        showToast(`"${asset.original_filename}" uploaded.`);
-                    }}
-                    onUploadFailed={(failed) => {
-                        failedFileMap.set(failed.retry_source_file_key, failed.file);
-                        setAssets((prev) => [
-                            {
-                                id: failed.id,
-                                original_filename: failed.original_filename,
-                                url: "",
-                                display_url: null,
-                                content_type: failed.content_type,
-                                file_size: failed.file_size,
-                                width: null,
-                                height: null,
-                                created_at: failed.created_at,
-                                in_use: false,
-                                upload_status: "failed",
-                                uploaded_bytes: failed.uploaded_bytes,
-                                remaining_bytes: failed.remaining_bytes,
-                                failed_error: failed.failed_error,
-                                failed_at: failed.failed_at,
-                                retry_source_file_key: failed.retry_source_file_key,
-                            },
-                            ...prev,
-                        ]);
-                        showToast(`Upload failed for \"${failed.original_filename}\". You can retry from row action.`, false);
-                    }}
+                    onSubmit={enqueueFiles}
                 />
             )}
 
