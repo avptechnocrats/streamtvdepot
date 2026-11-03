@@ -5,15 +5,20 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useRef, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Play, Plus, Check, Star, Clock, Calendar, Globe, ChevronLeft, ChevronRight, Users, Film, Loader2, Lock } from "lucide-react";
+import { Play, Plus, Check, Star, ChevronLeft, ChevronRight, Users, Loader2, Lock, Share2, ShieldCheck, Square } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { useUserPrefs } from "@/hooks/use-user-prefs";
 import { usePlayGate } from "@/hooks/use-play-gate";
 import { useTenantName } from "@/hooks/use-tenant-name";
-import { getVideo, type VideoOut } from "@/lib/services";
+import { useTheme } from "@/hooks/use-theme";
+import { getVideo, listVideos, type VideoOut } from "@/lib/services";
+import { fetchCategories } from "@/lib/services/categories";
 import { addToWatchlist, removeFromWatchlist, getWatchlist, type WatchlistItem } from "@/lib/services/watchlist";
+import type { Movie } from "@/types/content";
+import ContentRowSkeleton from "@/components/ContentRowSkeleton";
+import { BannerTrailer, useBannerAutoplay } from "@/components/BannerTrailer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,13 +35,41 @@ function formatDuration(seconds: number | null): string {
     return h > 0 ? `${h}h ${m}min` : `${m}min`;
 }
 
+function trailerEmbedUrl(source: string | null): string | null {
+    if (!source) return null;
+    try {
+        const url = new URL(source);
+        if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+        const host = url.hostname.replace(/^www\./, "");
+        if (["youtube.com", "m.youtube.com", "youtu.be", "youtube-nocookie.com"].includes(host)) {
+            const parts = url.pathname.split("/").filter(Boolean);
+            const videoId = host === "youtu.be" ? parts[0] : url.searchParams.get("v") || (["embed", "shorts"].includes(parts[0]) ? parts[1] : null);
+            return videoId && /^[a-zA-Z0-9_-]{11}$/.test(videoId)
+                ? `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0`
+                : null;
+        }
+        if (host === "vimeo.com" || host === "player.vimeo.com") {
+            const videoId = url.pathname.split("/").filter(Boolean).find(part => /^\d+$/.test(part));
+            if (videoId) {
+                const embed = new URL(`https://player.vimeo.com/video/${videoId}`);
+                embed.searchParams.set("autoplay", "1");
+                if (url.searchParams.has("h")) embed.searchParams.set("h", url.searchParams.get("h")!);
+                return embed.href;
+            }
+        }
+    } catch {
+        return null;
+    }
+    return null;
+}
+
 // ─── Skeleton (content only — Navbar/Footer provided by DemoLayout) ────────────
 
 function MovieDetailsSkeleton() {
     return (
         <>
             <div className="relative w-full h-[70vh] min-h-[460px] bg-secondary animate-pulse pt-16" />
-            <div className="px-6 lg:px-12 py-12 space-y-8">
+            <div className="px-6 sm:px-14 lg:px-16 py-12 space-y-8">
                 <div className="flex gap-6 border-b border-border/40 pb-8">
                     {Array.from({ length: 4 }).map((_, i) => (
                         <Skeleton key={i} className="h-16 w-24 rounded-xl" />
@@ -212,6 +245,65 @@ function RelatedMovies({ ids }: { ids: string[] }) {
     );
 }
 
+function SameCategoryMovies({ video }: { video: VideoOut }) {
+    const { activeTheme } = useTheme();
+    const { ContentRow } = activeTheme.components;
+    const assignedCategories = video.categories?.length
+        ? video.categories
+        : video.category ? [video.category] : [];
+    const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+        queryKey: ["poster-categories", "video"],
+        queryFn: () => fetchCategories("video"),
+        enabled: assignedCategories.length > 0,
+        staleTime: 5 * 60_000,
+    });
+    const category = assignedCategories
+        .map(value => categories.find(item => item.slug === value || item.name === value || item.id === value))
+        .find(item => item !== undefined);
+    const { data: videos = [], isLoading: videosLoading } = useQuery({
+        queryKey: ["same-category-videos", category?.slug],
+        queryFn: () => listVideos({ category: category!.slug, page_size: 21 }),
+        enabled: !!category,
+        staleTime: 60_000,
+    });
+    const landscape = category?.thumbnail_view !== "portrait";
+
+    if (assignedCategories.length === 0) return null;
+    if (categoriesLoading || (category && videosLoading)) {
+        return <div className="overflow-x-clip pb-12"><ContentRowSkeleton count={6} variant={landscape ? "landscape" : "portrait"} /></div>;
+    }
+    if (!category) return null;
+
+    const movies: Movie[] = videos.filter(item => item.id !== video.id).slice(0, 20).map(item => ({
+        id: item.id,
+        title: item.title,
+        image: landscape
+            ? item.thumbnails.video_w_thumbnail || item.thumbnails.video_banner || relatedImage(item)
+            : relatedImage(item),
+        year: relatedYear(item),
+        rating: item.rating != null ? item.rating.toFixed(1) : "",
+        categories: item.categories?.length ? item.categories : [category.slug],
+        ageRating: item.age_rating,
+        duration: item.duration,
+        classification: item.content_classification,
+        previewImage: item.thumbnails.video_banner || item.thumbnails.video_w_thumbnail || relatedImage(item),
+        trailerUrl: item.trailer_display_url,
+        trailerHlsUrl: item.trailer_hls_url,
+    }));
+    if (movies.length === 0) return null;
+
+    return (
+        <div className={`overflow-x-clip pb-12 ${activeTheme.id === "ember" ? "" : "lg:px-8"}`}>
+            <ContentRow
+                title={`More in ${category.name}`}
+                movies={movies}
+                variant={landscape ? "landscape" : "featured"}
+                href={`/categories/${encodeURIComponent(category.slug)}`}
+            />
+        </div>
+    );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function MovieDetailsPage() {
@@ -219,6 +311,9 @@ export default function MovieDetailsPage() {
     const tenantName = useTenantName();
     const searchParams = useSearchParams();
     const [showPlayer, setShowPlayer] = useState(false);
+    const [trailerVideoId, setTrailerVideoId] = useState<string | null>(null);
+    const showTrailer = trailerVideoId === id;
+    const { active: bannerActive, bannerRef } = useBannerAutoplay();
     const { user, isLoading: authLoading } = useAuth();
     const queryClient = useQueryClient();
 
@@ -259,7 +354,7 @@ export default function MovieDetailsPage() {
         contentId: id,
         accessType: (video?.access_type ?? "free") as "free" | "subscription" | "pay_per_view" | "rental",
         contentTitle: video?.title ?? "this movie",
-        onPlay: () => setShowPlayer(true),
+        onPlay: () => { setTrailerVideoId(null); setShowPlayer(true); },
     });
 
     // Auto-launch player when ?play=true (e.g. from Banner "Watch Now" link).
@@ -323,8 +418,30 @@ export default function MovieDetailsPage() {
         : new Date(video.created_at).getFullYear().toString();
 
     const duration = formatDuration(video.duration);
-    const score = video.rating ? `${Math.round(video.rating * 10)}%` : null;
     const playbackSrc = video.hls_display_url || video.hls_url || video.video_display_url || video.video_url;
+    const trailerHls = video.trailer_hls_url?.trim() || null;
+    const trailerFile = video.trailer_display_url?.trim() || null;
+    const trailerUrl = video.trailer_url?.trim() || null;
+    const trailerEmbed = trailerHls || trailerFile ? null : trailerEmbedUrl(trailerUrl);
+    const trailerMedia = trailerFile || (!trailerEmbed && trailerUrl && /\.(mp4|m3u8)(?:[?#]|$)/i.test(trailerUrl) ? trailerUrl : null);
+    const trailerHlsSource = trailerHls || (trailerMedia && /\.m3u8(?:[?#]|$)/i.test(trailerMedia) ? trailerMedia : null);
+    const trailerFileSource = trailerMedia === trailerHlsSource ? null : trailerMedia;
+    const hasTrailer = !!(trailerHlsSource || trailerFileSource || trailerEmbed);
+
+    const handleShare = async () => {
+        const url = new URL(window.location.pathname, window.location.origin).href;
+        try {
+            if (navigator.share) {
+                await navigator.share({ title: video.title, url });
+            } else {
+                await navigator.clipboard.writeText(url);
+                toast({ title: "Movie link copied" });
+            }
+        } catch (error) {
+            if (error instanceof Error && error.name === "AbortError") return;
+            toast({ title: "Couldn't share this movie", description: "Please try again.", variant: "destructive" });
+        }
+    };
 
     const directors = video.cast_crew.filter((c) => c.role === "Director");
     const cast = video.cast_crew.filter((c) =>
@@ -355,66 +472,113 @@ export default function MovieDetailsPage() {
 
             {/* ── Hero / Backdrop (hidden while player is open) ───────────── */}
             {!showPlayer && (
-                <div className="relative w-full h-[70vh] min-h-[460px] overflow-hidden pt-16">
+                <section ref={bannerRef} aria-label={`${video.title} movie banner`} className="relative isolate flex w-full min-h-[560px] items-center overflow-hidden pt-24 pb-12 sm:min-h-[600px] sm:pb-16 lg:min-h-[640px]">
                     <img
                         src={backdrop}
                         alt={video.title}
-                        className="absolute inset-0 w-full h-full object-cover"
+                        className="absolute inset-0 h-full w-full object-cover object-[70%_30%]"
                         width={1920}
                         height={1080}
                     />
-                    {/* Shared gradient classes — text contrast + bottom page blend */}
-                    <div className="banner-overlay absolute inset-0" />
+                    {hasTrailer && showTrailer && (trailerEmbed ? (
+                        bannerActive && <iframe
+                            title={`${video.title} trailer`}
+                            src={trailerEmbed}
+                            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                            allowFullScreen
+                            referrerPolicy="strict-origin-when-cross-origin"
+                            className="absolute inset-0 h-full w-full border-0"
+                        />
+                    ) : (
+                        <BannerTrailer
+                            key={video.id}
+                            src={trailerFileSource}
+                            hlsSrc={trailerHlsSource}
+                            hovered={bannerActive}
+                            delayMs={0}
+                            manualPlayback
+                            showSoundControl
+                            soundControlPlacement="bottom-right"
+                            positionClassName="object-[70%_30%]"
+                            onEnded={() => setTrailerVideoId(null)}
+                            onPlaybackError={() => {
+                                setTrailerVideoId(null);
+                                toast({ title: "Trailer could not be played", description: "Please try again later.", variant: "destructive" });
+                            }}
+                        />
+                    ))}
+                    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.96)_0%,rgba(0,0,0,0.8)_28%,rgba(0,0,0,0.3)_60%,rgba(0,0,0,0.05)_100%)]" />
+                    <div className="pointer-events-none absolute inset-0 bg-black/20 sm:bg-transparent" />
                     <div className="banner-bottom-fade absolute inset-0 pointer-events-none" />
 
-                    {/* Back button */}
-                    <div className="absolute top-20 left-6 lg:left-12 z-10">
-                        <Link href="/">
-                            <Button
-                                variant="ghost"
-                                className="text-white/80 hover:text-white hover:bg-white/10 gap-1.5"
-                            >
-                                <ChevronLeft size={16} /> Back
-                            </Button>
+                    <div className="relative z-10 flex w-full flex-col gap-8 px-6 sm:px-14 lg:block lg:px-16">
+                      <div className="w-full max-w-xl space-y-4">
+                        <Link href="/" className="inline-flex items-center gap-1 text-sm text-white/70 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">
+                            <ChevronLeft size={16} aria-hidden="true" /> Back
                         </Link>
-                    </div>
-
-                    {/* Hero text overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 px-6 lg:px-12 pb-16 z-10 space-y-4">
                         {video.content_classification && (
-                            <span className="inline-block px-3 py-1 text-xs font-semibold tracking-wider uppercase bg-primary/20 text-primary border border-primary/30 rounded-full">
+                            <span className="block w-fit rounded border border-primary/70 bg-black/30 px-2.5 py-1 text-xs font-semibold text-primary">
                                 {video.content_classification}
                             </span>
                         )}
-                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-800 leading-tight text-white max-w-3xl">
+                        <h1 className="max-w-xl font-display text-4xl font-extrabold uppercase leading-[1.05] tracking-normal text-white [overflow-wrap:anywhere] text-balance sm:text-5xl lg:text-6xl" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.6)" }}>
                             {video.title}
                         </h1>
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-white/80">
-                            {score && (
-                                <span className="text-primary font-semibold">{score} Match</span>
-                            )}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm font-medium text-white/85 [&>span+span]:border-l [&>span+span]:border-white/30 [&>span+span]:pl-3">
                             {year && <span>{year}</span>}
+                            {video.category && <span>{video.category}</span>}
                             {duration && <span>{duration}</span>}
-                            {video.age_rating && (
-                                <span className="px-1.5 py-0.5 border border-white/40 rounded text-xs">
-                                    {video.age_rating}
-                                </span>
-                            )}
-                            {video.category && (
-                                <span className="text-white/60">{video.category}</span>
-                            )}
+                            {video.language.length > 0 && <span>{video.language.join(", ")}</span>}
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 py-1 text-white">
+                                {video.rating !== null && (
+                                    <div className="flex items-center gap-2.5">
+                                        <Star size={24} className="shrink-0 text-amber-400" fill="currentColor" aria-hidden="true" />
+                                        <div>
+                                            <p className="text-sm font-bold leading-tight">{video.rating.toFixed(1)}<span className="font-normal text-white/70">/10</span></p>
+                                            <p className="mt-0.5 text-xs text-white/65">Rating</p>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="flex max-w-full items-center gap-5">
+                                {video.age_rating && (
+                                    <div className={`flex items-center gap-2.5 ${video.rating !== null ? "border-l border-white/30 pl-5" : ""}`}>
+                                        <ShieldCheck size={24} className="shrink-0 text-white/90" aria-hidden="true" />
+                                        <div>
+                                            <p className="text-sm font-semibold leading-tight">{video.age_rating}</p>
+                                            <p className="mt-0.5 text-xs text-white/65">Maturity rating</p>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className={`flex items-center gap-2.5 ${video.rating !== null || video.age_rating ? "border-l border-white/30 pl-5" : ""}`}>
+                                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${video.access_type === "free" ? "bg-emerald-400" : video.access_type === "subscription" ? "bg-primary" : "bg-amber-400"}`} aria-hidden="true" />
+                                    <div>
+                                        <p className="text-sm font-semibold leading-tight capitalize">
+                                            {video.access_type === "pay_per_view"
+                                                ? `PPV${video.ppv_price ? ` · $${video.ppv_price}` : ""}`
+                                                : video.access_type}
+                                        </p>
+                                        <p className="mt-0.5 text-xs text-white/65">Access</p>
+                                    </div>
+                                </div>
+                                </div>
+                        </div>
+                        {(video.short_description || video.long_description) && (
+                            <p className="max-w-[52ch] text-sm leading-relaxed text-white/90 line-clamp-4 sm:text-base">
+                                {video.short_description || video.long_description}
+                            </p>
+                        )}
+                        <div className="flex flex-wrap items-center gap-3 pt-1">
                             {playbackSrc ? (
                                 <Button
                                     onClick={handlePlay}
                                     disabled={accessLoading}
-                                    className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-6 py-3 h-auto text-base gap-2"
+                                    className="h-12 max-w-full gap-2 rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary/90 sm:px-8 sm:text-base"
                                 >
                                     {accessLoading ? (
                                         <><Loader2 size={18} className="animate-spin" /> Checking…</>
                                     ) : hasAccess || video?.access_type === "free" ? (
-                                        <><Play size={18} fill="currentColor" /> Play</>
+                                        <><Play size={18} fill="currentColor" /> Play Now</>
                                     ) : video?.access_type === "subscription" ? (
                                         <><Lock size={18} /> Subscribe to Watch</>
                                     ) : video?.access_type === "rental" ? (
@@ -422,13 +586,13 @@ export default function MovieDetailsPage() {
                                     ) : video?.access_type === "pay_per_view" ? (
                                         <><Play size={18} fill="currentColor" /> Buy to Watch</>
                                     ) : (
-                                        <><Play size={18} fill="currentColor" /> Play</>
+                                        <><Play size={18} fill="currentColor" /> Play Now</>
                                     )}
                                 </Button>
                             ) : (
                                 <Button
                                     disabled
-                                    className="bg-primary/50 text-primary-foreground font-semibold px-6 py-3 h-auto text-base gap-2 cursor-not-allowed"
+                                    className="h-12 max-w-full gap-2 rounded-md bg-primary/50 px-6 text-sm font-semibold text-primary-foreground cursor-not-allowed"
                                 >
                                     <Play size={18} fill="currentColor" /> Not Available
                                 </Button>
@@ -437,7 +601,8 @@ export default function MovieDetailsPage() {
                                 variant="outline"
                                 onClick={() => watchlistMutation.mutate()}
                                 disabled={watchlistMutation.isPending || authLoading}
-                                className="bg-transparent border-white/40 text-white hover:bg-white/10 font-medium px-5 py-3 h-auto text-base gap-2"
+                                aria-pressed={isInWatchlist}
+                                className="h-12 gap-2 rounded-md border-white/40 bg-black/25 px-5 text-sm font-medium text-white hover:bg-white/10 hover:text-white sm:text-base"
                             >
                                 {watchlistMutation.isPending ? (
                                     <Loader2 size={18} className="animate-spin" />
@@ -448,76 +613,45 @@ export default function MovieDetailsPage() {
                                 )}
                                 {isInWatchlist ? "In My List" : "My List"}
                             </Button>
+                            <Button variant="outline" onClick={handleShare} className="h-12 gap-2 rounded-md border-white/40 bg-black/25 px-5 text-sm font-medium text-white hover:bg-white/10 hover:text-white sm:text-base">
+                                <Share2 size={18} aria-hidden="true" /> Share
+                            </Button>
                         </div>
+                        </div>
+                        {hasTrailer && (
+                            <div className="h-16 lg:h-0">
+                            {!showTrailer && (
+                            <button
+                                type="button"
+                                onClick={() => setTrailerVideoId(id)}
+                                className="group/trailer flex w-fit items-center gap-3 self-start text-white outline-none lg:absolute lg:left-[76%] lg:top-1/2 lg:-translate-y-1/2 lg:flex-col"
+                                aria-label={`Watch ${video.title} trailer`}
+                                title="Watch Trailer"
+                            >
+                                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-white bg-black/35 shadow-[0_0_0_5px_rgba(255,255,255,0.12)] backdrop-blur-sm transition-colors group-hover/trailer:bg-white/20 group-focus-visible/trailer:ring-2 group-focus-visible/trailer:ring-white group-focus-visible/trailer:ring-offset-4 group-focus-visible/trailer:ring-offset-black lg:h-20 lg:w-20">
+                                    <Play size={30} fill="currentColor" className="ml-1" aria-hidden="true" />
+                                </span>
+                                <span className="text-sm font-semibold drop-shadow-md">Watch Trailer</span>
+                            </button>
+                            )}
+                            </div>
+                        )}
                     </div>
-                </div>
+                    {hasTrailer && showTrailer && (
+                        <button
+                            type="button"
+                            onClick={() => setTrailerVideoId(null)}
+                            className="absolute bottom-8 right-16 z-20 inline-flex h-8 items-center gap-2 rounded-md border border-white/40 bg-black/60 px-3 text-xs font-semibold text-white backdrop-blur-sm hover:bg-black/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                            title="Stop trailer"
+                        >
+                            <Square size={14} fill="currentColor" aria-hidden="true" /> Stop Trailer
+                        </button>
+                    )}
+                </section>
             )}
 
             {/* ── Details ──────────────────────────────────────────────────── */}
-            <div className="px-6 lg:px-12 py-10 space-y-10">
-
-                {/* Stats strip */}
-                <div className="flex flex-wrap gap-4 pb-8 border-b border-border/40">
-                    {video.rating !== null && (
-                        <div className="flex items-center gap-3 px-5 py-4 rounded-xl bg-secondary/60 border border-border/40 min-w-[100px]">
-                            <Star size={22} className="text-primary" fill="currentColor" />
-                            <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wider">Score</p>
-                                <p className="text-lg font-bold text-foreground leading-tight">{video.rating.toFixed(1)}<span className="text-xs text-muted-foreground font-normal">/10</span></p>
-                            </div>
-                        </div>
-                    )}
-                    {duration && (
-                        <div className="flex items-center gap-3 px-5 py-4 rounded-xl bg-secondary/60 border border-border/40 min-w-[100px]">
-                            <Clock size={22} className="text-primary" />
-                            <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wider">Runtime</p>
-                                <p className="text-lg font-bold text-foreground leading-tight">{duration}</p>
-                            </div>
-                        </div>
-                    )}
-                    {year && (
-                        <div className="flex items-center gap-3 px-5 py-4 rounded-xl bg-secondary/60 border border-border/40 min-w-[100px]">
-                            <Calendar size={22} className="text-primary" />
-                            <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wider">Year</p>
-                                <p className="text-lg font-bold text-foreground leading-tight">{year}</p>
-                            </div>
-                        </div>
-                    )}
-                    {video.age_rating && (
-                        <div className="flex items-center gap-3 px-5 py-4 rounded-xl bg-secondary/60 border border-border/40 min-w-[100px]">
-                            <Film size={22} className="text-primary" />
-                            <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wider">Rated</p>
-                                <p className="text-lg font-bold text-foreground leading-tight">{video.age_rating}</p>
-                            </div>
-                        </div>
-                    )}
-                    {video.language.length > 0 && (
-                        <div className="flex items-center gap-3 px-5 py-4 rounded-xl bg-secondary/60 border border-border/40 min-w-[120px]">
-                            <Globe size={22} className="text-primary" />
-                            <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wider">Language</p>
-                                <p className="text-base font-semibold text-foreground leading-tight">{video.language.join(", ")}</p>
-                            </div>
-                        </div>
-                    )}
-                    {/* Access badge */}
-                    <div className="flex items-center gap-3 px-5 py-4 rounded-xl bg-secondary/60 border border-border/40 min-w-[100px]">
-                        <div className="w-2.5 h-2.5 rounded-full mt-0.5 flex-shrink-0"
-                            style={{ backgroundColor: video.access_type === "free" ? "hsl(152 60% 45%)" : video.access_type === "subscription" ? "hsl(var(--primary))" : "hsl(45 100% 55%)" }}
-                        />
-                        <div>
-                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Access</p>
-                            <p className="text-base font-semibold text-foreground leading-tight capitalize">
-                                {video.access_type === "pay_per_view"
-                                    ? `PPV${video.ppv_price ? ` · $${video.ppv_price}` : ""}`
-                                    : video.access_type}
-                            </p>
-                        </div>
-                    </div>
-                </div>
+            <div className="px-6 sm:px-14 lg:px-16 py-10 space-y-10">
 
                 {/* Two-column layout — overview + metadata */}
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-10">
@@ -606,6 +740,7 @@ export default function MovieDetailsPage() {
             </div>
 
             {/* ── Related Movies ──────────────────────────────────────────── */}
+            <SameCategoryMovies key={video.id} video={video} />
             <RelatedMovies ids={video.related_video_ids} />
 
 
