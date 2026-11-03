@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Loader2, MailCheck } from "lucide-react";
+import { AlertCircle, ArrowLeft, Clapperboard, Eye, EyeOff, Film, Loader2, MailCheck, Tv } from "lucide-react";
 import { signIn, getSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -154,41 +154,61 @@ export default function LoginForm() {
     }
 
     return (
-        <div className="fixed inset-0 z-[100] flex">
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-background">
+            <div className="grid min-h-full lg:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)]">
             {/* ── Left panel — cinematic backdrop ─────────────────────── */}
-            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+            <div className="relative hidden min-w-0 overflow-hidden lg:sticky lg:top-0 lg:flex lg:h-[100svh]">
                 <img
                     src="/images/hero-banner.jpg"
                     alt=""
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-cover object-[60%_center]"
+                    fetchPriority="high"
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-background/60 via-background/30 to-background/80" />
-                <div className="relative z-10 flex flex-col justify-between p-12 w-full">
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.3)_0%,rgba(0,0,0,0.1)_30%,rgba(0,0,0,0.88)_100%)]" />
+                <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.3),transparent_65%)]" />
+                <div className="relative z-10 flex w-full flex-col justify-between gap-8 p-10 xl:p-14">
                     <SiteLogo imageSize={36} showLabel={false} />
-                    <div className="space-y-4">
-                        <h2 className="text-4xl font-display font-800 text-foreground leading-tight">
-                            Your world of<br />
-                            <span className="text-gradient-gold">entertainment</span><br />
-                            starts here.
+                    <div className="mt-auto max-w-lg space-y-6">
+                        <div className="space-y-4">
+                        <h2 className="break-words font-display text-3xl font-extrabold leading-tight tracking-normal text-white xl:text-4xl">
+                            Join millions of viewers. Watch anywhere, on any device.
                         </h2>
-                        <p className="text-muted-foreground text-base max-w-xs">
-                            Stream thousands of movies, live TV channels, and exclusive shows.
+                        <p className="max-w-sm text-xl font-medium leading-relaxed text-white/90">
+                            Your next great watch starts here.
                         </p>
-                    </div>
-                    <div className="flex gap-6 text-sm text-muted-foreground">
-                        <span>🎬 Movies</span>
-                        <span>📺 Live TV</span>
-                        <span>🎭 Series</span>
+                        </div>
+                        <div className="flex flex-wrap gap-x-6 gap-y-3 border-t border-white/20 pt-6 text-sm font-semibold text-white">
+                            {[{ icon: Film, label: "Movies" }, { icon: Tv, label: "Live TV" }, { icon: Clapperboard, label: "Series" }].map(({ icon: Icon, label }) => (
+                                <span key={label} className="inline-flex items-center gap-2">
+                                    <Icon size={18} strokeWidth={2} className="shrink-0 text-primary" aria-hidden="true" />
+                                    {label}
+                                </span>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* ── Right panel — form ───────────────────────────────────── */}
-            <div className="w-full lg:w-1/2 bg-background flex items-center justify-center p-6 overflow-auto">
-                <div className="w-full max-w-sm">
+            <div
+                className="flex min-h-[100svh] min-w-0 flex-col bg-background px-6 py-6 sm:px-10 lg:px-12 xl:px-16"
+                style={{ backgroundImage: "linear-gradient(145deg, hsl(var(--primary) / 0.16) 0%, transparent 45%), linear-gradient(325deg, hsl(var(--accent) / 0.1) 0%, transparent 55%)" }}
+            >
+                <div className="mx-auto flex w-full max-w-[420px] items-center justify-between gap-4 text-sm">
+                    <Link href="/" className="inline-flex min-h-10 items-center gap-2 font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+                        <ArrowLeft size={16} aria-hidden="true" /> Browse
+                    </Link>
+                    <Link href="/signup" className="inline-flex min-h-10 items-center font-semibold text-foreground transition-colors hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">Create account</Link>
+                </div>
+                <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-8 sm:py-10">
                     {/* Mobile logo */}
-                    <div className="flex lg:hidden mb-10">
+                    <div className="mb-8 flex lg:hidden">
                         <SiteLogo imageSize={32} showLabel={false} />
+                    </div>
+
+                    <div className="mb-7 space-y-2">
+                        <h1 className="text-3xl font-bold leading-tight tracking-normal text-foreground">Welcome back</h1>
+                        <p className="text-sm leading-relaxed text-muted-foreground">Sign in to continue with {tenantName}.</p>
                     </div>
 
                     {/* Google Login Button */}
@@ -197,7 +217,7 @@ export default function LoginForm() {
                         type="button"
                         onClick={handleGoogleLogin}
                         variant="outline"
-                        className="w-full h-11 mb-5 flex items-center justify-center gap-2"
+                        className="w-full h-12 mb-5 flex items-center justify-center gap-2 font-semibold"
                         disabled={googleLoading || loading}
                     >
                         {googleLoading ? (
@@ -232,7 +252,7 @@ export default function LoginForm() {
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-5">
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                             <Label htmlFor="email" className="text-sm font-medium">Email address</Label>
                             <Input
                                 id="email"
@@ -240,18 +260,19 @@ export default function LoginForm() {
                                 placeholder="you@example.com"
                                 autoComplete="email"
                                 required
+                                disabled={loading || verifying || googleLoading}
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="h-11 bg-secondary/50 border-border/60 focus:border-primary/60"
+                                className="h-12 rounded-md border-border bg-card/60 px-3.5 text-base placeholder:text-muted-foreground/65 focus-visible:border-primary"
                             />
                         </div>
 
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <Label htmlFor="password" className="text-sm font-medium">Password</Label>
                                 <Link
                                     href="/forgot-password"
-                                    className="text-xs text-primary hover:text-primary/80 transition-colors"
+                                    className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
                                 >
                                     Forgot password?
                                 </Link>
@@ -263,24 +284,26 @@ export default function LoginForm() {
                                     placeholder="••••••••"
                                     autoComplete="current-password"
                                     required
+                                    disabled={loading || verifying || googleLoading}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="h-11 bg-secondary/50 border-border/60 focus:border-primary/60 pr-11"
+                                    className="h-12 rounded-md border-border bg-card/60 pl-3.5 pr-12 text-base placeholder:text-muted-foreground/65 focus-visible:border-primary"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPass((v) => !v)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                    className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                                     aria-label={showPass ? "Hide password" : "Show password"}
+                                    aria-pressed={showPass}
                                 >
-                                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
                         </div>
 
                         {error && (
-                            <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5">
-                                <span className="mt-0.5 shrink-0">⚠</span>
+                            <div role="alert" className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5">
+                                <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
                                 <span>{error}</span>
                             </div>
                         )}
@@ -314,8 +337,8 @@ export default function LoginForm() {
 
                         <Button
                             type="submit"
-                            className="w-full h-11 font-semibold"
-                            disabled={loading}
+                            className="w-full h-12 text-base font-semibold"
+                            disabled={loading || verifying || googleLoading}
                         >
                             {loading
                                 ? <><Loader2 size={16} className="mr-2 animate-spin" />Signing in…</>
@@ -324,21 +347,17 @@ export default function LoginForm() {
                         </Button>
                     </form>
 
-                    <div className="relative my-6">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-border/40" />
-                        </div>
-                        <div className="relative flex justify-center">
-                            <span className="bg-background px-3 text-xs text-muted-foreground">New to {tenantName}?</span>
-                        </div>
+                    <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+                        <span aria-hidden="true" className="h-px flex-1 bg-border/60" />
+                        <span>New to {tenantName}?</span>
+                        <span aria-hidden="true" className="h-px flex-1 bg-border/60" />
                     </div>
 
-                    <Link href="/signup">
-                        <Button variant="outline" className="w-full h-11">
-                            Create an account
-                        </Button>
-                    </Link>
+                    <Button asChild variant="outline" className="w-full h-12 font-semibold">
+                        <Link href="/signup">Create an account</Link>
+                    </Button>
                 </div>
+            </div>
             </div>
         </div>
     );

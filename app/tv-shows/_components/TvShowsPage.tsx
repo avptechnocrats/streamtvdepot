@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { BannerSkeleton } from "@/components/BannerSkeleton";
 import EpgGuide from "./EpgGuide";
 import ManagedBannerSlot from "@/components/ManagedBannerSlot";
+import { useRowScroll } from "@/hooks/use-row-scroll";
 
 const VideoPlayer = dynamic(() => import("@/components/VideoPlayer"), { ssr: false });
 const ManagedLivePlayer = dynamic(() => import("@/components/ManagedLivePlayer"), { ssr: false });
@@ -354,21 +355,31 @@ function TVShowsSkeleton() {
 // ─── Rendered content (once data is ready) ───────────────────────────────────
 
 function channelImage(channel: LiveTvChannelOut): string {
-    return channel.thumbnails.portrait || channel.thumbnails.wide || channel.thumbnails.banner || "/images/movie-1.jpg";
+    return channel.thumbnails.square || channel.thumbnails.wide || channel.thumbnails.banner || channel.thumbnails.portrait || "";
 }
 
 function ChannelPlayer({ channel }: { channel: LiveTvChannelOut }) {
-    const poster = channel.thumbnails.banner || channel.thumbnails.wide || channel.thumbnails.portrait || undefined;
-    if (channel.managed_playback) return <ManagedLivePlayer key={channel.id} channelId={channel.id} poster={poster} className="h-full w-full" />;
-    if (channel.stream_url) return <VideoPlayer key={channel.id} src={channel.stream_url} poster={poster} autoPlay muted allowSeeking={false} className="h-full w-full" />;
-    return <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-zinc-950 text-white/60"><WifiOff size={32} /><p className="text-sm">This channel is currently unavailable.</p></div>;
+    const [error, setError] = useState<string | null>(null);
+    const poster = channel.thumbnails.banner || channel.thumbnails.wide || channel.thumbnails.portrait || channel.thumbnails.square || undefined;
+    if (!error && channel.managed_playback) return <ManagedLivePlayer channelId={channel.id} poster={poster} className="h-full w-full" onError={setError} />;
+    if (!error && channel.stream_url) return <VideoPlayer src={channel.stream_url} poster={poster} autoPlay muted allowSeeking={false} className="h-full w-full" onError={setError} />;
+    return <div role="status" aria-live="polite" className="relative flex h-full min-h-[270px] w-full items-center justify-center overflow-hidden bg-background">
+        {poster && <img src={poster} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />}
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(0,0,0,0.55)_0%,rgba(0,0,0,0.8)_50%,rgba(0,0,0,0.65)_100%)]" />
+        <div className="relative flex max-w-lg flex-col items-center gap-3 px-6 py-10 text-center text-white">
+            <WifiOff size={32} className="text-white/85" aria-hidden="true" />
+            <h2 className="text-lg font-semibold">Channel currently unavailable</h2>
+            <p className="break-words text-sm leading-relaxed text-white/85">{error || "There is no live stream available for this channel right now."}</p>
+        </div>
+    </div>;
 }
 
 function ChannelTile({ channel, selected, onSelect }: { channel: LiveTvChannelOut; selected: boolean; onSelect: () => void }) {
+    const [failed, setFailed] = useState(false);
+    const image = channelImage(channel);
     return (
-        <button type="button" onClick={onSelect} className={`relative h-[72px] w-[116px] shrink-0 overflow-hidden rounded border transition-colors ${selected ? "border-primary ring-1 ring-primary" : "border-white/10 hover:border-white/50"}`} aria-label={`Watch ${channel.title}`}>
-            <img src={channelImage(channel)} alt="" className="h-full w-full object-cover" loading="lazy" />
-            <span className="absolute inset-x-0 bottom-0 bg-black/75 px-1.5 py-1 text-left text-[10px] font-medium text-white truncate">{channel.title}</span>
+        <button type="button" onClick={onSelect} className={`relative aspect-square w-[6.358rem] shrink-0 overflow-hidden rounded-[6px] border bg-card transition-colors sm:w-[6.936rem] lg:w-[7.514rem] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${selected ? "border-primary ring-1 ring-primary" : "border-white/10 hover:border-white/50"}`} aria-label={`Watch ${channel.title}`} aria-pressed={selected} title={channel.title}>
+            {image && !failed ? <img src={image} alt="" className={`h-full w-full ${channel.thumbnails.square ? "object-cover" : "object-contain"}`} loading="lazy" onError={() => setFailed(true)} /> : <span className="flex h-full w-full items-center justify-center text-xl font-semibold text-muted-foreground">{channel.title.split(/\s+/).map(word => word[0]).slice(0, 3).join("")}</span>}
             {channel.is_live && <span className="absolute left-1 top-1 rounded bg-red-600 px-1 py-0.5 text-[8px] font-bold text-white">LIVE</span>}
         </button>
     );
@@ -402,12 +413,14 @@ function TVShowsContent({
     const [activeRegion, setActiveRegion] = useState<(typeof REGIONS)[number]>("All Channels");
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const regionChannels = activeRegion === "All Channels" ? channels : channels.filter((channel) => channel.region?.includes(activeRegion));
+    const { scrollRef: channelRail, canScrollLeft, canScrollRight } = useRowScroll(regionChannels.length);
     const playableChannels = regionChannels.filter((channel) => channel.managed_playback || channel.stream_url);
     const selected = channels.find((channel) => channel.id === selectedId)
         ?? playableChannels.find((channel) => channel.is_live && channel.access_type === "free")
         ?? playableChannels[0]
         ?? regionChannels[0]
         ?? channels[0];
+    const { scrollRef: regionRail, canScrollLeft: canScrollRegionsLeft, canScrollRight: canScrollRegionsRight } = useRowScroll(selected ? REGIONS.length : 0);
     const liveChannels = channels.filter((channel) => channel.source === "rtmp" || channel.source === "srt");
     const ppvEvent = ppvEvents.find((event) => event.is_live) ?? ppvEvents[0];
     const shareSelectedChannel = () => {
@@ -440,7 +453,7 @@ function TVShowsContent({
                         <Button variant="outline" onClick={shareSelectedChannel} className="h-10 flex-1 gap-2 border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"><Share2 size={15} /> Share</Button>
                     </div>
                 </div>
-                <div className="min-h-[270px] bg-black lg:min-h-0"><ChannelPlayer channel={selected} /></div>
+                <div className="min-h-[270px] bg-black lg:min-h-0"><ChannelPlayer key={selected.id} channel={selected} /></div>
                 </section>
             </div>
 
@@ -448,8 +461,16 @@ function TVShowsContent({
             <div className="mx-auto max-w-[1536px] space-y-9 px-4 py-8 sm:px-6 lg:px-14">
                 <section>
                     <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="flex items-center gap-2"><Radio size={18} className="text-primary" /><h2 className="text-xl font-semibold">Watch Live TV by Region</h2></div><p className="mt-1 text-xs text-white/55">Explore channels from around the world.</p></div></div>
-                    <div className="flex gap-2 overflow-x-auto pb-2">{REGIONS.map((region) => <button key={region} type="button" onClick={() => setActiveRegion(region)} className={`h-9 shrink-0 border px-3 text-xs font-medium transition-colors ${activeRegion === region ? "border-primary bg-primary text-primary-foreground" : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"}`}>{region}</button>)}</div>
-                    {regionChannels.length > 0 ? <div className="mt-3 flex gap-3 overflow-x-auto pb-2">{regionChannels.map((channel) => <ChannelTile key={channel.id} channel={channel} selected={channel.id === selected.id} onSelect={() => setSelectedId(channel.id)} />)}</div> : <p className="py-5 text-sm text-white/50">No channels available in this region yet.</p>}
+                    <div className="relative group [--row-artwork-height:2.25rem] [--row-artwork-offset:0px]">
+                        <button type="button" aria-label="Previous regions" title="Previous regions" disabled={!canScrollRegionsLeft} onClick={() => regionRail.current?.scrollBy({ left: -304, behavior: "smooth" })} className="storefront-row-arrow -left-3 opacity-100 md:opacity-0"><ChevronLeft size={18} /></button>
+                        <div ref={regionRail} aria-label="TV regions" className="flex w-full min-w-0 gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide pb-2" style={{ touchAction: "pan-x pan-y", WebkitOverflowScrolling: "touch" }}>{REGIONS.map((region) => <button key={region} type="button" onClick={() => setActiveRegion(region)} aria-pressed={activeRegion === region} className={`flex h-9 w-36 shrink-0 items-center justify-center whitespace-nowrap border px-3 text-xs font-medium transition-colors ${activeRegion === region ? "border-primary bg-primary text-primary-foreground" : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"}`}>{region}</button>)}</div>
+                        <button type="button" aria-label="Next regions" title="Next regions" disabled={!canScrollRegionsRight} onClick={() => regionRail.current?.scrollBy({ left: 304, behavior: "smooth" })} className="storefront-row-arrow -right-3 opacity-100 md:opacity-0"><ChevronRight size={18} /></button>
+                    </div>
+                    {regionChannels.length > 0 ? <div className="relative group mt-3 [--row-artwork-height:6.358rem] sm:[--row-artwork-height:6.936rem] lg:[--row-artwork-height:7.514rem] [--row-artwork-offset:4px]">
+                        <button type="button" aria-label="Previous channels" title="Previous channels" disabled={!canScrollLeft} onClick={() => channelRail.current?.scrollBy({ left: -320, behavior: "smooth" })} className="storefront-row-arrow -left-3 [@media(hover:none)]:opacity-100"><ChevronLeft size={18} /></button>
+                        <div ref={channelRail} className="flex gap-3 overflow-x-auto scrollbar-hide py-1">{regionChannels.map((channel) => <ChannelTile key={channel.id} channel={channel} selected={channel.id === selected.id} onSelect={() => setSelectedId(channel.id)} />)}</div>
+                        <button type="button" aria-label="Next channels" title="Next channels" disabled={!canScrollRight} onClick={() => channelRail.current?.scrollBy({ left: 320, behavior: "smooth" })} className="storefront-row-arrow -right-3 [@media(hover:none)]:opacity-100"><ChevronRight size={18} /></button>
+                    </div> : <p className="py-5 text-sm text-white/50">No channels available in this region yet.</p>}
                 </section>
 
                 <ManagedBannerSlot page="/tv-shows" position="middle_1" inset />
