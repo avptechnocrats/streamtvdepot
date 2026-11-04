@@ -31,3 +31,15 @@ export function AssetRowSkeleton() {
         </div>
     );
 }
+
+export function AssetTileSkeleton() {
+    return <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-card">
+        <Bone className="aspect-[4/3] w-full rounded-none" />
+        <div className="space-y-3 p-3">
+            <Bone className="h-4 w-3/4" />
+            <Bone className="h-3 w-1/2" />
+            <Bone className="h-3 w-24" />
+            <Bone className="h-7 w-full" />
+        </div>
+    </div>;
+}

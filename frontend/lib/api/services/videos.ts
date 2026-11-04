@@ -20,7 +20,7 @@ export type VideoCategory = (typeof VIDEO_CATEGORIES)[number];
 export const AGE_RATINGS = ["UA 13+", "UA 16+", "U", "A"] as const;
 export type AgeRating = (typeof AGE_RATINGS)[number];
 
-export const CONTENT_CLASSIFICATIONS = ["Movie", "Short Film", "Documentary", "Web Series", "Episode", "Clip", "Trailer"] as const;
+export const CONTENT_CLASSIFICATIONS = ["Movie", "Music Video", "Short Film", "Documentary", "Podcast", "Episode"] as const;
 export type ContentClassification = (typeof CONTENT_CLASSIFICATIONS)[number];
 
 export const VIDEO_LANGUAGES = [
@@ -32,7 +32,7 @@ export type VideoLanguage = (typeof VIDEO_LANGUAGES)[number];
 
 export const CREW_ROLES = [
     "Director", "Producer", "Writer", "Actor", "Actress", "Cinematographer",
-    "Editor", "Composer", "Costume Designer", "Production Designer", "VFX Supervisor",
+    "Editor", "Composer", "Lyricist", "Singer", "Costume Designer", "Production Designer", "VFX Supervisor",
 ] as const;
 export type CrewRole = (typeof CREW_ROLES)[number];
 
@@ -129,6 +129,7 @@ export interface VideoOut {
     is_slider: boolean;
     is_movie_slider: boolean;
     is_thumbnail: boolean;
+    is_category_only: boolean;
     advertisement: Advertisement;
     video_url: string | null;
     thumbnails: VideoThumbnails;

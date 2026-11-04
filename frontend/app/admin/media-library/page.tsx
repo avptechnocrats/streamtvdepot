@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
     ImageIcon, AlertTriangle,
-    CheckCircle2, X, Upload, Search, Image, Video, Music, RefreshCw,
+    CheckCircle2, X, Upload, Search, Image, Video, Music, RefreshCw, Table2, LayoutGrid,
 } from "lucide-react";
 import apiClient from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
@@ -20,7 +20,7 @@ import {
     getPaginationItems,
 } from "@/components/ui/pagination";
 import { AssetRow } from "./_components/AssetRow";
-import { AssetRowSkeleton } from "./_components/Skeletons";
+import { AssetRowSkeleton, AssetTileSkeleton } from "./_components/Skeletons";
 import { UploadDialog } from "./_components/UploadDialog";
 import { UploadRow } from "./_components/UploadRow";
 import { useUploadQueueContext, type UploadListener } from "./_components/UploadQueueProvider";
@@ -64,6 +64,14 @@ const DISPLAY_PAGE_SIZE = 10;
 export default function MediaLibraryPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const view = searchParams.get("view") === "tiles" ? "tiles" : "grid";
+
+    function setView(nextView: "grid" | "tiles") {
+        const params = new URLSearchParams(searchParams.toString());
+        if (nextView === "tiles") params.set("view", "tiles");
+        else params.delete("view");
+        router.replace(`?${params.toString()}`, { scroll: false });
+    }
 
     const [assets, setAssets] = useState<MediaAsset[]>([]);
     const [totalCount, setTotalCount] = useState(0);
@@ -288,13 +296,13 @@ export default function MediaLibraryPage() {
             </div>
 
             {/* ── Tabs + Search + Refresh ── */}
-            <div className="flex items-center justify-between gap-3">
-                <div className="flex gap-1 p-1 rounded-xl bg-surface-hover/50 border border-border w-fit">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div role="group" aria-label="Media type" className="flex max-w-full gap-1 overflow-x-auto p-1 rounded-xl bg-surface-hover/50 border border-border w-fit">
                     {TYPE_TABS.map(({ key, label, icon: Icon }) => (
                         <button
                             key={key}
                             onClick={() => setTypeFilter(key)}
-                            className={`flex items-center gap-2 px-3 py-0.5 rounded-lg text-sm font-medium transition-colors ${
+                            className={`flex shrink-0 items-center gap-2 px-3 py-0.5 rounded-lg text-sm font-medium transition-colors ${
                                 typeFilter === key
                                     ? "bg-card text-foreground shadow-sm border border-border/50"
                                     : "text-muted-foreground hover:text-foreground"
@@ -309,8 +317,8 @@ export default function MediaLibraryPage() {
                     ))}
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <div className="relative w-72 md:w-80">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <div className="relative w-full sm:w-64 md:w-72">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <input
                             value={search}
@@ -329,6 +337,10 @@ export default function MediaLibraryPage() {
                         <RefreshCw size={13} className={refreshing || loading ? "animate-spin" : ""} />
                         Refresh
                     </button>
+                    <div role="group" aria-label="Media view" className="flex shrink-0 items-center rounded-md border border-border bg-secondary p-1">
+                        <button type="button" onClick={() => setView("grid")} aria-label="Grid view" title="Grid view" aria-pressed={view === "grid"} className={`flex h-8 w-8 items-center justify-center rounded transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${view === "grid" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><Table2 size={16} /></button>
+                        <button type="button" onClick={() => setView("tiles")} aria-label="Tile view" title="Tile view" aria-pressed={view === "tiles"} className={`flex h-8 w-8 items-center justify-center rounded transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${view === "tiles" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}><LayoutGrid size={16} /></button>
+                    </div>
                 </div>
             </div>
 
@@ -357,7 +369,7 @@ export default function MediaLibraryPage() {
                 )}
 
                 {/* Column headers */}
-                <div className="flex items-center gap-4 px-4 py-2.5 border-b border-border bg-muted/30">
+                {view === "grid" && <div className="flex items-center gap-4 px-4 py-2.5 border-b border-border bg-muted/30">
                     <div className="w-10 shrink-0" />
                     <p className="flex-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                         Filename
@@ -378,7 +390,7 @@ export default function MediaLibraryPage() {
                         Status
                     </p>
                     <div className="w-24 shrink-0" />
-                </div>
+                </div>}
 
                 {/* Upload queue summary + rows */}
                 {uploadQueue.items.length > 0 && (
@@ -412,7 +424,8 @@ export default function MediaLibraryPage() {
                 )}
 
                 {loading && assets.length === 0 ? (
-                    Array.from({ length: 8 }).map((_, i) => <AssetRowSkeleton key={i} />)
+                    view === "tiles" ? <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <AssetTileSkeleton key={index} />)}</div>
+                        : Array.from({ length: 8 }).map((_, i) => <AssetRowSkeleton key={i} />)
                 ) : pageSlice.length === 0 ? (
                     uploadQueue.items.length > 0 ? null : (
                         <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
@@ -433,25 +446,26 @@ export default function MediaLibraryPage() {
                         </div>
                     )
                 ) : (
-                    pageSlice.map((asset) => (
+                    <div className={view === "tiles" ? "grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" : undefined}>{pageSlice.map((asset) => (
                         <AssetRow
                             key={asset.id}
                             asset={asset}
+                            view={view}
                             onPreview={() => setPreviewAsset(asset)}
                             onDelete={() => setConfirmAsset(asset)}
                         />
-                    ))
+                    ))}</div>
                 )}
             </div>
 
             {/* Numbered pagination */}
             {!loading &&  totalCount > 0 && (
-                <div className="flex items-center justify-between gap-3">
-                    <p className="w-full text-xs text-muted-foreground">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs text-muted-foreground">
                         Showing {(displayPage - 1) * DISPLAY_PAGE_SIZE + 1}–{Math.min(displayPage * DISPLAY_PAGE_SIZE, totalCount)} of {totalCount}
                     </p>
                     {totalPages > 1 && (
-                        <Pagination>
+                        <Pagination className="max-w-full justify-start overflow-x-auto sm:w-auto sm:justify-center">
                             <PaginationContent>
                                 <PaginationItem>
                                     <PaginationPrevious

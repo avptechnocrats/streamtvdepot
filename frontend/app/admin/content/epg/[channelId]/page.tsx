@@ -248,6 +248,23 @@ function XMLTVImportModal({ channelId, onImported, onClose }: XMLTVImportProps) 
     const [error, setError] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
 
+    const selectFile = (candidate: File | null) => {
+        if (!candidate || importing) return;
+        setResult(null);
+        if (!candidate.name.toLowerCase().endsWith(".xml")) {
+            setFile(null);
+            setError("Please select an XMLTV .xml file");
+            return;
+        }
+        if (candidate.size > 10 * 1024 * 1024) {
+            setFile(null);
+            setError("Choose an XMLTV file under 10 MB");
+            return;
+        }
+        setError(null);
+        setFile(candidate);
+    };
+
     const handleImport = async () => {
         if (!file) return;
         setImporting(true);
@@ -269,24 +286,27 @@ function XMLTVImportModal({ channelId, onImported, onClose }: XMLTVImportProps) 
             <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-5 py-4 border-b border-border">
                     <h2 className="font-semibold text-foreground">Import from XMLTV</h2>
-                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors"><X size={18} /></button>
+                    <button type="button" aria-label="Close XMLTV import" onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors"><X size={18} /></button>
                 </div>
                 <div className="p-5 space-y-4">
                     <p className="text-sm text-muted-foreground">
                         Upload an XMLTV-format XML file. All <code className="bg-secondary px-1 rounded text-xs">&lt;programme&gt;</code> entries will be imported.
                     </p>
                     <div
-                        className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/40 hover:bg-accent/20 transition-colors"
-                        onClick={() => fileRef.current?.click()}
+                        className="flex cursor-pointer flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-border p-8 text-center text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                        onClick={() => { if (!importing) fileRef.current?.click(); }}
+                        onDragOver={event => event.preventDefault()}
+                        onDrop={event => { event.preventDefault(); selectFile(event.dataTransfer.files[0] ?? null); }}
                     >
-                        <Upload size={24} className="mx-auto mb-2 text-muted-foreground/50" />
+                        <Upload size={36} className="opacity-50" />
                         {file
-                            ? <p className="text-sm font-medium text-foreground">{file.name}</p>
-                            : <><p className="text-sm font-medium text-foreground">Click to select XML file</p><p className="text-xs text-muted-foreground mt-0.5">XMLTV format (.xml), max 10 MB</p></>
+                            ? <p className="max-w-full break-all text-sm font-medium text-foreground">{file.name}</p>
+                            : <div className="space-y-1"><p className="text-sm font-semibold">Drag & drop your file here</p><p className="text-xs opacity-60">XMLTV format (.xml), max 10 MB</p></div>
                         }
-                        <input ref={fileRef} type="file" accept=".xml,text/xml,application/xml" className="hidden"
-                            onChange={(e) => { setFile(e.target.files?.[0] ?? null); setResult(null); }} />
+                        <button type="button" disabled={importing} onClick={event => { event.stopPropagation(); fileRef.current?.click(); }} className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:brightness-110 disabled:opacity-50"><Upload size={15} /> Browse Files</button>
                     </div>
+                    <input ref={fileRef} type="file" accept=".xml,text/xml,application/xml" className="hidden" disabled={importing}
+                        onChange={event => { selectFile(event.target.files?.[0] ?? null); event.target.value = ""; }} />
                     <label className="flex items-center gap-2.5 cursor-pointer select-none">
                         <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} className="w-4 h-4 rounded accent-primary" />
                         <span className="text-sm text-foreground">Replace existing programs <span className="text-xs text-muted-foreground">(clears before import)</span></span>

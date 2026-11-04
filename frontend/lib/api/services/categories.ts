@@ -29,7 +29,8 @@ export interface CategoryOut {
     banner_url: string | null;
     banner_display_url: string | null;
     sort_order: number;
-    thumbnail_view: "landscape" | "portrait";
+    is_category_row_enabled: boolean;
+    thumbnail_view: "landscape" | "wider_landscape" | "portrait";
     content_types: CategoryContentType[];
     created_at: string;
     updated_at: string;
@@ -46,7 +47,8 @@ export interface CategoryCreate {
     banner_asset_id?: string | null;
     banner_url?: string | null;
     sort_order: number;
-    thumbnail_view?: "landscape" | "portrait";
+    is_category_row_enabled?: boolean;
+    thumbnail_view?: "landscape" | "wider_landscape" | "portrait";
     content_types?: CategoryContentType[];
 }
 

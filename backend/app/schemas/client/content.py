@@ -137,7 +137,8 @@ class CategoryCreate(BaseModel):
     banner_asset_id: uuid.UUID | None = None
     banner_url: str | None = None
     sort_order: int = 0
-    thumbnail_view: Literal["landscape", "portrait"] = "landscape"
+    is_category_row_enabled: bool = True
+    thumbnail_view: Literal["landscape", "wider_landscape", "portrait"] = "landscape"
     content_types: list[str] = Field(default_factory=list)
 
 
@@ -161,7 +162,8 @@ class CategoryOut(BaseModel):
     banner_url: str | None
     banner_display_url: str | None = None       # presigned GET URL — populated at serve time
     sort_order: int
-    thumbnail_view: Literal["landscape", "portrait"] = "landscape"
+    is_category_row_enabled: bool = True
+    thumbnail_view: Literal["landscape", "wider_landscape", "portrait"] = "landscape"
     content_types: list[str]
     created_at: datetime
     updated_at: datetime
@@ -368,6 +370,7 @@ class VideoCreate(BaseModel):
     is_slider: bool = False
     is_movie_slider: bool = False
     is_thumbnail: bool = False
+    is_category_only: bool = False
     advertisement: Advertisement = Field(default_factory=Advertisement)
     video_url: str | None = None
     thumbnails: VideoThumbnails = Field(default_factory=VideoThumbnails)
@@ -403,6 +406,7 @@ class VideoUpdate(BaseModel):
     is_slider: bool | None = None
     is_movie_slider: bool | None = None
     is_thumbnail: bool | None = None
+    is_category_only: bool | None = None
     advertisement: Advertisement | None = None
     video_url: str | None = None
     thumbnails: VideoThumbnails | None = None
@@ -439,6 +443,7 @@ class VideoOut(BaseModel):
     is_slider: bool
     is_movie_slider: bool = False
     is_thumbnail: bool
+    is_category_only: bool = False
     advertisement: Advertisement = Field(default_factory=Advertisement)
     video_url: str | None
     thumbnails: VideoThumbnails = Field(default_factory=VideoThumbnails)
@@ -511,6 +516,7 @@ class PublicVideoOut(BaseModel):
     is_active: bool = True
     is_slider: bool = False
     is_movie_slider: bool = False
+    is_category_only: bool = False
     video_url: str | None
     video_display_url: str | None = None        # presigned GET URL — populated at serve time
     hls_url: str | None = None
@@ -899,7 +905,7 @@ class HomeCategoryRow(BaseModel):
     category_name: str
     category_slug: str
     content_type: str  # video | series | livestream | audio
-    thumbnail_view: Literal["landscape", "portrait"] = "landscape"
+    thumbnail_view: Literal["landscape", "wider_landscape", "portrait"] = "landscape"
     items: list[HomeContentItem]
 
 
