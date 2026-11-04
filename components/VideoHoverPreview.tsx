@@ -1,16 +1,43 @@
 "use client";
 
-import { BannerTrailer, useBannerHover } from "@/components/BannerTrailer";
+import { useEffect, useRef, useState } from "react";
+import { BannerTrailer } from "@/components/BannerTrailer";
 
-export const WIDER_LANDSCAPE_CARD_WIDTH = "w-[35rem] sm:w-[37.5rem] lg:w-[40rem]";
+export const WIDER_LANDSCAPE_CARD_WIDTH = "w-[calc(100cqw-2rem)] sm:w-[calc((100cqw-1rem)/2)] lg:w-[min(40rem,calc((100cqw-1.5rem)/3))]";
 
 export function VideoHoverPreview({ src, hlsSrc }: { src?: string | null; hlsSrc?: string | null }) {
-    const { hovered, hoverProps } = useBannerHover();
+    const previewRef = useRef<HTMLDivElement>(null);
+    const [hovered, setHovered] = useState(false);
+
+    useEffect(() => {
+        const card = previewRef.current?.closest("a");
+        if (!card) return;
+
+        const onPointerEnter = (event: PointerEvent) => {
+            if (event.pointerType === "mouse") setHovered(true);
+        };
+        const onPointerLeave = () => setHovered(false);
+        const onFocusIn = () => setHovered(true);
+        const onFocusOut = (event: FocusEvent) => {
+            if (!(event.relatedTarget instanceof Node) || !card.contains(event.relatedTarget)) setHovered(false);
+        };
+
+        card.addEventListener("pointerenter", onPointerEnter);
+        card.addEventListener("pointerleave", onPointerLeave);
+        card.addEventListener("focusin", onFocusIn);
+        card.addEventListener("focusout", onFocusOut);
+        return () => {
+            card.removeEventListener("pointerenter", onPointerEnter);
+            card.removeEventListener("pointerleave", onPointerLeave);
+            card.removeEventListener("focusin", onFocusIn);
+            card.removeEventListener("focusout", onFocusOut);
+        };
+    }, []);
 
     if (!src && !hlsSrc) return null;
 
     return (
-        <div {...hoverProps} className="absolute inset-0 z-10">
+        <div ref={previewRef} className="absolute inset-0 z-10">
             <BannerTrailer
                 src={src ?? null}
                 hlsSrc={hlsSrc}

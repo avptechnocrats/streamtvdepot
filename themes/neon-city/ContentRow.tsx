@@ -33,7 +33,7 @@ export default function ContentRow({ title, movies, variant }: ContentRowProps) 
     };
 
     return (
-        <section className="px-6 lg:px-12 space-y-4">
+        <section className="[container-type:inline-size] px-6 lg:px-12 space-y-4">
             {/* Section heading — monospace neon style */}
             <div className="flex items-center justify-between">
                 <h3 className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-primary">

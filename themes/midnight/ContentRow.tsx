@@ -20,7 +20,7 @@ export default function ContentRow({ title, movies, variant }: ContentRowProps) 
     const { prefs } = useUserPrefs();
     const widerLandscape = variant === "wider-landscape";
     return (
-        <section className="px-6 lg:px-14 space-y-4">
+        <section className="[container-type:inline-size] px-6 lg:px-14 space-y-4">
             <div className="flex items-center justify-between">
                 <h3 className="text-[15px] font-bold text-foreground tracking-tight">{title}</h3>
                 <a href="#" className="text-[11px] font-semibold text-primary hover:underline">See All</a>

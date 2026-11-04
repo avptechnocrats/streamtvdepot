@@ -135,7 +135,7 @@ const ContentRow = ({ title, movies, variant }: ContentRowProps) => {
   };
 
   return (
-    <section className="px-6 lg:px-12 space-y-4">
+    <section className="[container-type:inline-size] px-6 lg:px-12 space-y-4">
       <h3 className="text-lg md:text-xl font-display font-700 text-foreground">
         {title}
       </h3>

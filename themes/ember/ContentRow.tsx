@@ -279,7 +279,7 @@ export default function ContentRow({ title, movies, href, variant = "portrait" }
         scrollRef.current?.scrollBy({ left: dir === "left" ? -480 : 480, behavior: "smooth" });
 
     return (
-        <section className="storefront-row space-y-3">
+        <section className="storefront-row [container-type:inline-size] space-y-3">
             <div className="flex items-center justify-between">
                 <h3 className="text-lg md:text-xl font-display font-700 text-foreground">{title}</h3>
                 {href && (
