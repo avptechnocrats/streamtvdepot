@@ -11,7 +11,6 @@ import TopTenRow from "@/components/TopTenRow";
 import NewReleasesRow from "@/components/NewReleasesRow";
 import FeaturedRow from "@/components/FeaturedRow";
 import type { Movie } from "@/types/content";
-import { useCategoryRowMinimum } from "@/hooks/use-row-scroll";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -30,6 +29,12 @@ function getItemYear(item: HomeVideoItem): string {
     return Number.isNaN(date.getTime()) ? "" : date.getFullYear().toString();
 }
 
+function getRowVariant(view: HomeCategoryRow["thumbnail_view"]): "featured" | "landscape" | "wider-landscape" {
+    if (view === "portrait") return "featured";
+    if (view === "wider_landscape") return "wider-landscape";
+    return "landscape";
+}
+
 function mapMovie(item: HomeVideoItem, landscape = false, categories = item.categories ?? []): Movie {
     return {
         id: item.id,
@@ -42,6 +47,8 @@ function mapMovie(item: HomeVideoItem, landscape = false, categories = item.cate
         duration: item.duration,
         classification: item.content_classification,
         previewImage: item.thumbnails.video_banner || item.thumbnails.video_w_thumbnail || getItemImage(item),
+        videoUrl: item.video_display_url,
+        hlsUrl: item.hls_display_url || item.hls_url,
         trailerUrl: item.trailer_display_url,
         trailerHlsUrl: item.trailer_hls_url,
     };
@@ -63,10 +70,6 @@ export default function MoviesClient() {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
-    const contentArea = useRef<HTMLDivElement>(null);
-    const minimumRowCounts = useCategoryRowMinimum(contentArea, activeTheme.id);
-    const visibleRows = minimumRowCounts === null ? [] : rows.filter(row => row.items.length >= minimumRowCounts[row.thumbnail_view ?? "landscape"]);
-
     useEffect(() => {
         let cancelled = false;
         async function loadPage() {
@@ -119,7 +122,7 @@ export default function MoviesClient() {
             <ManagedBannerSlot page="/movies" position="top" />
 
             {/* Content rows */}
-            <div ref={contentArea} className={`space-y-10 py-10 ${activeTheme.id === "ember" ? "" : "lg:px-8"}`}>
+            <div className={`space-y-10 py-10 ${activeTheme.id === "ember" ? "" : "lg:px-8"}`}>
                 {isInitialLoad ? (
                     <>
                         <ContentRowSkeleton variant="landscape" />
@@ -138,18 +141,18 @@ export default function MoviesClient() {
                     </>
                 ) : (
                     <>
-                        {visibleRows.slice(0, 1).map((row) => (
+                        {rows.slice(0, 1).map((row) => (
                             <ContentRow
                                 key={row.category_id}
                                 title={row.category_name}
                                 movies={mapRowToMovies(row)}
-                                variant={row.thumbnail_view === "portrait" ? "featured" : "landscape"}
+                                variant={getRowVariant(row.thumbnail_view)}
                             />
                         ))}
                         <ManagedBannerSlot page="/movies" position="middle_1" />
-                        {visibleRows.slice(1, 3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant={row.thumbnail_view === "portrait" ? "featured" : "landscape"} />)}
+                        {rows.slice(1, 3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant={getRowVariant(row.thumbnail_view)} />)}
                         <ManagedBannerSlot page="/movies" position="middle_2" />
-                        {visibleRows.slice(3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant={row.thumbnail_view === "portrait" ? "featured" : "landscape"} />)}
+                        {rows.slice(3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant={getRowVariant(row.thumbnail_view)} />)}
                         {hasMore && <div ref={sentinelRef} style={{ height: 1 }} />}
                         {loading && (
                             <>

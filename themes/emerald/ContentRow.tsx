@@ -16,10 +16,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ContentRowProps } from "@/types/content";
 import Image from "next/image";
 import Link from "next/link";
+import { VideoHoverPreview, WIDER_LANDSCAPE_CARD_WIDTH } from "@/components/VideoHoverPreview";
 
-export default function ContentRow({ title, movies }: ContentRowProps) {
+export default function ContentRow({ title, movies, variant }: ContentRowProps) {
     const rowRef = useRef<HTMLDivElement>(null);
     const { prefs } = useUserPrefs();
+    const widerLandscape = variant === "wider-landscape";
 
     const scroll = (dir: "left" | "right") => {
         rowRef.current?.scrollBy({ left: dir === "left" ? -460 : 460, behavior: "smooth" });
@@ -44,6 +46,23 @@ export default function ContentRow({ title, movies }: ContentRowProps) {
 
             {/* Card row */}
             <div ref={rowRef} className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-2">
+                {widerLandscape ? movies.map((movie, i) => (
+                    <Link
+                        key={movie.id || `${movie.title}-${i}`}
+                        href={movie.id ? `/movies/${movie.id}` : "#"}
+                        className={`relative flex-shrink-0 overflow-hidden rounded-md bg-secondary ${WIDER_LANDSCAPE_CARD_WIDTH}`}
+                    >
+                        <div className="relative aspect-video">
+                            <Image src={movie.image} alt={movie.title} fill className="object-cover" sizes="(min-width: 1024px) 640px, (min-width: 640px) 600px, 560px" />
+                            <VideoHoverPreview src={movie.videoUrl} hlsSrc={movie.hlsUrl} />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+                            <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+                                <p className="truncate text-sm font-bold">{movie.title}</p>
+                                <p className="mt-1 text-xs text-white/75">{movie.rating} {movie.year && `· ${movie.year}`}</p>
+                            </div>
+                        </div>
+                    </Link>
+                )) : <>
                 {/* Spotlight card — 2× wider, landscape */}
                 {spotlight && (
                     <Link
@@ -116,6 +135,7 @@ export default function ContentRow({ title, movies }: ContentRowProps) {
                         )}
                     </Link>
                 ))}
+                </>}
             </div>
         </section>
     );

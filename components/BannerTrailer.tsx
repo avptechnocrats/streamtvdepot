@@ -178,8 +178,8 @@ export function BannerTrailer({ src, hlsSrc = null, hovered, delayMs = HOVER_DEL
     />
     {showSoundControl && playing && hovered && <button
       type="button"
-      aria-label={muted ? "Unmute trailer" : "Mute trailer"}
-      title={muted ? "Unmute trailer" : "Mute trailer"}
+      aria-label={muted ? "Unmute preview" : "Mute preview"}
+      title={muted ? "Unmute preview" : "Mute preview"}
       aria-pressed={!muted}
       onClick={event => {
         event.preventDefault();

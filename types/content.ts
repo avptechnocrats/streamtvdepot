@@ -14,6 +14,8 @@ export interface Movie {
     duration?: number | null;
     classification?: string | null;
     previewImage?: string | null;
+    videoUrl?: string | null;
+    hlsUrl?: string | null;
     trailerUrl?: string | null;
     trailerHlsUrl?: string | null;
     id?: string; // Add id for linking
@@ -22,7 +24,7 @@ export interface Movie {
 export interface ContentRowProps {
     title: string;
     movies: Movie[];
-    variant?: "portrait" | "landscape" | "featured";
+    variant?: "portrait" | "landscape" | "featured" | "wider-landscape";
     /** Optional link to the full category page (used by themes that render a "View All" action). */
     href?: string;
 }

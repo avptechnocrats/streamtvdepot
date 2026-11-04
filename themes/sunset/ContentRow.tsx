@@ -18,6 +18,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ContentRowProps } from "@/types/content";
 import Image from "next/image";
 import Link from "next/link";
+import { VideoHoverPreview, WIDER_LANDSCAPE_CARD_WIDTH } from "@/components/VideoHoverPreview";
 
 const GENRES = ["Drama", "Action", "Comedy", "Sci-Fi", "Thriller", "Romance"];
 const BADGE_COLORS = [
@@ -29,9 +30,10 @@ const BADGE_COLORS = [
     "bg-emerald-600/80",
 ];
 
-export default function ContentRow({ title, movies }: ContentRowProps) {
+export default function ContentRow({ title, movies, variant }: ContentRowProps) {
     const rowRef = useRef<HTMLDivElement>(null);
     const { prefs } = useUserPrefs();
+    const widerLandscape = variant === "wider-landscape";
 
     const scroll = (dir: "left" | "right") => {
         rowRef.current?.scrollBy({ left: dir === "left" ? -440 : 440, behavior: "smooth" });
@@ -65,17 +67,18 @@ export default function ContentRow({ title, movies }: ContentRowProps) {
                         <Link
                             key={movie.id || `${movie.title}-${i}`}
                             href={movie.id ? `/movies/${movie.id}` : "#"}
-                            className="flex-shrink-0 w-40 md:w-44 group/card cursor-pointer"
+                            className={`flex-shrink-0 ${widerLandscape ? WIDER_LANDSCAPE_CARD_WIDTH : "w-40 md:w-44"} group/card cursor-pointer`}
                             tabIndex={0}
                         >
                             {/* Square image */}
-                            <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-secondary">
+                            <div className={`relative w-full ${widerLandscape ? "aspect-video" : "aspect-square"} rounded-lg overflow-hidden bg-secondary`}>
                                 <Image
                                     src={movie.image} alt={movie.title}
                                     fill
                                     className="object-cover transition-transform duration-400 group-hover/card:scale-105"
-                                    sizes="(max-width: 640px) 45vw, 185px"
+                                    sizes={widerLandscape ? "(min-width: 1024px) 640px, (min-width: 640px) 600px, 560px" : "(max-width: 640px) 45vw, 185px"}
                                 />
+                                {widerLandscape && <VideoHoverPreview src={movie.videoUrl} hlsSrc={movie.hlsUrl} />}
                                 {/* Genre badge top-left */}
                                 <span className={`absolute top-2 left-2 ${badgeColor} text-white text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-sm`}>
                                     {genre}

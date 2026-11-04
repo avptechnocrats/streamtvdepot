@@ -14,9 +14,11 @@ import { useUserPrefs } from "@/hooks/use-user-prefs";
 import type { ContentRowProps } from "@/types/content";
 import Image from "next/image";
 import Link from "next/link";
+import { VideoHoverPreview, WIDER_LANDSCAPE_CARD_WIDTH } from "@/components/VideoHoverPreview";
 
-export default function ContentRow({ title, movies }: ContentRowProps) {
+export default function ContentRow({ title, movies, variant }: ContentRowProps) {
     const { prefs } = useUserPrefs();
+    const widerLandscape = variant === "wider-landscape";
     return (
         <section className="px-6 lg:px-14 space-y-4">
             <div className="flex items-center justify-between">
@@ -24,12 +26,12 @@ export default function ContentRow({ title, movies }: ContentRowProps) {
                 <a href="#" className="text-[11px] font-semibold text-primary hover:underline">See All</a>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            <div className={widerLandscape ? "flex gap-3 overflow-x-auto scrollbar-hide pb-2" : "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3"}>
                 {movies.map((movie, i) => (
                     <Link
                         key={movie.id || `${movie.title}-${i}`}
                         href={movie.id ? `/movies/${movie.id}` : "#"}
-                        className="group/card cursor-pointer"
+                        className={`group/card cursor-pointer ${widerLandscape ? `flex-shrink-0 ${WIDER_LANDSCAPE_CARD_WIDTH}` : ""}`}
                         tabIndex={0}
                     >
                         {/* Landscape 16:9 */}
@@ -40,6 +42,7 @@ export default function ContentRow({ title, movies }: ContentRowProps) {
                                 className="object-cover transition-transform duration-400 group-hover/card:scale-105"
                                 sizes="(max-width: 640px) 50vw, (max-width: 1280px) 25vw, 20vw"
                             />
+                            {widerLandscape && <VideoHoverPreview src={movie.videoUrl} hlsSrc={movie.hlsUrl} />}
                             {/* Always-visible bottom gradient + title */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                             <p className="absolute bottom-2 left-2.5 right-2.5 text-[12px] font-semibold text-white leading-tight line-clamp-1">
