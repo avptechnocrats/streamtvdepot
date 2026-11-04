@@ -809,6 +809,7 @@ async def list_public_categories(
             "banner_url": cat.banner_url,
             "banner_display_url": _refresh_s3_url(cat.banner_url) if cat.banner_url else None,
             "sort_order": cat.sort_order,
+            "is_category_row_enabled": cat.is_category_row_enabled,
             "thumbnail_view": cat.thumbnail_view,
             "content_types": cat.content_types,
             "created_at": cat.created_at,
@@ -865,6 +866,7 @@ async def get_public_category_detail(
         "banner_url": category.banner_url,
         "banner_display_url": _refresh_s3_url(category.banner_url) if category.banner_url else None,
         "sort_order": category.sort_order,
+        "is_category_row_enabled": category.is_category_row_enabled,
         "thumbnail_view": category.thumbnail_view,
         "content_types": category.content_types,
         "created_at": category.created_at,
@@ -984,6 +986,8 @@ async def list_public_videos(
             Video.status == ContentStatus.PUBLISHED,
         )
     )
+    if not category:
+        q = q.where(Video.is_category_only.is_(False))
     if is_slider is not None:
         q = q.where(Video.is_slider.is_(is_slider))
     if is_movie_slider is not None:
@@ -1026,6 +1030,7 @@ async def list_public_videos(
             "is_active": video.is_active,
             "is_slider": video.is_slider,
             "is_movie_slider": video.is_movie_slider,
+            "is_category_only": video.is_category_only,
             "video_url": video_url,
             "video_display_url": video_display_url,
             "hls_url": hls_url,
@@ -1085,6 +1090,7 @@ async def get_public_video(
         "is_active": video.is_active,
         "is_slider": video.is_slider,
         "is_movie_slider": video.is_movie_slider,
+        "is_category_only": video.is_category_only,
         "video_url": video_url,
         "video_display_url": video_display_url,
         "hls_url": hls_url,
@@ -2055,6 +2061,7 @@ async def _fetch_category_items(
                 "is_active": v.is_active,
                 "is_slider": v.is_slider,
                 "is_movie_slider": v.is_movie_slider,
+                "is_category_only": v.is_category_only,
                 "video_url": video_url,
                 "video_display_url": video_display_url,
                 "hls_url": hls_url,
@@ -2165,6 +2172,7 @@ async def get_home_contents(
             .where(
                 Category.client_id == client.id,
                 Category.content_types.contains([ctype]),
+                Category.is_category_row_enabled.is_(True),
             )
             .order_by(Category.sort_order, Category.name)
         )

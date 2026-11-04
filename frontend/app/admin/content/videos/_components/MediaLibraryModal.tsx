@@ -31,7 +31,7 @@ export default function MediaLibraryModal({
 }: {
     open: boolean;
     onClose: () => void;
-    onSelect: (url: string, filename: string) => void;
+    onSelect: (url: string, filename: string, asset?: MediaAsset) => void;
     /** When provided, the Upload tab is shown. Called with the picked File; modal closes immediately after. */
     onUploadFile?: (file: File) => void;
     usedUrls?: string[];
@@ -142,7 +142,7 @@ export default function MediaLibraryModal({
                     ) : (
                         <h2 className="text-base font-semibold text-foreground">Media Library</h2>
                     )}
-                    <button onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                    <button type="button" aria-label="Close media library" onClick={onClose} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                         <X size={16} />
                     </button>
                 </div>
@@ -231,8 +231,8 @@ export default function MediaLibraryModal({
                                             return (
                                                 <div key={asset.id}
                                                     role="button" tabIndex={0}
-                                                    onClick={() => { onSelect(src, asset.original_filename); onClose(); }}
-                                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(src, asset.original_filename); onClose(); } }}
+                                                    onClick={() => { onSelect(src, asset.original_filename, asset); onClose(); }}
+                                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(src, asset.original_filename, asset); onClose(); } }}
                                                     className={`group relative aspect-square rounded-xl overflow-hidden border transition-colors bg-secondary cursor-pointer ${inUse ? "border-primary" : "border-border hover:border-primary"}`}
                                                 >
                                                     <div className="w-full h-full flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-colors">
@@ -270,8 +270,8 @@ export default function MediaLibraryModal({
                                             return (
                                                 <div key={asset.id}
                                                     role="button" tabIndex={0}
-                                                    onClick={() => { onSelect(src, asset.original_filename); onClose(); }}
-                                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(src, asset.original_filename); onClose(); } }}
+                                                    onClick={() => { onSelect(src, asset.original_filename, asset); onClose(); }}
+                                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(src, asset.original_filename, asset); onClose(); } }}
                                                     className={`group relative aspect-square rounded-xl overflow-hidden border transition-colors bg-secondary cursor-pointer ${inUse ? "border-primary" : "border-border hover:border-primary"}`}
                                                 >
                                                     {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -39,10 +39,10 @@ export function formatDate(iso: string): string {
     });
 }
 
-function MediaTypeIcon({ contentType }: { contentType: string | null }) {
-    if (contentType?.startsWith("video/")) return <Film size={18} className="text-blue-400 opacity-70" />;
-    if (contentType?.startsWith("audio/")) return <Music size={18} className="text-purple-400 opacity-70" />;
-    return <ImageIcon size={18} className="text-muted-foreground opacity-70" />;
+function MediaTypeIcon({ contentType, size = 18 }: { contentType: string | null; size?: number }) {
+    if (contentType?.startsWith("video/")) return <Film size={size} className="text-blue-400 opacity-70" />;
+    if (contentType?.startsWith("audio/")) return <Music size={size} className="text-purple-400 opacity-70" />;
+    return <ImageIcon size={size} className="text-muted-foreground opacity-70" />;
 }
 
 function typeLabel(contentType: string | null): string {
@@ -53,14 +53,14 @@ function typeLabel(contentType: string | null): string {
 
 // ─── Thumbnail with loading skeleton ─────────────────────────────────────────
 
-function AssetThumbnail({ asset }: { asset: MediaAsset }) {
+function AssetThumbnail({ asset, tile = false }: { asset: MediaAsset; tile?: boolean }) {
     const [loaded, setLoaded] = useState(false);
     const [error, setError] = useState(false);
     const isImage = asset.content_type?.startsWith("image/");
     const src = asset.display_url ?? asset.url;
 
     if (!isImage || error) {
-        return <MediaTypeIcon contentType={asset.content_type} />;
+        return <MediaTypeIcon contentType={asset.content_type} size={tile ? 40 : 18} />;
     }
 
     return (
@@ -74,7 +74,7 @@ function AssetThumbnail({ asset }: { asset: MediaAsset }) {
                 alt={asset.original_filename}
                 onLoad={() => setLoaded(true)}
                 onError={() => setError(true)}
-                className={`w-full h-full object-cover transition-opacity duration-200 ${loaded ? "opacity-100" : "opacity-0"}`}
+                className={`w-full h-full ${tile ? "object-contain" : "object-cover"} transition-opacity duration-200 ${loaded ? "opacity-100" : "opacity-0"}`}
             />
         </div>
     );
@@ -84,12 +84,13 @@ function AssetThumbnail({ asset }: { asset: MediaAsset }) {
 
 interface AssetRowProps {
     asset: MediaAsset;
+    view?: "grid" | "tiles";
     onRetry?: () => void;
     onPreview: () => void;
     onDelete: () => void;
 }
 
-export function AssetRow({ asset, onRetry, onPreview, onDelete }: AssetRowProps) {
+export function AssetRow({ asset, view = "grid", onRetry, onPreview, onDelete }: AssetRowProps) {
     const [copied, setCopied] = useState(false);
 
     const displaySrc = asset.display_url ?? asset.url;
@@ -100,8 +101,39 @@ export function AssetRow({ asset, onRetry, onPreview, onDelete }: AssetRowProps)
             setTimeout(() => setCopied(false), 1800);
         });
     }
+    const actions = <div className="w-24 shrink-0 flex items-center gap-1 justify-end">
+        {asset.upload_status === "failed" && onRetry && (
+            <button type="button" onClick={onRetry} disabled={asset.retrying} title="Retry upload" className="w-7 h-7 rounded-md flex items-center justify-center text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 transition-colors disabled:opacity-50">
+                <RotateCcw size={14} className={asset.retrying ? "animate-spin" : ""} />
+            </button>
+        )}
+        <button type="button" onClick={onPreview} disabled={asset.upload_status === "failed"} title="Preview" className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"><Eye size={14} /></button>
+        <button type="button" onClick={copyUrl} disabled={asset.upload_status === "failed"} title="Copy URL" className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed">{copied ? <Check size={14} className="text-primary" /> : <Copy size={14} />}</button>
+        {!asset.in_use ? <button type="button" onClick={onDelete} title="Delete permanently" className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"><Trash2 size={14} /></button> : <div className="w-7 h-7" />}
+    </div>;
+
+    if (view === "tiles") return <article data-media-tile className="min-w-0 overflow-hidden rounded-lg border border-border bg-card">
+        <button type="button" onClick={onPreview} disabled={asset.upload_status === "failed"} aria-label={`Preview ${asset.original_filename}`} className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-secondary/60 transition-colors hover:bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed">
+            <AssetThumbnail asset={asset} tile />
+            <span className="absolute left-2 top-2 rounded border border-border bg-card/90 px-2 py-0.5 text-[10px] font-semibold text-foreground">{typeLabel(asset.content_type)}</span>
+        </button>
+        <div className="space-y-2 p-3">
+            <p className="truncate text-sm font-medium text-foreground" title={asset.original_filename}>{asset.original_filename}</p>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>{formatBytes(asset.file_size)}</span>
+                {asset.width && asset.height ? <span>{asset.width}×{asset.height}</span> : <span>{asset.content_type ?? "Unknown type"}</span>}
+            </div>
+            <p className="text-xs text-muted-foreground">{formatDate(asset.created_at)}</p>
+            {asset.upload_status === "failed" && <p className="text-xs text-red-300">Uploaded {formatBytes(asset.uploaded_bytes ?? 0)} · Remaining {formatBytes(asset.remaining_bytes ?? 0)}</p>}
+            <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
+                <span className={`text-[10px] font-semibold ${asset.upload_status === "failed" ? "text-red-300" : "text-primary"}`}>{asset.upload_status === "failed" ? "Failed" : asset.in_use ? "In Use" : ""}</span>
+                {actions}
+            </div>
+        </div>
+    </article>;
+
     return (
-        <div className="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+        <div data-media-grid-row className="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
             {/* Thumbnail with skeleton loader */}
             <div className="w-10 h-10 shrink-0 rounded-lg overflow-hidden bg-secondary border border-border flex items-center justify-center">
                 <AssetThumbnail asset={asset} />
@@ -157,45 +189,7 @@ export function AssetRow({ asset, onRetry, onPreview, onDelete }: AssetRowProps)
             </div>
 
             {/* Actions */}
-            <div className="w-24 shrink-0 flex items-center gap-1 justify-end">
-                {asset.upload_status === "failed" && onRetry && (
-                    <button
-                        onClick={onRetry}
-                        disabled={asset.retrying}
-                        title="Retry upload"
-                        className="w-7 h-7 rounded-md flex items-center justify-center text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 transition-colors disabled:opacity-50"
-                    >
-                        <RotateCcw size={14} className={asset.retrying ? "animate-spin" : ""} />
-                    </button>
-                )}
-                <button
-                    onClick={onPreview}
-                    disabled={asset.upload_status === "failed"}
-                    title="Preview"
-                    className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                    <Eye size={14} />
-                </button>
-                <button
-                    onClick={copyUrl}
-                    disabled={asset.upload_status === "failed"}
-                    title="Copy URL"
-                    className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                    {copied ? <Check size={14} className="text-primary" /> : <Copy size={14} />}
-                </button>
-                {!asset.in_use ? (
-                    <button
-                        onClick={onDelete}
-                        title="Delete permanently"
-                        className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    >
-                        <Trash2 size={14} />
-                    </button>
-                ) : (
-                    <div className="w-7 h-7" />
-                )}
-            </div>
+            {actions}
         </div>
     );
 }

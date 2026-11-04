@@ -20,7 +20,7 @@ import { DeleteCategoryConfirm } from "./_components/DeleteCategoryConfirm";
 
 type ContentTypeFilter = "all" | "video" | "series" | "audio" | "livestream";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 30;
 
 const FILTER_TABS: { key: ContentTypeFilter; label: string }[] = [
     { key: "all", label: "All" },

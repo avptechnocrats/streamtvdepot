@@ -1,30 +1,19 @@
 "use client";
 
+import S3ImageField from "@/components/content/ContentImageField";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import {
-    ChevronDown, Plus, Trash2, Loader2, AlertTriangle, CheckCircle2,
-    Upload, X, Globe, Clock, Film, Users, Play, Search, FileText, Eye, Image, Zap, RotateCcw,
-} from "lucide-react";
+import { ChevronDown, Plus, Trash2, Loader2, AlertTriangle, CheckCircle2, Upload, X, Globe, Clock, Film, Users, Play, Search, FileText, Eye, Image, Zap, RotateCcw } from "lucide-react";
 import { LabeledSwitch } from "@/components/ui/labeled-switch";
 import { useToast } from "@/hooks/use-toast";
-import {
-    createVideo, createVideoDraft, updateVideo, getVideo, listVideos,
-    type VideoOut, type VideoCreate,
-    AGE_RATINGS, CONTENT_CLASSIFICATIONS,
-    VIDEO_LANGUAGES, CREW_ROLES,
-    listCategories, listClientPlans, type CategoryOut, type ClientPricingPlanOut,
-    listAdvertisements, type AdvertisementOut,
-} from "@/lib/api";
+import { createVideo, createVideoDraft, updateVideo, getVideo, listVideos, type VideoOut, type VideoCreate, AGE_RATINGS, CONTENT_CLASSIFICATIONS, VIDEO_LANGUAGES, CREW_ROLES, listCategories, listClientPlans, type CategoryOut, type ClientPricingPlanOut, listAdvertisements, type AdvertisementOut } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { slugify, stripQuery } from "./utils";
 import { ENDPOINTS } from "@/lib/api/endpoints";
-import apiClient from "@/lib/api/client";
-import { resolveMediaUrl } from "@/lib/media";
-import ImageCropModal, { type CropAspect } from "./ImageCropModal";
+
 import MediaLibraryModal from "./MediaLibraryModal";
 import { AiWriteButton } from "@/components/AiWriteButton";
 import { CategoryPicker } from "@/components/CategoryPicker";
@@ -33,10 +22,7 @@ import { getDrmKeyToken, getTranscodeStatus, getTrailerTranscodeStatus, triggerT
 import { uploadAssetToS3 } from "@/lib/upload/s3-upload";
 import { getApiErrorMessage } from "@/lib/api/error-utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-    AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter,
-    AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 
 // ─── Video categories (loaded from API) ─────────────────────────────────────
 
@@ -136,6 +122,7 @@ export const videoFormSchema = z.object({
     is_slider: z.boolean(),
     is_movie_slider: z.boolean(),
     is_thumbnail: z.boolean(),
+    is_category_only: z.boolean(),
 
     // Advertisement
     advertisement: z.object({
@@ -297,6 +284,7 @@ export function videoToFormValues(v: VideoOut): VideoFormValues {
         is_slider: v.is_slider,
         is_movie_slider: v.is_movie_slider ?? false,
         is_thumbnail: v.is_thumbnail,
+        is_category_only: v.is_category_only ?? false,
         advertisement: {
             pre_ad_id: v.advertisement.pre_ad_id ?? "",
             post_ad_id: v.advertisement.post_ad_id ?? "",
@@ -456,203 +444,6 @@ function TrailerOptimization({ status, unsaved, onOptimize }: {
                 <Zap size={11} /> {status === "failed" ? "Retry" : "Optimize now"}
             </button>
         </div>
-    );
-}
-
-// ─── Media asset type ────────────────────────────────────────────────────────
-
-// ─── S3 Image upload field (presign → PUT → confirm) ─────────────────────────
-
-interface PendingCropState { file: File; src: string; }
-
-interface S3ImageFieldProps {
-    label: string;
-    hint: string;
-    aspect: CropAspect;
-    value: string;
-    onChange: (url: string) => void;
-    onBeforeUpload?: () => Promise<boolean>;
-    preserveOriginal?: boolean;
-}
-
-function S3ImageField({ label, hint, aspect, value, onChange, onBeforeUpload, preserveOriginal = false }: S3ImageFieldProps) {
-    const [uploading, setUploading] = useState(false);
-    const [uploadError, setUploadError] = useState<string | null>(null);
-    const [pendingCrop, setPendingCrop] = useState<PendingCropState | null>(null);
-    const [pickerOpen, setPickerOpen] = useState(false);
-    const [displayUrl, setDisplayUrl] = useState<string>("");
-    const lastValueRef = useRef<string>(value);
-
-    // If the parent changes the stored value externally (e.g. loading an existing record),
-    // drop any cached display URL so we fall back to the freshly-signed value from the API.
-    useEffect(() => {
-        if (value !== lastValueRef.current) {
-            lastValueRef.current = value;
-            setDisplayUrl("");
-        }
-    }, [value]);
-
-    // Called with raw file from input/drop — opens crop modal instead of uploading immediately
-    const openCrop = useCallback(async (file: File) => {
-        if (uploading) return;
-        if (onBeforeUpload && !(await onBeforeUpload())) return;
-        if (!file.type.startsWith("image/")) { setUploadError("Please select an image file"); return; }
-        setUploadError(null);
-        if (preserveOriginal) {
-            if (!["image/png", "image/webp", "image/jpeg"].includes(file.type) || file.size > 10 * 1024 * 1024) {
-                setUploadError("Choose a PNG, WebP, or JPEG image under 10 MB");
-                return;
-            }
-            setUploading(true);
-            try {
-                const image = await createImageBitmap(file);
-                const dimensions = { width: image.width, height: image.height };
-                image.close();
-                const confirmed = await uploadAssetToS3(file, {}, dimensions);
-                lastValueRef.current = confirmed.url;
-                setDisplayUrl(resolveMediaUrl(confirmed) ?? confirmed.url);
-                onChange(confirmed.url);
-            } catch (error) {
-                setUploadError(getApiErrorMessage(error, "Unable to upload title image"));
-            } finally { setUploading(false); }
-            return;
-        }
-        const src = URL.createObjectURL(file);
-        setPendingCrop({ file, src });
-    }, [onBeforeUpload, onChange, preserveOriginal, uploading]);
-
-    const openPicker = useCallback(async () => {
-        if (onBeforeUpload && !(await onBeforeUpload())) return;
-        setPickerOpen(true);
-    }, [onBeforeUpload]);
-
-    const handleCropCancel = useCallback(() => {
-        if (!pendingCrop) return;
-        URL.revokeObjectURL(pendingCrop.src);
-        setPendingCrop(null);
-    }, [pendingCrop]);
-
-    // Called after crop is confirmed — uploads the cropped blob
-    const handleCropConfirm = useCallback(async (blob: Blob, originalName: string) => {
-        if (!pendingCrop) return;
-        URL.revokeObjectURL(pendingCrop.src);
-        setPendingCrop(null);
-        setUploading(true);
-        setUploadError(null);
-        const filename = originalName.replace(/\.[^.]+$/, ".jpg");
-        try {
-            const { data: { upload_url, s3_key, storage_class } } =
-                await apiClient.post<{ upload_url: string; s3_key: string; storage_class?: string | null }>(
-                    ENDPOINTS.admin.upload.presign,
-                    { filename, content_type: "image/jpeg", file_size: blob.size },
-                );
-            const putHeaders: Record<string, string> = { "Content-Type": "image/jpeg" };
-            if (storage_class) putHeaders["x-amz-storage-class"] = storage_class;
-            const putRes = await fetch(upload_url, { method: "PUT", body: blob, headers: putHeaders });
-            if (!putRes.ok) {
-                await putRes.text().catch(() => "");
-                throw new Error(putRes.status === 403 ? "Upload not allowed. Check storage permissions." : "Upload failed. Please try again.");
-            }
-            const dims = await new Promise<{ width: number; height: number }>((resolve) => {
-                const img = new window.Image();
-                const ouri = URL.createObjectURL(blob);
-                img.onload = () => { URL.revokeObjectURL(ouri); resolve({ width: img.naturalWidth, height: img.naturalHeight }); };
-                img.onerror = () => { URL.revokeObjectURL(ouri); resolve({ width: 0, height: 0 }); };
-                img.src = ouri;
-            });
-            const { data: confirmed } = await apiClient.post<{ id: string; url: string; display_url: string | null }>(
-                ENDPOINTS.admin.upload.confirm,
-                { s3_key, original_filename: filename, content_type: "image/jpeg", file_size: blob.size, width: dims.width || null, height: dims.height || null },
-            );
-            const renderUrl = resolveMediaUrl(confirmed) ?? confirmed.url;
-            lastValueRef.current = confirmed.url;
-            setDisplayUrl(renderUrl);
-            onChange(confirmed.url);
-        } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : "";
-            setUploadError(msg && !msg.includes("<") ? msg : "Upload failed. Please try again.");
-        } finally {
-            setUploading(false);
-        }
-    }, [onChange, pendingCrop]);
-
-    const previewAspect = aspect === "1:1" ? "aspect-square" : aspect === "2:3" ? "aspect-[2/3]" : aspect === "3:2" ? "aspect-[3/2]" : "aspect-video";
-    const containerW = aspect === "2:3" ? "w-36 mx-auto" : aspect === "1:1" ? "w-48 mx-auto" : "w-full";
-
-    const previewUrl = displayUrl || value;
-
-    return (
-        <>
-            {pendingCrop && (
-                <ImageCropModal
-                    src={pendingCrop.src}
-                    filename={pendingCrop.file.name}
-                    aspect={aspect}
-                    onConfirm={handleCropConfirm}
-                    onCancel={handleCropCancel}
-                />
-            )}
-            <MediaLibraryModal
-                open={pickerOpen}
-                onClose={() => setPickerOpen(false)}
-                filterType="image"
-                onUploadFile={(file) => { openCrop(file); }}
-                onSelect={(url) => {
-                        lastValueRef.current = stripQuery(url);
-                    setDisplayUrl(url);
-                        onChange(stripQuery(url));
-                }}
-                usedUrls={value ? [value] : []}
-            />
-            <div className="space-y-2">
-                <div>
-                    <label className="block text-xs font-semibold text-muted-foreground">
-                        {label} {!preserveOriginal && <span className="font-normal opacity-50">({aspect})</span>}
-                    </label>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{hint}</p>
-                </div>
-                <div
-                    onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) openCrop(f); }}
-                    onDragOver={(e) => e.preventDefault()}
-                    onClick={() => { if (!value) void openPicker(); }}
-                    className={`relative rounded-xl border-2 overflow-hidden transition-colors ${containerW} ${value ? "border-border cursor-default" : "border-dashed border-border hover:border-primary/50 cursor-pointer group"}`}
-                >
-                    {previewUrl ? (
-                        <div className={`relative ${previewAspect}`}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={previewUrl} alt={label} className={`w-full h-full ${preserveOriginal ? "object-contain p-4" : "object-cover"}`} />
-                            {uploading ? (
-                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                    <Loader2 size={20} className="animate-spin text-white" />
-                                </div>
-                            ) : (
-                                <div className="absolute inset-0 bg-black/0 hover:bg-black/50 transition-colors flex items-center justify-center gap-2 group">
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); void openPicker(); }}
-                                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 text-white text-xs font-medium transition-opacity">
-                                        <Upload size={12} /> Replace
-                                    </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); lastValueRef.current = ""; setDisplayUrl(""); onChange(""); }}
-                                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1.5 rounded-lg bg-red-500/80 text-white text-xs font-medium transition-opacity">
-                                        <X size={12} />
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className={`${previewAspect} flex flex-col items-center justify-center gap-2 text-muted-foreground group-hover:text-foreground transition-colors`}>
-                            {uploading ? <Loader2 size={18} className="animate-spin" /> : (
-                                <>
-                                    <Upload size={18} />
-                                    <p className="text-xs font-medium text-center">Click or drag image here</p>
-                                    <p className="text-[11px] opacity-60">JPG, PNG, WebP</p>
-                                </>
-                            )}
-                        </div>
-                    )}
-                </div>
-                {uploadError && <p className="text-[11px] text-red-400">{uploadError}</p>}
-            </div>
-        </>
     );
 }
 
@@ -1319,6 +1110,7 @@ const DEFAULT_FORM_VALUES: VideoFormValues = {
     is_slider: false,
     is_movie_slider: false,
     is_thumbnail: false,
+    is_category_only: false,
     advertisement: {
         pre_ad_id: "", post_ad_id: "",
         mid_category_ad_id: "", mid_ad_sequence_time: null,
@@ -1771,6 +1563,7 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
             is_slider: data.is_slider,
             is_movie_slider: data.is_movie_slider,
             is_thumbnail: data.is_thumbnail,
+            is_category_only: data.is_category_only,
             advertisement: {
                 pre_ad_id: data.advertisement.pre_ad_id || null,
                 post_ad_id: data.advertisement.post_ad_id || null,
@@ -2767,29 +2560,38 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
                             </TabsContent>
                         </Tabs>
 
-                        {/* Status Settings */}
-                        <section className="rounded-2xl border border-border bg-card p-6 space-y-2">
-                            <SectionHeading>Status Settings</SectionHeading>
-                            <Controller name="is_active" control={control} render={({ field }) => (
-                                <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Active" description="Inactive videos are hidden from users" />
-                            )} />
-                            <div className="border-t border-border" />
-                            <Controller name="is_featured" control={control} render={({ field }) => (
-                                <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Featured" description="Show in featured / hero sections" />
-                            )} />
-                            <div className="border-t border-border" />
-                            <Controller name="is_slider" control={control} render={({ field }) => (
-                                <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Slider" description="Include in homepage slider" />
-                            )} />
-                            <div className="border-t border-border" />
-                            <Controller name="is_movie_slider" control={control} render={({ field }) => (
-                                <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Movie Slider" description="Include in Movies page slider" />
-                            )} />
-                            <div className="border-t border-border" />
-                            <Controller name="is_thumbnail" control={control} render={({ field }) => (
-                                <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Thumbnail View" description="Prefer thumbnail-first layout" />
-                            )} />
-                        </section>
+                        <Tabs defaultValue="video-settings" className="rounded-2xl border border-border bg-card p-6 space-y-3">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="video-settings">Video Settings</TabsTrigger>
+                                <TabsTrigger value="slider-settings">Slider Settings</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="video-settings" className="mt-0 space-y-2">
+                                <Controller name="is_active" control={control} render={({ field }) => (
+                                    <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Active" description="Inactive videos are hidden from users" />
+                                )} />
+                                <div className="border-t border-border" />
+                                <Controller name="is_featured" control={control} render={({ field }) => (
+                                    <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Featured" description="Show in featured / hero sections" />
+                                )} />
+                                <div className="border-t border-border" />
+                                <Controller name="is_category_only" control={control} render={({ field }) => (
+                                    <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Category Only View" description="List only in category row" />
+                                )} />
+                                <div className="border-t border-border" />
+                                <Controller name="is_thumbnail" control={control} render={({ field }) => (
+                                    <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Thumbnail View" description="Prefer thumbnail-first layout" />
+                                )} />
+                            </TabsContent>
+                            <TabsContent value="slider-settings" className="mt-0 space-y-2">
+                                <Controller name="is_slider" control={control} render={({ field }) => (
+                                    <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Homepage Slider" description="Include in homepage slider" />
+                                )} />
+                                <div className="border-t border-border" />
+                                <Controller name="is_movie_slider" control={control} render={({ field }) => (
+                                    <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Movie Slider" description="Include in Movies page slider" />
+                                )} />
+                            </TabsContent>
+                        </Tabs>
 
                         {/* Related Videos */}
                         <section className="rounded-2xl border border-border bg-card p-6 space-y-4">

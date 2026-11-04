@@ -1,24 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import S3ImageField from "@/components/content/ContentImageField";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Loader2, AlertTriangle, Upload, X, Images, Music, Library } from "lucide-react";
+import { ChevronDown, Loader2, AlertTriangle, Music, Upload } from "lucide-react";
 import { LabeledSwitch } from "@/components/ui/labeled-switch";
-import {
-    createAudio, updateAudio,
-    type AudioOut, type AudioCreate,
-    listCategories, listClientPlans, type CategoryOut, type ClientPricingPlanOut,
-} from "@/lib/api";
-import { ENDPOINTS } from "@/lib/api/endpoints";
-import apiClient from "@/lib/api/client";
-import { resolveMediaUrl } from "@/lib/media";
-import ImageCropModal, { type CropAspect } from "../../videos/_components/ImageCropModal";
+import { createAudio, updateAudio, type AudioOut, type AudioCreate, listCategories, listClientPlans, type CategoryOut, type ClientPricingPlanOut } from "@/lib/api";
+
 import MediaLibraryModal from "../../videos/_components/MediaLibraryModal";
 import { AiWriteButton } from "@/components/AiWriteButton";
 import { CategoryPicker } from "@/components/CategoryPicker";
+import { uploadAssetToS3, type UploadProgress } from "@/lib/upload/s3-upload";
+import { resolveMediaUrl } from "@/lib/media";
+import { getApiErrorMessage } from "@/lib/api/error-utils";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -68,152 +65,6 @@ function FieldError({ msg }: { msg?: string }) {
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
     return <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">{children}</h3>;
-}
-
-// ─── S3 Image field ───────────────────────────────────────────────────────────
-
-interface PendingCropState { file: File; src: string; }
-
-interface S3ImageFieldProps {
-    label: string;
-    hint: string;
-    aspect: CropAspect;
-    value: string;
-    onChange: (url: string) => void;
-}
-
-function S3ImageField({ label, hint, aspect, value, onChange }: S3ImageFieldProps) {
-    const [uploading, setUploading] = useState(false);
-    const [uploadError, setUploadError] = useState<string | null>(null);
-    const [pendingCrop, setPendingCrop] = useState<PendingCropState | null>(null);
-    const [pickerOpen, setPickerOpen] = useState(false);
-
-    const openCrop = useCallback((file: File) => {
-        if (!file.type.startsWith("image/")) { setUploadError("Please select an image file"); return; }
-        setUploadError(null);
-        const src = URL.createObjectURL(file);
-        setPendingCrop({ file, src });
-    }, []);
-
-    const handleCropCancel = useCallback(() => {
-        if (!pendingCrop) return;
-        URL.revokeObjectURL(pendingCrop.src);
-        setPendingCrop(null);
-    }, [pendingCrop]);
-
-    const handleCropConfirm = useCallback(async (blob: Blob, originalName: string) => {
-        if (!pendingCrop) return;
-        URL.revokeObjectURL(pendingCrop.src);
-        setPendingCrop(null);
-        setUploading(true);
-        setUploadError(null);
-        const filename = originalName.replace(/\.[^.]+$/, ".jpg");
-        try {
-            const { data: { upload_url, s3_key, storage_class } } =
-                await apiClient.post<{ upload_url: string; s3_key: string; storage_class?: string | null }>(
-                    ENDPOINTS.admin.upload.presign,
-                    { filename, content_type: "image/jpeg", file_size: blob.size },
-                );
-            const putHeaders: Record<string, string> = { "Content-Type": "image/jpeg" };
-            if (storage_class) putHeaders["x-amz-storage-class"] = storage_class;
-            const putRes = await fetch(upload_url, { method: "PUT", body: blob, headers: putHeaders });
-            if (!putRes.ok) throw new Error("Upload failed. Please try again.");
-            const dims = await new Promise<{ width: number; height: number }>((resolve) => {
-                const img = new window.Image();
-                const ouri = URL.createObjectURL(blob);
-                img.onload = () => { URL.revokeObjectURL(ouri); resolve({ width: img.naturalWidth, height: img.naturalHeight }); };
-                img.onerror = () => { URL.revokeObjectURL(ouri); resolve({ width: 0, height: 0 }); };
-                img.src = ouri;
-            });
-            const { data: confirmed } = await apiClient.post<{ id: string; url: string; display_url: string | null }>(
-                ENDPOINTS.admin.upload.confirm,
-                { s3_key, original_filename: filename, content_type: "image/jpeg", file_size: blob.size, width: dims.width || null, height: dims.height || null },
-            );
-            onChange(resolveMediaUrl(confirmed) ?? confirmed.url);
-        } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : "";
-            setUploadError(msg && !msg.includes("<") ? msg : "Upload failed. Please try again.");
-        } finally {
-            setUploading(false);
-        }
-    }, [onChange, pendingCrop]);
-
-    const previewAspect = aspect === "1:1" ? "aspect-square" : aspect === "2:3" ? "aspect-[2/3]" : "aspect-video";
-    const containerW = aspect === "1:1" ? "w-40 mx-auto" : "w-full";
-
-    return (
-        <>
-            {pendingCrop && (
-                <ImageCropModal
-                    src={pendingCrop.src}
-                    filename={pendingCrop.file.name}
-                    aspect={aspect}
-                    onConfirm={handleCropConfirm}
-                    onCancel={handleCropCancel}
-                />
-            )}
-            <MediaLibraryModal
-                open={pickerOpen}
-                onClose={() => setPickerOpen(false)}
-                filterType="image"
-                onUploadFile={(file) => { openCrop(file); }}
-                onSelect={(url) => { onChange(url); }}
-                usedUrls={value ? [value] : []}
-            />
-            <div className="space-y-2">
-                <div>
-                    <label className="block text-xs font-semibold text-muted-foreground">
-                        {label} <span className="font-normal opacity-50">({aspect})</span>
-                    </label>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{hint}</p>
-                </div>
-                <div
-                    onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) openCrop(f); }}
-                    onDragOver={(e) => e.preventDefault()}
-                    onClick={() => !value && setPickerOpen(true)}
-                    className={`relative rounded-xl border-2 overflow-hidden transition-colors ${containerW} ${value ? "border-border cursor-default" : "border-dashed border-border hover:border-primary/50 cursor-pointer group"}`}
-                >
-                    {value ? (
-                        <div className={`relative ${previewAspect}`}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={value} alt={label} className="w-full h-full object-cover" />
-                            {uploading ? (
-                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                    <Loader2 size={20} className="animate-spin text-white" />
-                                </div>
-                            ) : (
-                                <div className="absolute inset-0 bg-black/0 hover:bg-black/50 transition-colors flex items-center justify-center gap-2 group">
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setPickerOpen(true); }}
-                                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 text-white text-xs font-medium transition-opacity">
-                                        <Upload size={12} /> Replace
-                                    </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); onChange(""); }}
-                                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1.5 rounded-lg bg-red-500/80 text-white text-xs font-medium transition-opacity">
-                                        <X size={12} />
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className={`${previewAspect} flex flex-col items-center justify-center gap-2 text-muted-foreground group-hover:text-foreground transition-colors`}>
-                            {uploading ? <Loader2 size={18} className="animate-spin" /> : (
-                                <>
-                                    <Upload size={18} />
-                                    <p className="text-xs font-medium">Click or drag image here</p>
-                                    <p className="text-[11px] opacity-60">JPG, PNG, WebP</p>
-                                </>
-                            )}
-                        </div>
-                    )}
-                </div>
-                {uploadError && <p className="text-[11px] text-red-400">{uploadError}</p>}
-                <button type="button" disabled={uploading} onClick={() => setPickerOpen(true)}
-                    className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
-                    <Images size={12} /> {uploading ? "Uploading…" : "Add Image"}
-                </button>
-            </div>
-        </>
-    );
 }
 
 // ─── Converter helper (used by edit page) ─────────────────────────────────────
@@ -266,6 +117,9 @@ export function AudioForm({ mode, audioId, defaultValues }: AudioFormProps) {
     const router = useRouter();
     const [availableCategories, setAvailableCategories] = useState<CategoryOut[]>([]);
     const [audioPickerOpen, setAudioPickerOpen] = useState(false);
+    const [audioUploading, setAudioUploading] = useState(false);
+    const [audioProgress, setAudioProgress] = useState<UploadProgress | null>(null);
+    const [audioDisplayUrl, setAudioDisplayUrl] = useState("");
     const [pricingPlans, setPricingPlans] = useState<ClientPricingPlanOut[]>([]);
 
     const {
@@ -275,6 +129,7 @@ export function AudioForm({ mode, audioId, defaultValues }: AudioFormProps) {
         watch,
         setValue,
         setError,
+        clearErrors,
         formState: { errors, isSubmitting },
     } = useForm<FormValues>({
         resolver: zodResolver(schema),
@@ -299,7 +154,29 @@ export function AudioForm({ mode, audioId, defaultValues }: AudioFormProps) {
         accessType === "ppv" ? plan.plan_type === "ppv" : plan.plan_type === "rent"
     );
 
+    const handleAudioUpload = async (file: File) => {
+        if (audioUploading) return;
+        if (!file.type.startsWith("audio/")) {
+            setError("file_url", { message: "Please select an audio file" });
+            return;
+        }
+        clearErrors("file_url");
+        setAudioUploading(true);
+        setAudioProgress(null);
+        try {
+            const confirmed = await uploadAssetToS3(file, { onProgress: setAudioProgress });
+            setAudioDisplayUrl(resolveMediaUrl(confirmed) ?? confirmed.url);
+            setValue("file_url", confirmed.url, { shouldDirty: true, shouldValidate: true });
+        } catch (error) {
+            setError("file_url", { message: getApiErrorMessage(error, "Unable to upload audio. Please try again.") });
+        } finally {
+            setAudioUploading(false);
+            setAudioProgress(null);
+        }
+    };
+
     const submitForm = async (data: FormValues, targetStatus: "draft" | "published") => {
+        if (audioUploading) return;
         const payload: AudioCreate = {
             title: data.title,
             description: data.description || null,
@@ -345,7 +222,12 @@ export function AudioForm({ mode, audioId, defaultValues }: AudioFormProps) {
                 open={audioPickerOpen}
                 onClose={() => setAudioPickerOpen(false)}
                 filterType="audio"
-                onSelect={(url) => setValue("file_url", url, { shouldDirty: true, shouldValidate: true })}
+                onUploadFile={file => { void handleAudioUpload(file); }}
+                onSelect={(url, _filename, asset) => {
+                    setAudioDisplayUrl(url);
+                    clearErrors("file_url");
+                    setValue("file_url", asset?.url ?? url, { shouldDirty: true, shouldValidate: true });
+                }}
                 usedUrls={watch("file_url") ? [watch("file_url")] : []}
             />
             <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6 items-start">
@@ -418,16 +300,20 @@ export function AudioForm({ mode, audioId, defaultValues }: AudioFormProps) {
                         <div className="space-y-1">
                             <label className="block text-xs font-semibold text-muted-foreground">File URL</label>
                             <div className="flex gap-2">
-                                <input {...register("file_url")} placeholder="Select from Media Library or paste a direct URL" className={inputCls(!!errors.file_url)} />
-                                <button type="button" onClick={() => setAudioPickerOpen(true)} className="shrink-0 inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">
-                                    <Library size={14} /> Library
+                                <input {...register("file_url", { onChange: () => setAudioDisplayUrl("") })} disabled={audioUploading} placeholder="Upload, choose from library, or paste a direct URL" className={`${inputCls(!!errors.file_url)} min-w-0 flex-1`} />
+                                <button type="button" disabled={audioUploading} onClick={() => setAudioPickerOpen(true)} className="shrink-0 inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-50">
+                                    {audioUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} {audioUploading ? "Uploading..." : "Upload / Library"}
                                 </button>
                             </div>
+                            {audioUploading && <div role="progressbar" aria-label="Audio upload progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(audioProgress?.percent ?? 0)} className="space-y-1 py-2">
+                                <div className="h-1.5 overflow-hidden rounded-full bg-secondary"><div className="h-full bg-primary transition-[width]" style={{ width: `${audioProgress?.percent ?? 0}%` }} /></div>
+                                <p className="text-xs text-muted-foreground">Uploading audio {Math.round(audioProgress?.percent ?? 0)}%</p>
+                            </div>}
                             <FieldError msg={errors.file_url?.message} />
                             <p className="text-[11px] text-muted-foreground">Use a managed MP3, AAC, WAV, FLAC, OGG, or WebM asset. A file is required to publish.</p>
                             {watch("file_url") && (
-                                <audio controls preload="metadata" className="mt-2 h-9 w-full">
-                                    <source src={watch("file_url")} />
+                                <audio key={audioDisplayUrl || watch("file_url")} controls preload="metadata" className="mt-2 h-9 w-full">
+                                    <source src={audioDisplayUrl || watch("file_url")} />
                                 </audio>
                             )}
                         </div>
@@ -539,7 +425,7 @@ export function AudioForm({ mode, audioId, defaultValues }: AudioFormProps) {
             <div className="fixed flex justify-end w-full z-30 items-center bottom-0 left-0 gap-2 px-6 p-2.5 border-t border-border/50 bg-background">
                 <button
                     type="button"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || audioUploading}
                     onClick={() => { void handleSaveDraft(); }}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-border bg-card text-foreground text-sm font-semibold hover:bg-secondary transition-colors disabled:opacity-50"
                 >
@@ -548,7 +434,7 @@ export function AudioForm({ mode, audioId, defaultValues }: AudioFormProps) {
                 </button>
                 <button
                     type="button"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || audioUploading}
                     onClick={() => { void handlePublish(); }}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-50"
                 >

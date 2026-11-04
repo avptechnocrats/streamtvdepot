@@ -1,23 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import S3ImageField from "@/components/content/ContentImageField";
+import { useEffect, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Loader2, AlertTriangle, Upload, X, Images, Clapperboard } from "lucide-react";
+import { ChevronDown, Loader2, AlertTriangle, X, Clapperboard } from "lucide-react";
 import { LabeledSwitch } from "@/components/ui/labeled-switch";
-import {
-    createSeries, updateSeries,
-    type SeriesOut, type SeriesCreate,
-    listCategories, listClientPlans, type CategoryOut, type ClientPricingPlanOut,
-    VIDEO_LANGUAGES,
-} from "@/lib/api";
-import { ENDPOINTS } from "@/lib/api/endpoints";
-import apiClient from "@/lib/api/client";
-import { resolveMediaUrl } from "@/lib/media";
-import ImageCropModal, { type CropAspect } from "../../videos/_components/ImageCropModal";
-import MediaLibraryModal from "../../videos/_components/MediaLibraryModal";
+import { createSeries, updateSeries, type SeriesOut, type SeriesCreate, listCategories, listClientPlans, type CategoryOut, type ClientPricingPlanOut, VIDEO_LANGUAGES } from "@/lib/api";
+
 import { AiWriteButton } from "@/components/AiWriteButton";
 import { CategoryPicker } from "@/components/CategoryPicker";
 
@@ -188,150 +180,6 @@ function CheckboxDropdown({
 }
 
 // ─── S3 Thumbnail field ───────────────────────────────────────────────────────
-
-interface PendingCropState { file: File; src: string; }
-
-interface S3ImageFieldProps {
-    label: string;
-    hint: string;
-    aspect: CropAspect;
-    value: string;
-    onChange: (url: string) => void;
-}
-
-function S3ImageField({ label, hint, aspect, value, onChange }: S3ImageFieldProps) {
-    const [uploading, setUploading] = useState(false);
-    const [uploadError, setUploadError] = useState<string | null>(null);
-    const [pendingCrop, setPendingCrop] = useState<PendingCropState | null>(null);
-    const [pickerOpen, setPickerOpen] = useState(false);
-
-    const openCrop = useCallback((file: File) => {
-        if (!file.type.startsWith("image/")) { setUploadError("Please select an image file"); return; }
-        setUploadError(null);
-        const src = URL.createObjectURL(file);
-        setPendingCrop({ file, src });
-    }, []);
-
-    const handleCropCancel = useCallback(() => {
-        if (!pendingCrop) return;
-        URL.revokeObjectURL(pendingCrop.src);
-        setPendingCrop(null);
-    }, [pendingCrop]);
-
-    const handleCropConfirm = useCallback(async (blob: Blob, originalName: string) => {
-        if (!pendingCrop) return;
-        URL.revokeObjectURL(pendingCrop.src);
-        setPendingCrop(null);
-        setUploading(true);
-        setUploadError(null);
-        const filename = originalName.replace(/\.[^.]+$/, ".jpg");
-        try {
-            const { data: { upload_url, s3_key, storage_class } } =
-                await apiClient.post<{ upload_url: string; s3_key: string; storage_class?: string | null }>(
-                    ENDPOINTS.admin.upload.presign,
-                    { filename, content_type: "image/jpeg", file_size: blob.size },
-                );
-            const putHeaders: Record<string, string> = { "Content-Type": "image/jpeg" };
-            if (storage_class) putHeaders["x-amz-storage-class"] = storage_class;
-            const putRes = await fetch(upload_url, { method: "PUT", body: blob, headers: putHeaders });
-            if (!putRes.ok) throw new Error("Upload failed. Please try again.");
-            const dims = await new Promise<{ width: number; height: number }>((resolve) => {
-                const img = new window.Image();
-                const ouri = URL.createObjectURL(blob);
-                img.onload = () => { URL.revokeObjectURL(ouri); resolve({ width: img.naturalWidth, height: img.naturalHeight }); };
-                img.onerror = () => { URL.revokeObjectURL(ouri); resolve({ width: 0, height: 0 }); };
-                img.src = ouri;
-            });
-            const { data: confirmed } = await apiClient.post<{ id: string; url: string; display_url: string | null }>(
-                ENDPOINTS.admin.upload.confirm,
-                { s3_key, original_filename: filename, content_type: "image/jpeg", file_size: blob.size, width: dims.width || null, height: dims.height || null },
-            );
-            onChange(resolveMediaUrl(confirmed) ?? confirmed.url);
-        } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : "";
-            setUploadError(msg && !msg.includes("<") ? msg : "Upload failed. Please try again.");
-        } finally {
-            setUploading(false);
-        }
-    }, [onChange, pendingCrop]);
-
-    const previewAspect = aspect === "1:1" ? "aspect-square" : aspect === "2:3" ? "aspect-[2/3]" : aspect === "3:2" ? "aspect-[3/2]" : "aspect-video";
-    const containerW = aspect === "2:3" ? "w-36 mx-auto" : aspect === "1:1" ? "w-48 mx-auto" : "w-full";
-
-    return (
-        <>
-            {pendingCrop && (
-                <ImageCropModal
-                    src={pendingCrop.src}
-                    filename={pendingCrop.file.name}
-                    aspect={aspect}
-                    onConfirm={handleCropConfirm}
-                    onCancel={handleCropCancel}
-                />
-            )}
-            <MediaLibraryModal
-                open={pickerOpen}
-                onClose={() => setPickerOpen(false)}
-                filterType="image"
-                onUploadFile={(file) => { openCrop(file); }}
-                onSelect={(url) => { onChange(url); }}
-                usedUrls={value ? [value] : []}
-            />
-            <div className="space-y-2">
-                <div>
-                    <label className="block text-xs font-semibold text-muted-foreground">
-                        {label} <span className="font-normal opacity-50">({aspect})</span>
-                    </label>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{hint}</p>
-                </div>
-                <div
-                    onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) openCrop(f); }}
-                    onDragOver={(e) => e.preventDefault()}
-                    onClick={() => !value && setPickerOpen(true)}
-                    className={`relative rounded-xl border-2 overflow-hidden transition-colors ${containerW} ${value ? "border-border cursor-default" : "border-dashed border-border hover:border-primary/50 cursor-pointer group"}`}
-                >
-                    {value ? (
-                        <div className={`relative ${previewAspect}`}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={value} alt={label} className="w-full h-full object-cover" />
-                            {uploading ? (
-                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                    <Loader2 size={20} className="animate-spin text-white" />
-                                </div>
-                            ) : (
-                                <div className="absolute inset-0 bg-black/0 hover:bg-black/50 transition-colors flex items-center justify-center gap-2 group">
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setPickerOpen(true); }}
-                                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 text-white text-xs font-medium transition-opacity">
-                                        <Upload size={12} /> Replace
-                                    </button>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); onChange(""); }}
-                                        className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1.5 rounded-lg bg-red-500/80 text-white text-xs font-medium transition-opacity">
-                                        <X size={12} />
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className={`${previewAspect} flex flex-col items-center justify-center gap-2 text-muted-foreground group-hover:text-foreground transition-colors`}>
-                            {uploading ? <Loader2 size={18} className="animate-spin" /> : (
-                                <>
-                                    <Upload size={18} />
-                                    <p className="text-xs font-medium">Click or drag image here</p>
-                                    <p className="text-[11px] opacity-60">JPG, PNG, WebP</p>
-                                </>
-                            )}
-                        </div>
-                    )}
-                </div>
-                {uploadError && <p className="text-[11px] text-red-400">{uploadError}</p>}
-                <button type="button" disabled={uploading} onClick={() => setPickerOpen(true)}
-                    className="w-full flex items-center justify-center gap-1.5 h-8 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-50">
-                    <Images size={12} /> {uploading ? "Uploading…" : "Add Image"}
-                </button>
-            </div>
-        </>
-    );
-}
 
 // ─── Converter helper (used by edit page) ─────────────────────────────────────
 
@@ -538,7 +386,6 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
                             </div>
                         </div>
                     </section>
-
 
                 </div>
 

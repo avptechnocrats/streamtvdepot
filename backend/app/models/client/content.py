@@ -37,7 +37,7 @@ class Category(Base, UUIDMixin, TimestampMixin):
     """Hierarchical content category, scoped per client."""
     __tablename__ = "content_categories"
     __table_args__ = (
-        CheckConstraint("thumbnail_view IN ('landscape', 'portrait')", name="ck_category_thumbnail_view"),
+        CheckConstraint("thumbnail_view IN ('landscape', 'wider_landscape', 'portrait')", name="ck_category_thumbnail_view"),
     )
 
     client_id: Mapped[uuid.UUID] = mapped_column(
@@ -65,7 +65,8 @@ class Category(Base, UUIDMixin, TimestampMixin):
     )
     banner_url: Mapped[str | None] = mapped_column(Text)       # 16:9 / 1280x720 — denormalised from asset
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    thumbnail_view: Mapped[str] = mapped_column(String(10), default="landscape", server_default="landscape", nullable=False)
+    is_category_row_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true", nullable=False)
+    thumbnail_view: Mapped[str] = mapped_column(String(20), default="landscape", server_default="landscape", nullable=False)
     content_types: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)  # ["video","series",...]
 
     # Relationship: categories ↔ videos (many-to-many via video_categories)
@@ -266,6 +267,7 @@ class Video(Base, UUIDMixin, TimestampMixin):
     is_slider: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_movie_slider: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_thumbnail: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_category_only: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     advertisement: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     video_url: Mapped[str | None] = mapped_column(Text)
     thumbnails: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
