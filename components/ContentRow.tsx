@@ -6,22 +6,8 @@ import Link from "next/link";
 import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useUserPrefs } from "@/hooks/use-user-prefs";
-
-
-interface Movie {
-  id?: string;
-  title: string;
-  image: string;
-  year: string;
-  rating: string;
-}
-
-
-interface ContentRowProps {
-  title: string;
-  movies: Movie[];
-}
-
+import type { ContentRowProps, Movie } from "@/types/content";
+import { VideoHoverPreview, WIDER_LANDSCAPE_CARD_WIDTH } from "@/components/VideoHoverPreview";
 
 const GENRES = ["Action", "Drama", "Thriller", "Sci-Fi", "Mystery", "Adventure"];
 const DESCS = [
@@ -32,22 +18,23 @@ const DESCS = [
 ];
 
 
-function DefaultCard({ movie, i }: { movie: Movie; i: number }) {
+function DefaultCard({ movie, i, widerLandscape }: { movie: Movie; i: number; widerLandscape: boolean }) {
   return (
     <Link
       key={movie.id || `${movie.title}-${i}`}
       href={movie.id ? `/movies/${movie.id}` : "#"}
-      className="content-card flex-shrink-0 group/card cursor-pointer"
+      className={`content-card flex-shrink-0 group/card cursor-pointer ${widerLandscape ? WIDER_LANDSCAPE_CARD_WIDTH : ""}`}
       tabIndex={0}
     >
-      <div className="relative rounded-lg overflow-hidden card-shine aspect-[2/3] bg-secondary">
+      <div className={`relative rounded-lg overflow-hidden card-shine ${widerLandscape ? "aspect-video" : "aspect-[2/3]"} bg-secondary`}>
         <Image
           src={movie.image}
           alt={movie.title}
           fill
           className="object-cover transition-transform duration-300 group-hover/card:scale-105"
-          sizes="(max-width: 640px) 50vw, 170px"
+          sizes={widerLandscape ? "(min-width: 1024px) 640px, (min-width: 640px) 600px, 560px" : "(max-width: 640px) 50vw, 170px"}
         />
+        {widerLandscape && <VideoHoverPreview src={movie.videoUrl} hlsSrc={movie.hlsUrl} />}
         <div className="absolute inset-0 bg-background/0 group-hover/card:bg-background/40 transition-colors flex items-center justify-center">
           <div className="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-all scale-75 group-hover/card:scale-100">
             <Play size={20} className="text-primary-foreground ml-0.5" fill="currentColor" />
@@ -65,24 +52,25 @@ function DefaultCard({ movie, i }: { movie: Movie; i: number }) {
   );
 }
 
-function DetailedCard({ movie, i }: { movie: Movie; i: number }) {
+function DetailedCard({ movie, i, widerLandscape }: { movie: Movie; i: number; widerLandscape: boolean }) {
   const genre = GENRES[i % GENRES.length];
   const desc = DESCS[i % DESCS.length];
   return (
     <Link
       key={movie.id || `${movie.title}-${i}`}
       href={movie.id ? `/movies/${movie.id}` : "#"}
-      className="content-card flex-shrink-0 group/card cursor-pointer"
+      className={`content-card flex-shrink-0 group/card cursor-pointer ${widerLandscape ? WIDER_LANDSCAPE_CARD_WIDTH : ""}`}
       tabIndex={0}
     >
-      <div className="relative rounded-lg overflow-hidden card-shine aspect-[2/3] bg-secondary">
+      <div className={`relative rounded-lg overflow-hidden card-shine ${widerLandscape ? "aspect-video" : "aspect-[2/3]"} bg-secondary`}>
         <Image
           src={movie.image}
           alt={movie.title}
           fill
           className="object-cover transition-transform duration-500 group-hover/card:scale-110"
-          sizes="(max-width: 640px) 50vw, 170px"
+          sizes={widerLandscape ? "(min-width: 1024px) 640px, (min-width: 640px) 600px, 560px" : "(max-width: 640px) 50vw, 170px"}
         />
+        {widerLandscape && <VideoHoverPreview src={movie.videoUrl} hlsSrc={movie.hlsUrl} />}
 
         {/* Detailed overlay — slides up on hover */}
         <div className="absolute inset-0 flex flex-col justify-end translate-y-full group-hover/card:translate-y-0 transition-transform duration-300 ease-out">
@@ -135,9 +123,10 @@ function DetailedCard({ movie, i }: { movie: Movie; i: number }) {
   );
 }
 
-const ContentRow = ({ title, movies }: ContentRowProps) => {
+const ContentRow = ({ title, movies, variant }: ContentRowProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { prefs } = useUserPrefs();
+  const widerLandscape = variant === "wider-landscape";
 
   const scroll = (dir: "left" | "right") => {
     if (scrollRef.current) {
@@ -163,8 +152,8 @@ const ContentRow = ({ title, movies }: ContentRowProps) => {
         >
           {movies.map((movie, i) =>
             prefs.cardStyle === "detailed"
-              ? <DetailedCard key={movie.id || movie.title + i} movie={movie} i={i} />
-              : <DefaultCard key={movie.id || movie.title + i} movie={movie} i={i} />
+              ? <DetailedCard key={movie.id || movie.title + i} movie={movie} i={i} widerLandscape={widerLandscape} />
+              : <DefaultCard key={movie.id || movie.title + i} movie={movie} i={i} widerLandscape={widerLandscape} />
           )}
         </div>
         <button

@@ -18,6 +18,9 @@ export interface HomeVideoItem {
     age_rating?: string | null;
     duration?: number | null;
     content_classification?: string | null;
+    video_display_url?: string | null;
+    hls_url?: string | null;
+    hls_display_url?: string | null;
     trailer_display_url?: string | null;
     trailer_hls_url?: string | null;
     rating: number | null;

@@ -20,10 +20,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ContentRowProps } from "@/types/content";
 import Image from "next/image";
 import Link from "next/link";
+import { VideoHoverPreview, WIDER_LANDSCAPE_CARD_WIDTH } from "@/components/VideoHoverPreview";
 
-export default function ContentRow({ title, movies }: ContentRowProps) {
+export default function ContentRow({ title, movies, variant }: ContentRowProps) {
     const rowRef = useRef<HTMLDivElement>(null);
     const { prefs } = useUserPrefs();
+    const widerLandscape = variant === "wider-landscape";
 
     const scroll = (dir: "left" | "right") => {
         if (!rowRef.current) return;
@@ -63,18 +65,19 @@ export default function ContentRow({ title, movies }: ContentRowProps) {
                     <Link
                         key={movie.id || `${movie.title}-${i}`}
                         href={movie.id ? `/movies/${movie.id}` : "#"}
-                        className="flex-shrink-0 group/card cursor-pointer content-card"
+                        className={`flex-shrink-0 group/card cursor-pointer content-card ${widerLandscape ? WIDER_LANDSCAPE_CARD_WIDTH : ""}`}
                         tabIndex={0}
                     >
                         {/* Poster card — 2:3 portrait */}
-                        <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-card">
+                        <div className={`relative w-full ${widerLandscape ? "aspect-video" : "aspect-[2/3]"} rounded-xl overflow-hidden bg-card`}>
                             <Image
                                 src={movie.image}
                                 alt={movie.title}
                                 fill
                                 className="object-cover transition-transform duration-500 group-hover/card:scale-[1.06]"
-                                sizes="(max-width: 640px) 50vw, 170px"
+                                sizes={widerLandscape ? "(min-width: 1024px) 640px, (min-width: 640px) 600px, 560px" : "(max-width: 640px) 50vw, 170px"}
                             />
+                            {widerLandscape && <VideoHoverPreview src={movie.videoUrl} hlsSrc={movie.hlsUrl} />}
 
                             {/* Hover overlay — dark tint + play + add */}
                             <div className="absolute inset-0 bg-black/0 group-hover/card:bg-black/45 transition-all duration-300 flex flex-col items-center justify-center gap-2 opacity-0 group-hover/card:opacity-100">

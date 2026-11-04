@@ -267,10 +267,15 @@ function SameCategoryMovies({ video }: { video: VideoOut }) {
         staleTime: 60_000,
     });
     const landscape = category?.thumbnail_view !== "portrait";
+    const rowVariant = category?.thumbnail_view === "portrait"
+        ? "featured"
+        : category?.thumbnail_view === "wider_landscape"
+            ? "wider-landscape"
+            : "landscape";
 
     if (assignedCategories.length === 0) return null;
     if (categoriesLoading || (category && videosLoading)) {
-        return <div className="overflow-x-clip pb-12"><ContentRowSkeleton count={6} variant={landscape ? "landscape" : "portrait"} /></div>;
+        return <div className="overflow-x-clip pb-12"><ContentRowSkeleton count={6} variant={category?.thumbnail_view === "wider_landscape" ? "wider-landscape" : landscape ? "landscape" : "portrait"} /></div>;
     }
     if (!category) return null;
 
@@ -287,6 +292,8 @@ function SameCategoryMovies({ video }: { video: VideoOut }) {
         duration: item.duration,
         classification: item.content_classification,
         previewImage: item.thumbnails.video_banner || item.thumbnails.video_w_thumbnail || relatedImage(item),
+        videoUrl: item.video_display_url || item.video_url,
+        hlsUrl: item.hls_display_url || item.hls_url,
         trailerUrl: item.trailer_display_url,
         trailerHlsUrl: item.trailer_hls_url,
     }));
@@ -297,7 +304,7 @@ function SameCategoryMovies({ video }: { video: VideoOut }) {
             <ContentRow
                 title={`More in ${category.name}`}
                 movies={movies}
-                variant={landscape ? "landscape" : "featured"}
+                variant={rowVariant}
                 href={`/categories/${encodeURIComponent(category.slug)}`}
             />
         </div>

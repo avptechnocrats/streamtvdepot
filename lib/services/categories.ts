@@ -1,6 +1,6 @@
 import publicApiClient from "./public-client";
 
-export type ThumbnailView = "landscape" | "portrait";
+export type ThumbnailView = "landscape" | "wider_landscape" | "portrait";
 
 export interface Category {
     id: string;

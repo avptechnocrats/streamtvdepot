@@ -18,12 +18,14 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ContentRowProps } from "@/types/content";
 import Image from "next/image";
 import Link from "next/link";
+import { VideoHoverPreview, WIDER_LANDSCAPE_CARD_WIDTH } from "@/components/VideoHoverPreview";
 
 const GENRES = ["Action", "Drama", "Thriller", "Sci-Fi", "Mystery", "Adventure"];
 
-export default function ContentRow({ title, movies }: ContentRowProps) {
+export default function ContentRow({ title, movies, variant }: ContentRowProps) {
     const rowRef = useRef<HTMLDivElement>(null);
     const { prefs } = useUserPrefs();
+    const widerLandscape = variant === "wider-landscape";
 
     const scroll = (dir: "left" | "right") => {
         if (!rowRef.current) return;
@@ -64,7 +66,7 @@ export default function ContentRow({ title, movies }: ContentRowProps) {
                         <Link
                             key={movie.id || `${movie.title}-${i}`}
                             href={movie.id ? `/movies/${movie.id}` : "#"}
-                            className="flex-shrink-0 w-56 md:w-64 group/card cursor-pointer"
+                            className={`flex-shrink-0 ${widerLandscape ? WIDER_LANDSCAPE_CARD_WIDTH : "w-56 md:w-64"} group/card cursor-pointer`}
                             tabIndex={0}
                         >
                             {/* 16:9 landscape card */}
@@ -76,6 +78,7 @@ export default function ContentRow({ title, movies }: ContentRowProps) {
                                     className="object-cover transition-transform duration-500 group-hover/card:scale-110"
                                     sizes="(max-width: 640px) 50vw, 270px"
                                 />
+                                {widerLandscape && <VideoHoverPreview src={movie.videoUrl} hlsSrc={movie.hlsUrl} />}
 
                                 {/* Genre tag top-left */}
                                 <div className="absolute top-0 left-0 z-10">

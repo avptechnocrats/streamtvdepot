@@ -20,9 +20,11 @@ import type { ContentRowProps, Movie } from "@/types/content";
 import { useRowScroll } from "@/hooks/use-row-scroll";
 import { fetchCategories } from "@/lib/services/categories";
 import { BannerTrailer, useBannerAutoplay } from "@/components/BannerTrailer";
+import { VideoHoverPreview, WIDER_LANDSCAPE_CARD_WIDTH } from "@/components/VideoHoverPreview";
 
 export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie; rank?: number; variant?: ContentRowProps["variant"] }) {
-    const landscape = variant === "landscape" && !rank;
+    const widerLandscape = variant === "wider-landscape" && !rank;
+    const landscape = (variant === "landscape" || widerLandscape) && !rank;
     const featured = variant === "featured" && !rank;
     const durationMinutes = movie.duration && movie.duration > 0 ? Math.max(1, Math.floor(movie.duration / 60)) : 0;
     const runtime = durationMinutes >= 60
@@ -213,7 +215,7 @@ export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie
             onFocus={preparePreview}
             onBlur={releasePreview}
             style={{ zIndex: layer, containerType: rank ? "inline-size" : undefined, width: rank ? "calc(var(--rank-gutter) + var(--rank-poster-width, 9rem))" : undefined, marginLeft: rank === 1 ? "calc(var(--rank-gutter) * -0.64)" : undefined }}
-            className={`group/card pointer-events-auto relative shrink-0 ${rank ? "[--rank-gutter:96px] sm:[--rank-gutter:104px] lg:[--rank-gutter:112px]" : landscape ? "w-56 sm:w-60 lg:w-64" : "w-44 sm:w-48 lg:w-52"} rounded-lg hover:z-30 focus-visible:z-30 focus-visible:outline-none`}
+            className={`group/card pointer-events-auto relative shrink-0 ${rank ? "[--rank-gutter:96px] sm:[--rank-gutter:104px] lg:[--rank-gutter:112px]" : widerLandscape ? WIDER_LANDSCAPE_CARD_WIDTH : landscape ? "w-56 sm:w-60 lg:w-64" : "w-44 sm:w-48 lg:w-52"} rounded-lg hover:z-30 focus-visible:z-30 focus-visible:outline-none`}
         >
             <div className={landscape ? "aspect-video" : "aspect-[2/3]"} style={{ marginLeft: rank ? "var(--rank-gutter)" : undefined }} aria-hidden="true" />
             {!landscape && <div className="mt-1.5 px-0.5" style={{ marginLeft: rank ? "var(--rank-gutter)" : undefined, opacity: expanded ? 0 : 1, transition: reducedMotion ? "none" : "opacity 120ms linear" }}>
@@ -239,6 +241,7 @@ export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie
                             className="object-cover"
                             sizes={rank ? "(min-width: 1024px) 192px, (min-width: 640px) 183px, 173px" : landscape ? "(min-width: 1024px) 308px, (min-width: 640px) 288px, 269px" : "(min-width: 1024px) 250px, (min-width: 640px) 231px, 212px"}
                         />
+                        {widerLandscape && <VideoHoverPreview src={movie.videoUrl} hlsSrc={movie.hlsUrl} />}
                         {rank && <div
                             data-top-ten-actions
                             className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent px-3 pb-2 pt-8"

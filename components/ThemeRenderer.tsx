@@ -12,7 +12,6 @@ import TopTenRow from "@/components/TopTenRow";
 import NewReleasesRow from "@/components/NewReleasesRow";
 import FeaturedRow from "@/components/FeaturedRow";
 import type { Movie } from "@/types/content";
-import { useCategoryRowMinimum } from "@/hooks/use-row-scroll";
 
 function getMovieImage(row: HomeCategoryRow["items"][number], landscape: boolean): string {
     return (
@@ -31,6 +30,12 @@ function getMovieYear(row: HomeCategoryRow["items"][number]): string {
     return Number.isNaN(date.getTime()) ? "" : date.getFullYear().toString();
 }
 
+function getRowVariant(view: HomeCategoryRow["thumbnail_view"]): "featured" | "landscape" | "wider-landscape" {
+    if (view === "portrait") return "featured";
+    if (view === "wider_landscape") return "wider-landscape";
+    return "landscape";
+}
+
 function mapRowMovies(row: HomeCategoryRow): Movie[] {
     return row.items.map((item) => ({
         id: item.id,
@@ -43,6 +48,8 @@ function mapRowMovies(row: HomeCategoryRow): Movie[] {
         duration: item.duration,
         classification: item.content_classification,
         previewImage: item.thumbnails.video_banner || item.thumbnails.video_w_thumbnail || getMovieImage(item, true),
+        videoUrl: item.video_display_url,
+        hlsUrl: item.hls_display_url || item.hls_url,
         trailerUrl: item.trailer_display_url,
         trailerHlsUrl: item.trailer_hls_url,
     }));
@@ -60,10 +67,6 @@ export default function ThemeRenderer() {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
-    const contentArea = useRef<HTMLDivElement>(null);
-    const minimumRowCounts = useCategoryRowMinimum(contentArea, activeTheme.id);
-    const visibleRows = minimumRowCounts === null ? [] : rows.filter(row => row.items.length >= minimumRowCounts[row.thumbnail_view ?? "landscape"]);
-
     useEffect(() => {
         let cancelled = false;
         async function loadPage() {
@@ -120,7 +123,7 @@ export default function ThemeRenderer() {
             <NewReleasesRow />
             <FeaturedRow />
             <ManagedBannerSlot page="/" position="top" />
-            <div ref={contentArea} className={`space-y-10 py-10 ${activeTheme.id === "ember" ? "" : "lg:px-8"}`}>
+            <div className={`space-y-10 py-10 ${activeTheme.id === "ember" ? "" : "lg:px-8"}`}>
                 {rows.length === 0 && loading ? (
                     <>
                         <ContentRowSkeleton />
@@ -129,29 +132,29 @@ export default function ThemeRenderer() {
                     </>
                 ) : (
                     <>
-                        {visibleRows.slice(0, 1).map((row) => (
+                        {rows.slice(0, 1).map((row) => (
                             <ContentRow
                                 key={row.category_id}
                                 title={row.category_name}
                                 movies={mapRowMovies(row)}
                                 href={`/categories/${row.category_slug}`}
-                                variant={row.thumbnail_view === "portrait" ? "featured" : "landscape"}
+                                variant={getRowVariant(row.thumbnail_view)}
                             />
                         ))}
                         {rows.length >= 1 && <CategoryGrid type="video" showName={false} />}
                         <ManagedBannerSlot page="/" position="middle_1" />
-                        {visibleRows.slice(1, 3).map((row) => (
+                        {rows.slice(1, 3).map((row) => (
                             <ContentRow
                                 key={row.category_id}
                                 title={row.category_name}
                                 movies={mapRowMovies(row)}
                                 href={`/categories/${row.category_slug}`}
-                                variant={row.thumbnail_view === "portrait" ? "featured" : "landscape"}
+                                variant={getRowVariant(row.thumbnail_view)}
                             />
                         ))}
                         <ManagedBannerSlot page="/" position="middle_2" />
-                        {visibleRows.slice(3).map((row) => (
-                            <ContentRow key={row.category_id} title={row.category_name} movies={mapRowMovies(row)} href={`/categories/${row.category_slug}`} variant={row.thumbnail_view === "portrait" ? "featured" : "landscape"} />
+                        {rows.slice(3).map((row) => (
+                            <ContentRow key={row.category_id} title={row.category_name} movies={mapRowMovies(row)} href={`/categories/${row.category_slug}`} variant={getRowVariant(row.thumbnail_view)} />
                         ))}
                         {/* Infinite scroll sentinel */}
                         {hasMore && (
