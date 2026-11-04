@@ -11,7 +11,7 @@ export default function ContentRowSkeleton({ count = HOME_CONTENT_ITEMS_PER_ROW,
     const widerLandscape = variant === "wider-landscape";
     const landscape = isEmber && (variant === "landscape" || widerLandscape);
     return (
-        <section aria-label="Loading content row" data-skeleton-row className={isEmber ? "storefront-row space-y-3" : "px-6 lg:px-12 space-y-4"}>
+        <section aria-label="Loading content row" data-skeleton-row className={isEmber ? "storefront-row [container-type:inline-size] space-y-3" : "[container-type:inline-size] px-6 lg:px-12 space-y-4"}>
             <Skeleton className="h-6 w-44 rounded" />
             <div className={isEmber ? `flex ${landscape ? "gap-3" : "gap-5 sm:gap-6"} overflow-hidden pt-1 pb-2 px-10 -mx-10` : "flex gap-4 overflow-hidden py-2 px-1"}>
                 {Array.from({ length: count }, (_, index) => (

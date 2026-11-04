@@ -30,7 +30,7 @@ export default function ContentRow({ title, movies, variant }: ContentRowProps) 
     const [spotlight, ...rest] = movies;
 
     return (
-        <section className="px-4 lg:px-10 space-y-3">
+        <section className="[container-type:inline-size] px-4 lg:px-10 space-y-3">
             {/* Header */}
             <div className="flex items-center justify-between px-2">
                 <h3 className="text-[14px] font-bold text-foreground">{title}</h3>

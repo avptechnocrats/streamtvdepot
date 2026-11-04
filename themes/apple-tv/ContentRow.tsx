@@ -33,7 +33,7 @@ export default function ContentRow({ title, movies, variant }: ContentRowProps) 
     };
 
     return (
-        <section className="px-6 lg:px-14 space-y-4">
+        <section className="[container-type:inline-size] px-6 lg:px-14 space-y-4">
 
             {/* Row header */}
             <div className="flex items-center justify-between">
