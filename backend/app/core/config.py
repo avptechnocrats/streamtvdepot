@@ -29,7 +29,8 @@ class Settings(BaseSettings):
     REMINDER_DISPATCH_BATCH_SIZE: int = 1000
 
     # Security
-    SECRET_KEY: str = "xxxxxxxxx"
+    SECRET_KEY: str = "213ad5a888c1792e78a288c915de61c17c32fb8739aa623f9cafe545"
+    ALTCHA_HMAC_KEY: str = "213ad5a888c1792e78a288c915de61c17c32fb8739aa623f9cafe54592c3e3"
     ALGORITHM: str = "HS256"
     # Large media uploads can run long on slower networks; keep admin access
     # tokens valid long enough to complete presign/upload/confirm safely.
