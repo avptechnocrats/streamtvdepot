@@ -7,6 +7,8 @@ export interface UserSignupPayload {
     email: string;
     password: string;
     full_name: string;
+    altcha: string;
+    website?: string;
     phone?: string;
     country?: string;
 }

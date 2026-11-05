@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import type { AltchaWidgetElement } from "altcha";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowLeft, Clapperboard, Eye, EyeOff, Film, Loader2, MailCheck, Tv } from "lucide-react";
@@ -13,6 +14,46 @@ import { userResendVerification, userSignup, userVerifyEmail } from "@/lib/servi
 import { fetchSocialAuthConfig, type SocialAuthConfigOut } from "@/lib/services/site-settings";
 import SiteLogo from "@/components/SiteLogo";
 import { useTenantName } from "@/hooks/use-tenant-name";
+
+function SignupChallenge({ onChange }: { onChange: (value: string) => void }) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [loadError, setLoadError] = useState(false);
+    const [attempt, setAttempt] = useState(0);
+
+    useEffect(() => {
+        let cancelled = false;
+        let widget: AltchaWidgetElement | undefined;
+        const handleState = (event: Event) => {
+            const detail = (event as CustomEvent<{ state: string; payload?: string }>).detail;
+            onChange(detail.state === "verified" ? detail.payload ?? "" : "");
+        };
+        setLoadError(false);
+        void import("altcha").then(() => {
+            if (cancelled || !containerRef.current) return;
+            widget = document.createElement("altcha-widget");
+            widget.setAttribute("challenge", "/api/auth/signup-challenge");
+            widget.setAttribute("auto", "onload");
+            widget.setAttribute("configuration", JSON.stringify({ humanInteractionSignature: false }));
+            widget.addEventListener("statechange", handleState);
+            containerRef.current.appendChild(widget);
+        }).catch(() => {
+            if (!cancelled) setLoadError(true);
+        });
+        return () => {
+            cancelled = true;
+            widget?.removeEventListener("statechange", handleState);
+            widget?.remove();
+        };
+    }, [onChange, attempt]);
+
+    return <div className="min-w-0 space-y-2">
+        <div ref={containerRef} className="min-h-16 w-full [--altcha-max-width:100%] [--altcha-color-base:hsl(var(--card))] [--altcha-color-base-content:hsl(var(--foreground))] [--altcha-color-neutral:hsl(var(--border))] [--altcha-color-neutral-content:hsl(var(--muted-foreground))] [--altcha-color-primary:hsl(var(--primary))]" />
+        {loadError && <div role="alert" className="space-y-2 text-sm text-destructive">
+            <p>Verification could not load.</p>
+            <Button type="button" variant="outline" onClick={() => setAttempt(value => value + 1)}>Retry verification</Button>
+        </div>}
+    </div>;
+}
 
 export default function SignupForm() {
     const router = useRouter();
@@ -32,6 +73,9 @@ export default function SignupForm() {
     const [resending, setResending] = useState(false);
     const [socialAuthConfig, setSocialAuthConfig] = useState<SocialAuthConfigOut | null>(null);
     const [loadingAuth, setLoadingAuth] = useState(true);
+    const [altchaPayload, setAltchaPayload] = useState("");
+    const [website, setWebsite] = useState("");
+    const [challengeVersion, setChallengeVersion] = useState(0);
 
     useEffect(() => {
         const loadSocialAuthConfig = async () => {
@@ -54,9 +98,14 @@ export default function SignupForm() {
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setError(null);
+        if (loading) return;
+        if (!altchaPayload) {
+            setError("Please complete verification before signing up.");
+            return;
+        }
         setLoading(true);
         try {
-            const res = await userSignup({ email, password, full_name: fullName });
+            const res = await userSignup({ email, password, full_name: fullName, altcha: altchaPayload, website });
             if (res.verification_required || !res.access_token || !res.refresh_token) {
                 setPendingVerification(true);
                 setNotice(res.message);
@@ -66,6 +115,8 @@ export default function SignupForm() {
             router.replace("/");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Sign up failed");
+            setAltchaPayload("");
+            setChallengeVersion(value => value + 1);
         } finally {
             setLoading(false);
         }
@@ -215,7 +266,11 @@ export default function SignupForm() {
                             </Link>
                         </div>
                     ) : (
-                    <form onSubmit={handleSubmit} className="space-y-5">
+                    <form onSubmit={handleSubmit} className="relative space-y-5">
+                        <div aria-hidden="true" className="absolute -left-[10000px] top-0 h-px w-px overflow-hidden">
+                            <label htmlFor="signup-website">Website</label>
+                            <input id="signup-website" name="website" type="text" tabIndex={-1} autoComplete="off" value={website} onChange={event => setWebsite(event.target.value)} />
+                        </div>
                         <div className="mb-7 space-y-2">
                             <h1 className="text-3xl font-bold leading-tight tracking-normal text-foreground">Create your account</h1>
                             <p className="text-sm leading-relaxed text-muted-foreground">Join {tenantName} and find your next favourite.</p>
@@ -279,6 +334,8 @@ export default function SignupForm() {
                             <p id="signup-password-help" className="text-xs leading-relaxed text-muted-foreground">At least 8 characters.</p>
                         </div>
 
+                        <SignupChallenge key={challengeVersion} onChange={setAltchaPayload} />
+
                         {error && (
                             <div role="alert" className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2.5">
                                 <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
@@ -289,7 +346,7 @@ export default function SignupForm() {
                         <Button
                             type="submit"
                             className="w-full h-12 text-base font-semibold"
-                            disabled={loading}
+                            disabled={loading || !altchaPayload}
                         >
                             {loading
                                 ? <><Loader2 size={16} className="mr-2 animate-spin" />Creating account…</>
