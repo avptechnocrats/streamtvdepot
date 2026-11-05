@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import ImageCropModal from "../content/videos/_components/ImageCropModal";
 import { uploadAssetToS3 } from "@/lib/upload/s3-upload";
-import { BANNER_SIZES, listBanners, saveBanner, deleteBanner, type BannerSlot, type BannerImage, type ManagedBanner } from "@/lib/api/services/banners";
+import { BANNER_SIZES, listBanners, saveBanner, deleteBanner, type BannerSlot, type BannerImage, type BannerPlacement, type ManagedBanner } from "@/lib/api/services/banners";
 
 const pages = [
     { value: "/", label: "Home (/)" },
@@ -32,6 +32,10 @@ const positions = [
     { value: "middle_2", label: "Middle 2" },
     { value: "bottom", label: "Bottom" },
 ] as const;
+const placementSchema = z.object({
+    page: z.enum(["/", "/movies", "/series", "/tv-shows", "/ppv-events"]),
+    position: z.enum(["top", "middle_1", "middle_2", "bottom"]),
+});
 const schema = z.object({
     name: z.string().trim().min(1, "Banner name is required").max(120),
     link: z.string().trim().max(2048).refine(value => {
@@ -43,8 +47,14 @@ const schema = z.object({
             return ["http:", "https:"].includes(url.protocol) && !!url.hostname && !url.username && !url.password;
         } catch { return false; }
     }, "Use an HTTP/HTTPS URL or a site-relative path, such as /movies"),
-    page: z.enum(["/", "/movies", "/series", "/tv-shows", "/ppv-events"]),
-    position: z.enum(["top", "middle_1", "middle_2", "bottom"]),
+    placements: z.array(placementSchema).min(1, "Add at least one page placement").max(20).superRefine((items, context) => {
+        const seen = new Set<string>();
+        items.forEach((item, index) => {
+            const key = `${item.page}:${item.position}`;
+            if (seen.has(key)) context.addIssue({ code: "custom", message: "This page and position are already assigned", path: [index, "position"] });
+            seen.add(key);
+        });
+    }),
     border_enabled: z.boolean(),
     border_width: z.number().int().min(0).max(32),
     border_color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
@@ -52,8 +62,16 @@ const schema = z.object({
     padding: z.number().int().min(0).max(128),
 });
 type FormValues = Required<z.infer<typeof schema>>;
-const defaults: FormValues = { name: "", link: "", page: "/", position: "top", border_enabled: false, border_width: 1, border_color: "#cccccc", border_radius: 0, padding: 0 };
+const defaults: FormValues = { name: "", link: "", placements: [{ page: "/", position: "top" }], border_enabled: false, border_width: 1, border_color: "#cccccc", border_radius: 0, padding: 0 };
 const slots: BannerSlot[] = ["custom", "desktop", "tablet", "mobile"];
+
+function bannerPlacements(banner: ManagedBanner): BannerPlacement[] {
+    return banner.placements?.length ? banner.placements : [{ page: banner.page, position: banner.position }];
+}
+
+function placementLabel(placement: BannerPlacement): string {
+    return `${pages.find(page => page.value === placement.page)?.label ?? placement.page} · ${positions.find(position => position.value === placement.position)?.label ?? placement.position}`;
+}
 
 export default function ManageBannersPage() {
     const { toast } = useToast();
@@ -76,6 +94,7 @@ export default function ManageBannersPage() {
     const [previewErrors, setPreviewErrors] = useState<Partial<Record<BannerSlot, boolean>>>({});
     const [search, setSearch] = useState("");
     const { register, control, watch, reset, handleSubmit, formState: { errors } } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: defaults });
+    const { fields: placementFields, append: appendPlacement, remove: removePlacement } = useFieldArray({ control, name: "placements" });
     const border = watch("border_enabled");
     const borderWidth = watch("border_width");
     const borderColor = watch("border_color");
@@ -89,7 +108,10 @@ export default function ManageBannersPage() {
         setActiveSlot("custom"); setDragSlot(null);
     };
     const save = useMutation({
-        mutationFn: (values: FormValues) => saveBanner({ ...values, link: values.link || null, images }, editingId),
+        mutationFn: (values: FormValues) => {
+            const placements: BannerPlacement[] = values.placements.map(placement => ({ page: placement.page!, position: placement.position! }));
+            return saveBanner({ ...values, placements, page: placements[0].page, position: placements[0].position, link: values.link || null, images }, editingId);
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: bannerQueryKey });
             clearEditor(); toast({ title: "Banner saved" });
@@ -107,7 +129,7 @@ export default function ManageBannersPage() {
     });
     const busy = save.isPending || uploading !== null || crop !== null || remove.isPending;
     const filteredBanners = (query.data ?? []).filter(banner =>
-        [banner.name, banner.page, positions.find(position => position.value === banner.position)?.label ?? ""]
+        [banner.name, ...bannerPlacements(banner).map(placementLabel)]
             .some(value => value.toLowerCase().includes(search.trim().toLowerCase())));
     function selectImage(file: File | undefined, slot: BannerSlot) {
         if (!file || busy) return;
@@ -131,8 +153,18 @@ export default function ManageBannersPage() {
         } finally { setUploading(null); }
     }
     function edit(banner: ManagedBanner) {
-        const { id, images: savedImages, ...values } = banner;
-        reset({ ...values, link: values.link ?? "" }); setEditingId(id); setImages(savedImages); setImageError("");
+        const { id, images: savedImages } = banner;
+        reset({
+            name: banner.name,
+            link: banner.link ?? "",
+            placements: bannerPlacements(banner),
+            border_enabled: banner.border_enabled,
+            border_width: banner.border_width,
+            border_color: banner.border_color,
+            border_radius: banner.border_radius,
+            padding: banner.padding,
+        });
+        setEditingId(id); setImages(savedImages); setImageError("");
         setEditorOpen(true);
         setActiveSlot(slots.find(slot => savedImages[slot]) ?? "custom");
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -161,13 +193,31 @@ export default function ManageBannersPage() {
                             <Input id="banner-link" {...register("link")} placeholder="https://example.com or /movies" maxLength={2048} disabled={busy} aria-invalid={!!errors.link} />
                             {errors.link && <p className="text-sm text-destructive" role="alert">{errors.link.message}</p>}
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="banner-page">Page</Label>
-                            <Controller name="page" control={control} render={({ field }) => <Select value={field.value} onValueChange={field.onChange} disabled={busy}><SelectTrigger id="banner-page"><SelectValue /></SelectTrigger><SelectContent>{pages.map(page => <SelectItem key={page.value} value={page.value}>{page.label}</SelectItem>)}</SelectContent></Select>} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="banner-position">Position</Label>
-                            <Controller name="position" control={control} render={({ field }) => <Select value={field.value} onValueChange={field.onChange} disabled={busy}><SelectTrigger id="banner-position"><SelectValue /></SelectTrigger><SelectContent>{positions.map(position => <SelectItem key={position.value} value={position.value}>{position.label}</SelectItem>)}</SelectContent></Select>} />
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between gap-3">
+                                <Label>Page placements</Label>
+                                <Button type="button" variant="outline" size="sm" disabled={busy || placementFields.length >= 20} onClick={() => {
+                                    const current = watch("placements");
+                                    const nextPage = pages.find(page => !current.some(placement => placement.page === page.value))?.value ?? "/";
+                                    appendPlacement({ page: nextPage, position: "top" });
+                                }}><Plus size={13} /> Add placement</Button>
+                            </div>
+                            {placementFields.map((placement, index) => (
+                                <div key={placement.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
+                                    <div className="min-w-0 space-y-2">
+                                        <Label htmlFor={`banner-page-${index}`}>Page {index + 1}</Label>
+                                        <Controller name={`placements.${index}.page`} control={control} render={({ field }) => <Select value={field.value} onValueChange={field.onChange} disabled={busy}><SelectTrigger id={`banner-page-${index}`}><SelectValue /></SelectTrigger><SelectContent>{pages.map(page => <SelectItem key={page.value} value={page.value}>{page.label}</SelectItem>)}</SelectContent></Select>} />
+                                    </div>
+                                    <div className="min-w-0 space-y-2">
+                                        <Label htmlFor={`banner-position-${index}`}>Position</Label>
+                                        <Controller name={`placements.${index}.position`} control={control} render={({ field }) => <Select value={field.value} onValueChange={field.onChange} disabled={busy}><SelectTrigger id={`banner-position-${index}`}><SelectValue /></SelectTrigger><SelectContent>{positions.map(position => <SelectItem key={position.value} value={position.value}>{position.label}</SelectItem>)}</SelectContent></Select>} />
+                                        {(errors.placements?.[index]?.page?.message || errors.placements?.[index]?.position?.message) && <p role="alert" className="text-xs text-destructive">{errors.placements[index]?.page?.message ?? errors.placements[index]?.position?.message}</p>}
+                                    </div>
+                                    <Button type="button" variant="ghost" size="icon" aria-label={`Remove placement ${index + 1}`} disabled={busy || placementFields.length === 1} onClick={() => removePlacement(index)}><X size={15} /></Button>
+                                </div>
+                            ))}
+                            {errors.placements?.message && <p role="alert" className="text-xs text-destructive">{errors.placements.message}</p>}
+                            {errors.placements?.root?.message && <p role="alert" className="text-xs text-destructive">{errors.placements.root.message}</p>}
                         </div>
                         <div className="flex items-center gap-3 border-t pt-5">
                             <Controller name="border_enabled" control={control} render={({ field }) => <Switch id="banner-border" checked={field.value} onCheckedChange={field.onChange} disabled={busy} />} />
@@ -239,18 +289,16 @@ export default function ManageBannersPage() {
                         <table className="w-full text-left text-sm">
                             <thead className="border-b border-border bg-muted/30 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground"><tr>
                                 <th className="whitespace-nowrap px-4 py-2.5">Banner Name</th>
-                                <th className="px-4 py-2.5">Page</th>
-                                <th className="px-4 py-2.5">Position</th>
+                                <th className="px-4 py-2.5">Page / Position</th>
                                 <th className="px-4 py-2.5">Size</th>
                                 <th className="px-2 py-2.5 text-center">Preview</th>
                                 <th className="px-2 py-2.5 text-center">Edit</th>
                                 <th className="px-2 py-2.5 text-center">Delete</th>
                             </tr></thead>
                             <tbody>
-                                {query.isPending ? <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-muted-foreground" role="status">Loading banners...</td></tr> : !filteredBanners.length ? <tr><td colSpan={7} className="px-4 py-16 text-center text-muted-foreground"><div className="flex flex-col items-center gap-3"><ImagePlus size={32} className="opacity-30" /><p className="text-sm">{query.isError ? "Banner listing unavailable" : search.trim() ? "No banners match your search" : "No banners yet"}</p></div></td></tr> : filteredBanners.map(banner => <tr key={banner.id} className="border-b border-border transition-colors last:border-0 hover:bg-muted/20">
+                                {query.isPending ? <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground" role="status">Loading banners...</td></tr> : !filteredBanners.length ? <tr><td colSpan={6} className="px-4 py-16 text-center text-muted-foreground"><div className="flex flex-col items-center gap-3"><ImagePlus size={32} className="opacity-30" /><p className="text-sm">{query.isError ? "Banner listing unavailable" : search.trim() ? "No banners match your search" : "No banners yet"}</p></div></td></tr> : filteredBanners.map(banner => <tr key={banner.id} className="border-b border-border transition-colors last:border-0 hover:bg-muted/20">
                                     <td className="max-w-64 break-words px-4 py-3 text-sm font-medium text-primary">{banner.name}</td>
-                                    <td className="px-4 py-3 text-xs text-muted-foreground">{pages.find(page => page.value === banner.page)?.label}</td>
-                                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{positions.find(position => position.value === banner.position)?.label}</td>
+                                    <td className="px-4 py-3 text-xs text-muted-foreground">{bannerPlacements(banner).map(placement => <div key={`${placement.page}:${placement.position}`}>{placementLabel(placement)}</div>)}</td>
                                     <td className="px-4 py-3 text-xs text-muted-foreground">{slots.filter(slot => banner.images[slot]).map(slot => <div key={slot} className="whitespace-nowrap">{BANNER_SIZES[slot].label}: {banner.images[slot].width} x {banner.images[slot].height}</div>)}</td>
                                     <td className="px-2 py-3 text-center"><Button variant="ghost" size="icon" title="Preview banner" aria-label={`Preview ${banner.name}`} disabled={busy} onClick={() => { setPreviewErrors({}); setPreview(banner); }} className="h-auto w-auto rounded-md p-1.5 text-green-500 hover:bg-green-500/10 hover:text-green-600"><Eye className="!size-[13px]" /></Button></td>
                                     <td className="px-2 py-3 text-center"><Button variant="ghost" size="icon" title="Edit banner" aria-label={`Edit ${banner.name}`} disabled={busy} onClick={() => edit(banner)} className="h-auto w-auto rounded-md p-1.5 text-blue-500 hover:bg-blue-500/10 hover:text-blue-600"><Pencil className="!size-[13px]" /></Button></td>
@@ -266,7 +314,7 @@ export default function ManageBannersPage() {
                 <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-4xl overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle className="break-words pr-6">{preview?.name}</DialogTitle>
-                        <DialogDescription>{pages.find(page => page.value === preview?.page)?.label} · {positions.find(position => position.value === preview?.position)?.label}</DialogDescription>
+                        <DialogDescription>{preview ? bannerPlacements(preview).map(placementLabel).join(" · ") : null}</DialogDescription>
                     </DialogHeader>
                     {preview && (slots.some(slot => preview.images[slot]) ? (
                         <Tabs key={preview.id} defaultValue={slots.find(slot => preview.images[slot])}>

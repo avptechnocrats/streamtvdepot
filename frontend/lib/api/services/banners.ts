@@ -15,11 +15,18 @@ export interface BannerImage {
     width: number;
     height: number;
 }
+export type BannerPage = "/" | "/movies" | "/series" | "/tv-shows" | "/ppv-events";
+export type BannerPosition = "top" | "middle_1" | "middle_2" | "bottom";
+export interface BannerPlacement {
+    page: BannerPage;
+    position: BannerPosition;
+}
 export interface BannerPayload {
     name: string;
     link?: string | null;
-    page: "/" | "/movies" | "/series" | "/tv-shows" | "/ppv-events";
-    position: "top" | "middle_1" | "middle_2" | "bottom";
+    page: BannerPage;
+    position: BannerPosition;
+    placements: BannerPlacement[];
     images: Partial<Record<BannerSlot, BannerImage>>;
     border_enabled: boolean;
     border_width: number;
@@ -27,7 +34,7 @@ export interface BannerPayload {
     border_radius: number;
     padding: number;
 }
-export interface ManagedBanner extends BannerPayload { id: string }
+export interface ManagedBanner extends Omit<BannerPayload, "placements"> { id: string; placements?: BannerPlacement[] }
 
 export async function listBanners(): Promise<ManagedBanner[]> {
     return (await apiClient.get<ManagedBanner[]>("/admin/banners")).data;

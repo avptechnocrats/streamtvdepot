@@ -30,10 +30,13 @@ async def banner_payload_for_storage(payload: BannerIn, client_id: uuid.UUID, db
 
 async def read_managed_banners(client: Client, db: AsyncSession, page: BannerPage | None = None, position: BannerPosition | None = None, banner_id: uuid.UUID | None = None) -> list[BannerOut]:
     statement = select(ClientBanner).where(ClientBanner.client_id == client.id)
+    placement_filter = {}
     if page is not None:
-        statement = statement.where(ClientBanner.page == page)
+        placement_filter["page"] = page
     if position is not None:
-        statement = statement.where(ClientBanner.position == position)
+        placement_filter["position"] = position
+    if placement_filter:
+        statement = statement.where(ClientBanner.placements.contains([placement_filter]))
     if banner_id is not None:
         statement = statement.where(ClientBanner.id == banner_id)
     statement = statement.options(selectinload(ClientBanner.images).selectinload(ClientBannerImage.asset)).order_by(ClientBanner.created_at, ClientBanner.id).execution_options(populate_existing=True)
@@ -51,6 +54,6 @@ async def read_managed_banners(client: Client, db: AsyncSession, page: BannerPag
             }
         if not images:
             continue
-        data = {field: getattr(banner, field) for field in ("id", "name", "link", "page", "position", "border_enabled", "border_width", "border_color", "border_radius", "padding")}
+        data = {field: getattr(banner, field) for field in ("id", "name", "link", "page", "position", "placements", "border_enabled", "border_width", "border_color", "border_radius", "padding")}
         output.append(BannerOut.model_validate({**data, "images": images}))
     return output
