@@ -145,6 +145,7 @@ export interface ListVideosParams {
     page_size?: number;
     search?: string;
     category?: string;
+    content_classification?: string;
     is_active?: boolean;
     is_slider?: boolean;
     is_movie_slider?: boolean;

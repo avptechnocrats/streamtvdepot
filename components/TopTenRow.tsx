@@ -6,9 +6,9 @@ import { listVideos } from "@/lib/services/videos";
 import { PosterCard } from "@/themes/ember/ContentRow";
 import { useRowScroll } from "@/hooks/use-row-scroll";
 
-export default function TopTenRow() {
-    const { data = [], isError } = useQuery({ queryKey: ["home-top-ten"], queryFn: () => listVideos({ sort_by: "rating", page_size: 10 }), staleTime: 60_000, retry: 1 });
-    const videos = Array.from(new Map(data.map(video => [video.id, video])).values()).slice(0, 10);
+export default function TopTenRow({ contentClassification }: { contentClassification?: string }) {
+    const { data = [], isError } = useQuery({ queryKey: ["home-top-ten", contentClassification], queryFn: () => listVideos({ sort_by: "rating", page_size: 10, content_classification: contentClassification }), staleTime: 60_000, retry: 1 });
+    const videos = Array.from(new Map(data.filter(video => !contentClassification || video.content_classification === contentClassification).map(video => [video.id, video])).values()).slice(0, 10);
     const { scrollRef: rail, canScrollLeft, canScrollRight } = useRowScroll(videos.length);
     if (isError || !videos.length) return null;
     return <section aria-label="Top 10 content" className="storefront-row pt-8 pb-2">

@@ -4,6 +4,11 @@ export type BannerPage = "/" | "/movies" | "/series" | "/tv-shows" | "/ppv-event
 export type BannerPosition = "top" | "middle_1" | "middle_2" | "bottom";
 export type BannerSize = "custom" | "desktop" | "tablet" | "mobile";
 
+export interface BannerPlacement {
+    page: BannerPage;
+    position: BannerPosition;
+}
+
 export interface PublicBannerImage {
     asset_id: string;
     url: string;
@@ -18,6 +23,7 @@ export interface PublicBanner {
     link?: string | null;
     page: BannerPage;
     position: BannerPosition;
+    placements?: BannerPlacement[];
     images: Partial<Record<BannerSize, PublicBannerImage>>;
     border_enabled: boolean;
     border_width: number;

@@ -75,16 +75,16 @@ export default function MoviesClient() {
         async function loadPage() {
             setLoading(true);
             try {
-                const data = await fetchHomeVideoRows({ page, contentType: "video" });
+                const data = await fetchHomeVideoRows({ page, contentType: "video", contentClassification: "Movie" });
                 if (!cancelled) {
                     const movieRows = data.rows.filter(row => row.content_type === "video").map(row => {
-                        const items = [...row.items];
+                        const items = row.items.filter(item => item.content_classification === "Movie");
                         for (let index = items.length - 1; index > 0; index--) {
                             const randomIndex = Math.floor(Math.random() * (index + 1));
                             [items[index], items[randomIndex]] = [items[randomIndex], items[index]];
                         }
                         return { ...row, items };
-                    });
+                    }).filter(row => row.items.length > 0);
                     setRows((prev) => (page === 1 ? movieRows : [...prev, ...movieRows]));
                     setHasMore(data.has_more);
                 }
@@ -116,9 +116,9 @@ export default function MoviesClient() {
         <>
             {/* Hero Banner */}
             <Banner />
-            <TopTenRow />
-            <NewReleasesRow />
-            <FeaturedRow />
+            <TopTenRow contentClassification="Movie" />
+            <NewReleasesRow contentClassification="Movie" />
+            <FeaturedRow contentClassification="Movie" />
             <ManagedBannerSlot page="/movies" position="top" />
 
             {/* Content rows */}
@@ -153,7 +153,6 @@ export default function MoviesClient() {
                         {rows.slice(1, 3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant={getRowVariant(row.thumbnail_view)} />)}
                         <ManagedBannerSlot page="/movies" position="middle_2" />
                         {rows.slice(3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant={getRowVariant(row.thumbnail_view)} />)}
-                        {hasMore && <div ref={sentinelRef} style={{ height: 1 }} />}
                         {loading && (
                             <>
                                 <ContentRowSkeleton variant="landscape" />
@@ -163,6 +162,7 @@ export default function MoviesClient() {
                     </>
                 )}
             </div>
+            {hasMore && !isInitialLoad && <div ref={sentinelRef} style={{ height: 1 }} />}
             <ManagedBannerSlot page="/movies" position="bottom" />
         </>
     );
