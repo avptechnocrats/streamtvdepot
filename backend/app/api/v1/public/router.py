@@ -969,6 +969,7 @@ async def list_public_videos(
     is_movie_slider: bool | None = Query(None, description="Filter to Movies page slider videos"),
     is_featured: bool | None = Query(None, description="Filter to featured videos"),
     category: str | None = Query(None, description="Filter by category name"),
+    content_classification: str | None = Query(None, description="Filter by exact content classification"),
     search: str | None = Query(None, description="Search by title"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -994,6 +995,8 @@ async def list_public_videos(
         q = q.where(Video.is_movie_slider.is_(is_movie_slider))
     if is_featured is not None:
         q = q.where(Video.is_featured.is_(is_featured))
+    if content_classification is not None:
+        q = q.where(Video.content_classification == content_classification)
     if category:
         q = q.join(Video.categories).where(Category.slug == category)
     if search:
@@ -2022,6 +2025,7 @@ async def _fetch_category_items(
     client_id,
     items_per_row: int,
     db: AsyncSession,
+    content_classification: str | None = None,
 ) -> list:
     """Return content items for *cat* filtered strictly through the M2M join."""
     from app.schemas.client.content import _refresh_s3_url
@@ -2036,6 +2040,7 @@ async def _fetch_category_items(
                 Video.deleted_at.is_(None),
                 Video.is_active.is_(True),
                 Video.status == ContentStatus.PUBLISHED,
+                Video.content_classification == content_classification if content_classification is not None else True,
             )
             .order_by(Video.created_at.desc())
             .limit(items_per_row)
@@ -2144,6 +2149,7 @@ async def get_home_contents(
         description="Filter to a single content type: video | series | livestream | audio",
     ),
     items_per_row: int = Query(10, ge=1, le=50, description="Max content items per category row"),
+    content_classification: str | None = Query(None, description="Filter video rows by exact content classification"),
     db: AsyncSession = Depends(get_db),
 ) -> HomeContentsOut:
     """
@@ -2184,7 +2190,7 @@ async def get_home_contents(
             # Stop early once we have one extra beyond what this page needs
             if len(non_empty) > offset + page_size:
                 break
-            items = await _fetch_category_items(ctype, cat, client.id, items_per_row, db)
+            items = await _fetch_category_items(ctype, cat, client.id, items_per_row, db, content_classification)
             if not items:
                 continue
             non_empty.append(

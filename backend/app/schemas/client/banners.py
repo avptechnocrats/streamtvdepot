@@ -8,6 +8,11 @@ BannerPage = Literal["/", "/movies", "/series", "/tv-shows", "/ppv-events"]
 BannerPosition = Literal["top", "middle_1", "middle_2", "bottom"]
 
 
+class BannerPlacement(BaseModel):
+    page: BannerPage
+    position: BannerPosition
+
+
 class BannerImage(BaseModel):
     url: HttpUrl
     display_url: HttpUrl | None = None
@@ -21,6 +26,7 @@ class BannerIn(BaseModel):
     link: str | None = Field(None, max_length=2048)
     page: BannerPage
     position: BannerPosition
+    placements: list[BannerPlacement] = Field(default_factory=list, max_length=20)
     images: dict[Literal["desktop", "tablet", "custom", "mobile"], BannerImage]
     border_enabled: bool = False
     border_width: int = Field(1, ge=0, le=32)
@@ -52,6 +58,13 @@ class BannerIn(BaseModel):
         self.name = self.name.strip()
         if not self.name:
             raise ValueError("Banner name is required")
+        if not self.placements:
+            self.placements = [BannerPlacement(page=self.page, position=self.position)]
+        placement_keys = [(placement.page, placement.position) for placement in self.placements]
+        if len(placement_keys) != len(set(placement_keys)):
+            raise ValueError("Page and position assignments must be unique")
+        self.page = self.placements[0].page
+        self.position = self.placements[0].position
         if not self.images:
             raise ValueError("Upload at least one banner image")
         dimensions = {"desktop": (1920, 600), "tablet": (1200, 400), "mobile": (750, 500)}
