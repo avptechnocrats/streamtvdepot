@@ -10,7 +10,7 @@
 import { ChevronDown, Menu, Search, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import SiteLogo from "@/components/SiteLogo";
 import SearchOverlay from "@/components/SearchOverlay";
@@ -36,6 +36,9 @@ export default function Navbar() {
     const [searchOpen, setSearchOpen] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [moreOpen, setMoreOpen] = useState(false);
+    const [fittingLinkCount, setFittingLinkCount] = useState(0);
+    const desktopMenuRef = useRef<HTMLDivElement>(null);
+    const measurementRef = useRef<HTMLDivElement>(null);
     const [scrolled, setScrolled] = useState(false);
     const solid = scrolled || mobileOpen || moreOpen || searchOpen;
     const textShadow = solid ? undefined : "0 1px 3px rgba(0,0,0,0.95), 0 2px 8px rgba(0,0,0,0.85), 0 0 16px rgba(0,0,0,0.6)";
@@ -62,8 +65,58 @@ export default function Navbar() {
         typeof activeHeaderMenu?.max_menu_display === "number"
             ? Math.min(12, Math.max(1, activeHeaderMenu.max_menu_display))
             : headerLinks.length;
-    const visibleLinks = headerLinks.slice(0, maxMenuDisplay);
-    const overflowLinks = headerLinks.slice(maxMenuDisplay);
+    const visibleCount = Math.min(fittingLinkCount, maxMenuDisplay, headerLinks.length);
+    const visibleLinks = headerLinks.slice(0, visibleCount);
+    const overflowLinks = headerLinks.slice(visibleCount);
+
+    useEffect(() => {
+        const menu = desktopMenuRef.current;
+        const measurements = measurementRef.current;
+        if (!menu || !measurements) return;
+        let cancelled = false;
+        const measure = () => {
+            if (cancelled) return;
+            if (menu.clientWidth === 0) {
+                setMoreOpen(false);
+                return;
+            }
+            setMobileOpen(false);
+            const widths = Array.from(measurements.children, child => child.getBoundingClientRect().width);
+            const moreWidth = widths.pop() ?? 0;
+            const gap = parseFloat(getComputedStyle(menu).columnGap) || 0;
+            const limit = Math.min(maxMenuDisplay, headerLinks.length);
+            const availableWidth = menu.getBoundingClientRect().width;
+            const allLinksWidth = widths.slice(0, limit).reduce((total, width) => total + width, 0) + gap * Math.max(0, limit - 1);
+            if (limit === headerLinks.length && allLinksWidth <= availableWidth) {
+                setFittingLinkCount(limit);
+                setMoreOpen(false);
+                return;
+            }
+            let count = 0;
+            let usedWidth = moreWidth;
+            while (count < limit && usedWidth + widths[count] + gap <= availableWidth) {
+                usedWidth += widths[count] + gap;
+                count++;
+            }
+            setFittingLinkCount(count);
+        };
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(menu);
+        observer.observe(measurements);
+        window.addEventListener("resize", measure);
+        void document.fonts.ready.then(measure);
+        return () => {
+            cancelled = true;
+            observer.disconnect();
+            window.removeEventListener("resize", measure);
+        };
+    }, [headerLinks, maxMenuDisplay]);
+
+    useEffect(() => {
+        setMoreOpen(false);
+        setMobileOpen(false);
+    }, [pathname]);
 
     function isActive(href: string) {
         if (!href.startsWith("/")) return false;
@@ -104,17 +157,23 @@ export default function Navbar() {
                 className={`fixed top-0 left-0 right-0 py-2 z-50 border-b transition-colors duration-300 motion-reduce:transition-none ${solid ? "bg-background/95 backdrop-blur-md border-border/60" : "bg-transparent border-transparent"}`}
             >
                 <div className="flex items-center justify-between gap-4 px-4 sm:px-6 lg:px-14 h-14">
-                    <div className="flex items-center gap-6 lg:gap-10 min-w-0">
+                    <div className="flex flex-1 items-center gap-6 lg:gap-10 min-w-0">
                         <SiteLogo
                             className="flex items-center gap-2 shrink-0"
                             imageSize={32}
                             labelClassName="text-xl font-display font-800 italic text-gradient-gold tracking-tight"
                         />
-                        <div className="hidden md:flex items-center gap-1">
+                        <div ref={desktopMenuRef} aria-label="Main menu" className="relative hidden min-w-0 flex-1 items-center gap-1 lg:flex">
+                            <div aria-hidden="true" className="pointer-events-none invisible absolute inset-0 overflow-hidden">
+                                <div ref={measurementRef} className="flex w-max items-center gap-1">
+                                    {headerLinks.map(item => <span key={item.id} className="shrink-0 whitespace-nowrap px-3 py-4 text-[14px] font-medium">{item.label}</span>)}
+                                    <span className="flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-4 text-[14px] font-medium">More <ChevronDown size={13} /></span>
+                                </div>
+                            </div>
                             {visibleLinks.map((item) =>
                                 renderLink(
                                     item,
-                                    `relative px-3 py-4 text-[14px] font-medium transition-colors ${isActive(item.url)
+                                    `relative shrink-0 whitespace-nowrap px-3 py-4 text-[14px] font-medium transition-colors ${isActive(item.url)
                                         ? "text-foreground after:absolute after:left-3 after:right-3 after:bottom-2 after:h-[2px] after:rounded-full after:bg-primary"
                                         : solid ? "text-muted-foreground hover:text-foreground" : "text-white/85 hover:text-white"
                                     }`,
@@ -125,14 +184,14 @@ export default function Navbar() {
                             {overflowLinks.length > 0 && (
                                 <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
                                     <DropdownMenuTrigger asChild>
-                                        <button className={`flex items-center gap-1 px-3 py-4 text-[13px] font-medium transition-colors focus:outline-none ${solid ? "text-muted-foreground hover:text-foreground" : "text-white/85 hover:text-white"}`}>
+                                        <button type="button" className={`flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-4 text-[14px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${solid ? "text-muted-foreground hover:text-foreground" : "text-white/85 hover:text-white"}`}>
                                             {renderMenuLabel("More")} <ChevronDown size={13} />
                                         </button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start" className="min-w-44">
+                                    <DropdownMenuContent align="start" className="max-h-[min(70vh,28rem)] min-w-44 max-w-[calc(100vw-2rem)] overflow-y-auto lg:block">
                                         {overflowLinks.map((item) => (
                                             <DropdownMenuItem key={item.id} asChild>
-                                                {renderLink(item, "cursor-pointer")}
+                                                {renderLink(item, `cursor-pointer ${isActive(item.url) ? "text-primary" : ""}`, () => setMoreOpen(false))}
                                             </DropdownMenuItem>
                                         ))}
                                     </DropdownMenuContent>
@@ -141,7 +200,7 @@ export default function Navbar() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 lg:gap-3" style={{ textShadow }}>
+                    <div className="flex shrink-0 items-center gap-2 lg:gap-3" style={{ textShadow }}>
                         <button
                             onClick={() => setSearchOpen(true)}
                             className={`hidden lg:flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${solid ? "text-foreground" : "text-white"}`}
@@ -158,9 +217,10 @@ export default function Navbar() {
                             accountClassName={`flex h-10 items-center gap-2 px-2 py-1 rounded-full text-base font-bold hover:text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${solid ? "text-foreground" : "text-white"}`}
                         />
                         <button
-                            className="md:hidden p-2 rounded-md text-muted-foreground hover:text-foreground transition-colors"
+                            className="lg:hidden p-2 rounded-md text-muted-foreground hover:text-foreground transition-colors"
                             onClick={() => setMobileOpen((v) => !v)}
                             aria-label="Toggle menu"
+                            aria-expanded={mobileOpen}
                         >
                             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
                         </button>
@@ -168,7 +228,7 @@ export default function Navbar() {
                 </div>
 
                 {mobileOpen && (
-                    <div className="md:hidden border-t border-border/60 bg-background">
+                    <div className="lg:hidden max-h-[calc(100dvh-72px)] overflow-y-auto border-t border-border/60 bg-background">
                         {headerLinks.map((item) =>
                             renderLink(
                                 item,
