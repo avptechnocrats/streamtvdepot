@@ -466,6 +466,7 @@ interface S3VideoFieldProps {
     onChange: (url: string) => void;
     onBeforeUpload?: () => Promise<boolean>;
     onDurationDetected?: (seconds: number) => void;
+    onUploadStateChange?: (uploading: boolean) => void;
 }
 
 // Reads the file's own metadata client-side (no upload/transcode wait) via a throwaway <video> element
@@ -486,7 +487,7 @@ function detectVideoDuration(file: File): Promise<number | null> {
     });
 }
 
-function S3VideoField({ label, hint, accept, value, thumbnailUrl, previewSourceOnly, initialDisplayUrl, streamPreviewUrl, streamVideoId, streamDrmKeyToken, transcodeStatus, transcodeProgress, onRetryTranscode, onChange, onBeforeUpload, onDurationDetected }: S3VideoFieldProps) {
+export function S3VideoField({ label, hint, accept, value, thumbnailUrl, previewSourceOnly, initialDisplayUrl, streamPreviewUrl, streamVideoId, streamDrmKeyToken, transcodeStatus, transcodeProgress, onRetryTranscode, onChange, onBeforeUpload, onDurationDetected, onUploadStateChange }: S3VideoFieldProps) {
     const [uploading, setUploading] = useState(false);
     const [progressPct, setProgressPct] = useState(0);
     const [uploadedBytes, setUploadedBytes] = useState(0);
@@ -535,6 +536,7 @@ function S3VideoField({ label, hint, accept, value, thumbnailUrl, previewSourceO
             void detectVideoDuration(file).then((seconds) => { if (seconds) onDurationDetected(seconds); });
         }
         setUploading(true);
+        onUploadStateChange?.(true);
         setUploadError(null);
         setFailedFile(file);
         setProgressPct(0);
@@ -573,6 +575,7 @@ function S3VideoField({ label, hint, accept, value, thumbnailUrl, previewSourceO
             setUploadError(msg && !msg.includes("<") ? msg : "Upload failed. Please try again.");
         } finally {
             setUploading(false);
+            onUploadStateChange?.(false);
             setProgressPct(0);
             setUploadedBytes(0);
             setTotalBytes(0);
@@ -580,7 +583,7 @@ function S3VideoField({ label, hint, accept, value, thumbnailUrl, previewSourceO
             setEtaSeconds(null);
             setProgressLabel("Preparing");
         }
-    }, [onBeforeUpload, onChange, onDurationDetected]);
+    }, [onBeforeUpload, onChange, onDurationDetected, onUploadStateChange]);
 
     const openPicker = useCallback(async () => {
         if (onBeforeUpload && !(await onBeforeUpload())) return;
@@ -675,7 +678,7 @@ function S3VideoField({ label, hint, accept, value, thumbnailUrl, previewSourceO
                     <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary px-3 py-2">
                         <Film size={14} className="text-primary shrink-0" />
                         <span className="text-xs text-foreground flex-1 truncate">{value.split("/").pop()?.split("?")[0] ?? value}</span>
-                        <button type="button" onClick={() => { lastValueRef.current = ""; setDisplayUrl(""); onChange(""); }}
+                        <button type="button" aria-label={`Remove ${label.toLowerCase()}`} title={`Remove ${label.toLowerCase()}`} onClick={() => { lastValueRef.current = ""; setDisplayUrl(""); onChange(""); }}
                             className="p-1 rounded-lg text-muted-foreground hover:text-red-400 transition-colors shrink-0">
                             <X size={14} />
                         </button>
@@ -687,6 +690,16 @@ function S3VideoField({ label, hint, accept, value, thumbnailUrl, previewSourceO
                 </div>
             ) : (
                 <div
+                    role="button"
+                    tabIndex={uploading ? -1 : 0}
+                    aria-label={`Choose ${label.toLowerCase()}`}
+                    aria-disabled={uploading}
+                    onKeyDown={event => {
+                        if (!uploading && (event.key === "Enter" || event.key === " ")) {
+                            event.preventDefault();
+                            void openPicker();
+                        }
+                    }}
                     onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
                     onDragOver={(e) => e.preventDefault()}
                     onClick={() => { if (!uploading) void openPicker(); }}
@@ -883,7 +896,7 @@ function CheckboxDropdown({
     );
 }
 
-const COUNTRY_OPTIONS = COUNTRIES.map((c) => ({ value: c.code, label: c.name }));
+export const COUNTRY_OPTIONS = COUNTRIES.map((c) => ({ value: c.code, label: c.name }));
 const LANGUAGE_OPTIONS = VIDEO_LANGUAGES.map((l) => ({ value: l, label: l }));
 
 // ─── Related Video Search ─────────────────────────────────────────────────────
