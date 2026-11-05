@@ -735,13 +735,16 @@ export default function VideoPlayer({
             }
 
             // ── 7. Standard analytics ────────────────────────────────────────
+            const isPlayingAd = () => (player as Player & {
+                ads?: { isInAdMode?: () => boolean };
+            }).ads?.isInAdMode?.() ?? false;
             if (onPlay) player.on("play", onPlay);
             if (onPause) player.on("pause", onPause);
-            if (onEnded) player.on("ended", onEnded);
+            if (onEnded) player.on("ended", () => { if (!isPlayingAd()) onEnded(); });
 
             if (onTimeUpdate) {
                 player.on("timeupdate", () => {
-                    onTimeUpdate(player.currentTime() ?? 0, player.duration() ?? 0);
+                    if (!isPlayingAd()) onTimeUpdate(player.currentTime() ?? 0, player.duration() ?? 0);
                 });
             }
 

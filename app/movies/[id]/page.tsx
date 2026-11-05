@@ -14,6 +14,7 @@ import { usePlayGate } from "@/hooks/use-play-gate";
 import { useTenantName } from "@/hooks/use-tenant-name";
 import { useTheme } from "@/hooks/use-theme";
 import { getVideo, listVideos, type VideoOut } from "@/lib/services";
+import { watchHistoryKey, readWatchHistory, saveWatchProgress, removeWatchHistoryItem, type WatchHistoryItem } from "@/lib/watch-history";
 import { fetchCategories } from "@/lib/services/categories";
 import { addToWatchlist, removeFromWatchlist, getWatchlist, type WatchlistItem } from "@/lib/services/watchlist";
 import type { Movie } from "@/types/content";
@@ -323,6 +324,35 @@ export default function MovieDetailsPage() {
     const { active: bannerActive, bannerRef } = useBannerAutoplay();
     const { user, isLoading: authLoading } = useAuth();
     const queryClient = useQueryClient();
+    const historyKey = user?.client_id && user.id ? watchHistoryKey(user.client_id, user.id) : null;
+    const [resumeAt, setResumeAt] = useState(0);
+    const pendingProgress = useRef<{ key: string; item: WatchHistoryItem } | null>(null);
+    const lastProgressSave = useRef(0);
+
+    const flushWatchProgress = () => {
+        const progress = pendingProgress.current;
+        if (!progress) return;
+        pendingProgress.current = null;
+        saveWatchProgress(progress.key, progress.item);
+        lastProgressSave.current = Date.now();
+    };
+
+    useEffect(() => {
+        const flush = () => {
+            const progress = pendingProgress.current;
+            if (!progress) return;
+            pendingProgress.current = null;
+            saveWatchProgress(progress.key, progress.item);
+        };
+        const onVisibilityChange = () => { if (document.visibilityState === "hidden") flush(); };
+        window.addEventListener("pagehide", flush);
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        return () => {
+            window.removeEventListener("pagehide", flush);
+            document.removeEventListener("visibilitychange", onVisibilityChange);
+            flush();
+        };
+    }, [showPlayer, historyKey]);
 
     const { data: video, isLoading, isError } = useQuery({
         queryKey: ["video", id],
@@ -361,7 +391,11 @@ export default function MovieDetailsPage() {
         contentId: id,
         accessType: (video?.access_type ?? "free") as "free" | "subscription" | "pay_per_view" | "rental",
         contentTitle: video?.title ?? "this movie",
-        onPlay: () => { setTrailerVideoId(null); setShowPlayer(true); },
+        onPlay: () => {
+            setResumeAt(historyKey ? readWatchHistory(historyKey).find(item => item.id === id)?.position ?? 0 : 0);
+            setTrailerVideoId(null);
+            setShowPlayer(true);
+        },
     });
 
     // Auto-launch player when ?play=true (e.g. from Banner "Watch Now" link).
@@ -471,6 +505,27 @@ export default function MovieDetailsPage() {
                         autoPlay
                         immersiveControls
                         title={video.title}
+                        startAt={resumeAt}
+                        onTimeUpdate={(position, duration) => {
+                            if (!historyKey) return;
+                            pendingProgress.current = {
+                                key: historyKey,
+                                item: {
+                                    id: video.id,
+                                    title: video.title,
+                                    image: video.thumbnails.video_w_thumbnail || backdrop,
+                                    position,
+                                    duration,
+                                    updatedAt: Date.now(),
+                                },
+                            };
+                            if (Date.now() - lastProgressSave.current >= 10_000) flushWatchProgress();
+                        }}
+                        onPause={flushWatchProgress}
+                        onEnded={() => {
+                            pendingProgress.current = null;
+                            if (historyKey) removeWatchHistoryItem(historyKey, video.id);
+                        }}
                         onClose={() => setShowPlayer(false)}
                         className="h-full w-full"
                     />

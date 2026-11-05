@@ -8,6 +8,21 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { getUserCountry, setSelectedCountry, getCountryName } from "@/lib/services/geolocation";
 import { PricingHeaderWithCountry } from "@/components/CountrySelector";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+type BillingTab = "monthly" | "yearly" | "others" | "free";
+
+const BILLING_TABS: { value: BillingTab; label: string }[] = [
+    { value: "free", label: "Free" },
+    { value: "monthly", label: "Monthly" },
+    { value: "yearly", label: "Yearly" },
+    { value: "others", label: "Others" },
+];
+
+function billingTabForPlan(plan: SubscriptionPlan): BillingTab {
+    if (plan.price === 0) return "free";
+    return plan.billing_cycle === "monthly" ? "monthly" : plan.billing_cycle === "yearly" ? "yearly" : "others";
+}
 
 const BILLING_LABELS: Record<string, string> = {
     monthly: "/ mo",
@@ -197,6 +212,7 @@ function PricingSkeletons() {
 export default function PricingClient() {
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedBillingTab, setSelectedBillingTab] = useState<BillingTab>("monthly");
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(false);
     const [detectedCountry, setDetectedCountry] = useState<string | null>(null);
@@ -207,6 +223,11 @@ export default function PricingClient() {
     const searchParams = useSearchParams();
     const returnTo = searchParams.get("returnTo") ?? "/";
     const { user } = useAuth();
+    const availableBillingTabs = BILLING_TABS.filter(tab => plans.some(plan => billingTabForPlan(plan) === tab.value));
+    const activeBillingTab = availableBillingTabs.some(tab => tab.value === selectedBillingTab)
+        ? selectedBillingTab
+        : availableBillingTabs[0]?.value ?? "monthly";
+    const visiblePlans = plans.filter(plan => billingTabForPlan(plan) === activeBillingTab);
 
     // Determine the country to display
     // Priority: User profile → Selected country → Detected country
@@ -263,11 +284,11 @@ export default function PricingClient() {
     }, []);
 
     useEffect(() => {
-        if (loading) return;
-        updateScrollState();
-
+        if (loading || geoLoading) return;
         const rail = plansRailRef.current;
         if (!rail) return;
+        rail.scrollLeft = 0;
+        updateScrollState();
 
         const onScroll = () => updateScrollState();
         rail.addEventListener("scroll", onScroll, { passive: true });
@@ -279,7 +300,7 @@ export default function PricingClient() {
             rail.removeEventListener("scroll", onScroll);
             window.removeEventListener("resize", onResize);
         };
-    }, [loading, plans, updateScrollState]);
+    }, [loading, geoLoading, plans, activeBillingTab, updateScrollState]);
 
     const scrollPlans = (direction: "left" | "right") => {
         const rail = plansRailRef.current;
@@ -292,7 +313,7 @@ export default function PricingClient() {
         });
     };
 
-    const popularId = getPopularId(plans);
+    const popularId = getPopularId(visiblePlans);
 
     const handleChoose = (plan: SubscriptionPlan) => {
         if (plan.plan_type === "ppv") {
@@ -327,13 +348,18 @@ export default function PricingClient() {
                 ) : plans.length === 0 ? (
                     <p className="text-center text-muted-foreground py-20">No plans available.</p>
                 ) : (
-                    <div className="relative max-w-6xl mx-auto pt-6">
+                    <Tabs value={activeBillingTab} onValueChange={value => setSelectedBillingTab(value as BillingTab)} className="mx-auto max-w-6xl">
+                        <TabsList className="mx-auto grid w-full max-w-sm" style={{ gridTemplateColumns: `repeat(${availableBillingTabs.length}, minmax(0, 1fr))` }} aria-label="Plan billing cycle">
+                            {availableBillingTabs.map(tab => <TabsTrigger key={tab.value} value={tab.value}>{tab.label}</TabsTrigger>)}
+                        </TabsList>
+                        <TabsContent value={activeBillingTab}>
+                    <div className="relative pt-6">
                         <button
                             type="button"
                             onClick={() => scrollPlans("left")}
                             disabled={!canScrollLeft}
                             aria-label="Scroll plans left"
-                            className="hidden md:flex absolute -left-7 top-1/2 -translate-y-1/2 z-10 h-12 w-12 items-center justify-center rounded-full border-2 border-primary/45 bg-background/95 text-foreground shadow-lg backdrop-blur transition-all disabled:opacity-35 disabled:cursor-not-allowed hover:scale-105 hover:border-primary"
+                            className="hidden md:flex absolute -left-7 top-1/2 -translate-y-1/2 z-10 h-12 w-12 items-center justify-center rounded-full border-2 border-primary/45 bg-background/95 text-foreground shadow-lg backdrop-blur transition-all disabled:invisible disabled:cursor-not-allowed hover:scale-105 hover:border-primary"
                         >
                             <ChevronLeft size={24} className="text-primary" />
                         </button>
@@ -343,16 +369,17 @@ export default function PricingClient() {
                             onClick={() => scrollPlans("right")}
                             disabled={!canScrollRight}
                             aria-label="Scroll plans right"
-                            className="hidden md:flex absolute -right-7 top-1/2 -translate-y-1/2 z-10 h-12 w-12 items-center justify-center rounded-full border-2 border-primary/45 bg-background/95 text-foreground shadow-lg backdrop-blur transition-all disabled:opacity-35 disabled:cursor-not-allowed hover:scale-105 hover:border-primary"
+                            className="hidden md:flex absolute -right-7 top-1/2 -translate-y-1/2 z-10 h-12 w-12 items-center justify-center rounded-full border-2 border-primary/45 bg-background/95 text-foreground shadow-lg backdrop-blur transition-all disabled:invisible disabled:cursor-not-allowed hover:scale-105 hover:border-primary"
                         >
                             <ChevronRight size={24} className="text-primary" />
                         </button>
 
                         <div
                             ref={plansRailRef}
-                            className="grid grid-flow-col auto-cols-[minmax(260px,1fr)] gap-6 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory pt-6 items-stretch"
+                            className="grid grid-flow-col gap-6 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory pt-6 items-stretch"
+                            style={{ gridAutoColumns: "min(320px, 100%)", justifyContent: "safe center" }}
                         >
-                            {plans.map((plan) => (
+                            {visiblePlans.map((plan) => (
                                 <div key={plan.id} className="snap-start overflow-visible h-full">
                                     <PlanCard
                                         plan={plan}
@@ -364,6 +391,8 @@ export default function PricingClient() {
                             ))}
                         </div>
                     </div>
+                        </TabsContent>
+                    </Tabs>
                 )}
             </div>
 
