@@ -9,6 +9,7 @@ import ContentRowSkeleton from "@/components/ContentRowSkeleton";
 import ManagedBannerSlot from "@/components/ManagedBannerSlot";
 import LiveTvLogoRow from "@/components/LiveTvLogoRow";
 import TopTenRow from "@/components/TopTenRow";
+import ContinueWatchingRow from "@/components/ContinueWatchingRow";
 import NewReleasesRow from "@/components/NewReleasesRow";
 import FeaturedRow from "@/components/FeaturedRow";
 import type { Movie } from "@/types/content";
@@ -120,6 +121,7 @@ export default function ThemeRenderer() {
             <Banner />
             <LiveTvLogoRow />
             <TopTenRow />
+            <ContinueWatchingRow />
             <NewReleasesRow />
             <FeaturedRow />
             <ManagedBannerSlot page="/" position="top" />

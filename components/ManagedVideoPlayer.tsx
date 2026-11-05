@@ -43,6 +43,9 @@ interface ManagedVideoPlayerProps {
     className?: string;
     onClose?: () => void;
     onError?: (message: string) => void;
+    onTimeUpdate?: (position: number, duration: number) => void;
+    onPause?: () => void;
+    onEnded?: () => void;
 }
 
 function randomId(): string {
@@ -58,6 +61,7 @@ const BANNER_MAX_IMPRESSIONS_PER_SESSION = 3;
 export default function ManagedVideoPlayer(props: ManagedVideoPlayerProps) {
     const sessionId = useRef(randomId());
     const onErrorRef = useRef(props.onError);
+    const callbacksRef = useRef(props);
     const [decision, setDecision] = useState<PlaybackDecision | null>(null);
     const [authorizedSource, setAuthorizedSource] = useState<string | null>(null);
     // dismissed display-ad IDs — viewer clicked ×, suppressed for the rest of the session
@@ -74,6 +78,7 @@ export default function ManagedVideoPlayer(props: ManagedVideoPlayerProps) {
     useEffect(() => { dismissedRef.current = dismissed; }, [dismissed]);
 
     useEffect(() => { onErrorRef.current = props.onError; }, [props.onError]);
+    useEffect(() => { callbacksRef.current = props; });
 
     useEffect(() => {
         let cancelled = false;
@@ -242,7 +247,12 @@ export default function ManagedVideoPlayer(props: ManagedVideoPlayerProps) {
                     title={props.title}
                     onClose={props.onClose}
                     onError={props.onError}
-                    onTimeUpdate={handleTimeUpdate}
+                    onTimeUpdate={(position, duration) => {
+                        callbacksRef.current.onTimeUpdate?.(position, duration);
+                        handleTimeUpdate(position);
+                    }}
+                    onPause={() => callbacksRef.current.onPause?.()}
+                    onEnded={() => callbacksRef.current.onEnded?.()}
                     className="h-full w-full"
                     adConfig={decision.ad_config ? {
                         tagUrl: decision.ad_config.tag_url,
