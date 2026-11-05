@@ -2,13 +2,18 @@
 
 import S3ImageField from "@/components/content/ContentImageField";
 import { useEffect, useRef, useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useFieldArray, type SubmitErrorHandler } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Loader2, AlertTriangle, X, Clapperboard } from "lucide-react";
+import { ChevronDown, Loader2, AlertTriangle, X, Clapperboard, Plus, Trash2, Image, Play, Globe, Eye, ShieldCheck, Settings2, SlidersHorizontal } from "lucide-react";
 import { LabeledSwitch } from "@/components/ui/labeled-switch";
-import { createSeries, updateSeries, type SeriesOut, type SeriesCreate, listCategories, listClientPlans, type CategoryOut, type ClientPricingPlanOut, VIDEO_LANGUAGES } from "@/lib/api";
+import { saveSeriesEditor, listSeriesEpisodes, type SeriesOut, type SeriesCreate, listCategories, listClientPlans, VIDEO_LANGUAGES, AGE_RATINGS, CONTENT_CLASSIFICATIONS } from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/api/error-utils";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
+import { S3VideoField, COUNTRY_OPTIONS } from "../../videos/_components/VideoForm";
 
 import { AiWriteButton } from "@/components/AiWriteButton";
 import { CategoryPicker } from "@/components/CategoryPicker";
@@ -16,21 +21,60 @@ import { CategoryPicker } from "@/components/CategoryPicker";
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const schema = z.object({
-    title: z.string().min(1, "Title is required"),
+    title: z.string().trim().min(1, "Title is required").max(500),
     description: z.string().optional(),
     genre: z.string().optional(),
     categories: z.array(z.string()),
     language: z.array(z.string()).optional(),
+    content_classification: z.string(),
+    age_rating: z.string(),
+    rating: z.number().min(0, "Rating must be between 0 and 10").max(10, "Rating must be between 0 and 10").nullable(),
+    thumbnails: z.object({ video_banner: z.string(), video_h_thumbnail: z.string(), video_w_thumbnail: z.string() }),
+    trailer_type: z.enum(["upload", "url"]).nullable(),
+    geo_fencing: z.object({ blocked_countries: z.array(z.string()), allowed_countries: z.array(z.string()) }),
+    publish_option: z.enum(["now", "later"]),
+    publish_at: z.string(),
+    is_active: z.boolean(),
+    is_slider: z.boolean(),
+    is_series_slider: z.boolean(),
+    is_category_only: z.boolean(),
+    is_thumbnail: z.boolean(),
     thumbnail_url: z.string().optional(),
     trailer_url: z.string().optional(),
     access_type: z.enum(["free", "subscription", "ppv", "rental"]),
     subscription_plan_ids: z.array(z.string()),
     status: z.enum(["draft", "published", "archived"]),
     is_featured: z.boolean(),
-    total_seasons: z.coerce.number().int().min(1, "At least 1 season"),
+    total_seasons: z.coerce.number().int().min(1, "At least 1 season").max(1000),
+    episodes: z.array(z.object({
+        id: z.string().uuid().optional(),
+        title: z.string().trim().min(1, "Episode title is required").max(500),
+        description: z.string(),
+        season_number: z.coerce.number().int().min(1),
+        episode_number: z.coerce.number().int().min(1, "Episode number must be positive"),
+        duration_seconds: z.number().int().min(1).nullable(),
+        video_url: z.string(),
+        thumbnail_url: z.string(),
+        status: z.enum(["draft", "published", "archived"]),
+    })),
+    deleted_episode_ids: z.array(z.string().uuid()),
 }).superRefine((data, context) => {
     if (["ppv", "rental"].includes(data.access_type) && data.subscription_plan_ids.length !== 1) {
         context.addIssue({ code: z.ZodIssueCode.custom, path: ["subscription_plan_ids"], message: "Select one active plan for paid series." });
+    }
+    if (data.publish_option === "later" && (!data.publish_at || Number.isNaN(new Date(data.publish_at).getTime()))) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ["publish_at"], message: "Select a valid publication date and time." });
+    }
+    const numbers = new Set<string>();
+    data.episodes.forEach((episode, index) => {
+        const number = `${episode.season_number}:${episode.episode_number}`;
+        if (numbers.has(number)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["episodes", index, "episode_number"], message: "This episode number is already used in this season." });
+        numbers.add(number);
+        if (episode.season_number > data.total_seasons) context.addIssue({ code: z.ZodIssueCode.custom, path: ["total_seasons"], message: "Remove or move episodes before reducing the season count." });
+        if (episode.status === "published" && !episode.video_url) context.addIssue({ code: z.ZodIssueCode.custom, path: ["episodes", index, "video_url"], message: "Select a video before publishing this episode." });
+    });
+    if (data.trailer_type && data.trailer_url && !/^https?:\/\//i.test(data.trailer_url)) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ["trailer_url"], message: "Enter an HTTP or HTTPS trailer URL." });
     }
 });
 
@@ -43,7 +87,7 @@ function inputCls(hasError = false) {
 }
 
 function selectCls(hasError = false) {
-    return `w-full h-9 rounded-lg bg-secondary border ${hasError ? "border-red-500/60" : "border-border"} px-3 pr-8 text-sm text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
+    return `w-full h-9 rounded-lg bg-secondary border ${hasError ? "border-red-500/60" : "border-border"} px-3 pr-8 text-sm text-foreground appearance-auto focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
 }
 
 function textareaCls() {
@@ -114,7 +158,7 @@ function CheckboxDropdown({
                                 className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20"
                             >
                                 {opt?.label ?? val}
-                                <button type="button" onClick={() => toggle(val)} className="hover:text-primary/60">
+                                <button type="button" aria-label={`Remove ${opt?.label ?? val}`} onClick={() => toggle(val)} className="hover:text-primary/60">
                                     <X size={10} />
                                 </button>
                             </span>
@@ -126,6 +170,7 @@ function CheckboxDropdown({
             <div className="relative">
                 <button
                     type="button"
+                    aria-expanded={open}
                     onClick={() => setOpen((v) => !v)}
                     className={`${selectCls()} flex items-center justify-between pr-8 text-left text-muted-foreground`}
                 >
@@ -184,12 +229,33 @@ function CheckboxDropdown({
 // ─── Converter helper (used by edit page) ─────────────────────────────────────
 
 export function seriesToFormValues(series: SeriesOut): FormValues {
+    const publishDate = series.publish_at ? new Date(series.publish_at) : null;
+    const localPublishDate = publishDate && !Number.isNaN(publishDate.getTime())
+        ? new Date(publishDate.getTime() - publishDate.getTimezoneOffset() * 60_000).toISOString().slice(0, 16)
+        : "";
     return {
         title: series.title,
         description: series.description ?? "",
         genre: series.genre ?? "",
         categories: series.categories ?? [],
-        language: series.language ? [series.language] : [],
+        language: series.languages?.length ? series.languages : series.language ? [series.language] : [],
+        content_classification: series.content_classification ?? "",
+        age_rating: series.age_rating ?? "",
+        rating: series.rating ?? null,
+        thumbnails: {
+            video_banner: series.thumbnails?.video_banner ?? "",
+            video_h_thumbnail: series.thumbnails?.video_h_thumbnail ?? series.thumbnail_url ?? "",
+            video_w_thumbnail: series.thumbnails?.video_w_thumbnail ?? "",
+        },
+        trailer_type: series.trailer_type ?? (series.trailer_url ? "url" : null),
+        geo_fencing: series.geo_fencing ?? { blocked_countries: [], allowed_countries: [] },
+        publish_option: series.publish_option ?? "now",
+        publish_at: localPublishDate,
+        is_active: series.is_active ?? true,
+        is_slider: series.is_slider ?? false,
+        is_series_slider: series.is_series_slider ?? false,
+        is_category_only: series.is_category_only ?? false,
+        is_thumbnail: series.is_thumbnail ?? false,
         thumbnail_url: series.thumbnail_url ?? "",
         trailer_url: series.trailer_url ?? "",
         access_type: series.access_type,
@@ -197,6 +263,8 @@ export function seriesToFormValues(series: SeriesOut): FormValues {
         status: series.status,
         is_featured: series.is_featured,
         total_seasons: series.total_seasons,
+        episodes: [],
+        deleted_episode_ids: [],
     };
 }
 
@@ -214,6 +282,19 @@ const DEFAULT_VALUES: FormValues = {
     genre: "",
     categories: [],
     language: [],
+    content_classification: "",
+    age_rating: "",
+    rating: null,
+    thumbnails: { video_banner: "", video_h_thumbnail: "", video_w_thumbnail: "" },
+    trailer_type: null,
+    geo_fencing: { blocked_countries: [], allowed_countries: [] },
+    publish_option: "now",
+    publish_at: "",
+    is_active: true,
+    is_slider: false,
+    is_series_slider: false,
+    is_category_only: false,
+    is_thumbnail: false,
     thumbnail_url: "",
     trailer_url: "",
     access_type: "free",
@@ -221,6 +302,8 @@ const DEFAULT_VALUES: FormValues = {
     status: "draft",
     is_featured: false,
     total_seasons: 1,
+    episodes: [],
+    deleted_episode_ids: [],
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -229,8 +312,15 @@ const LANGUAGE_OPTIONS = VIDEO_LANGUAGES.map((l) => ({ value: l, label: l }));
 
 export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
     const router = useRouter();
-    const [availableCategories, setAvailableCategories] = useState<CategoryOut[]>([]);
-    const [pricingPlans, setPricingPlans] = useState<ClientPricingPlanOut[]>([]);
+    const [mediaTab, setMediaTab] = useState("banner");
+    const [accessTab, setAccessTab] = useState("access");
+    const [uploads, setUploads] = useState<Record<string, boolean>>({});
+    const [episodeToRemove, setEpisodeToRemove] = useState<number | null>(null);
+    const [activeSeason, setActiveSeason] = useState(1);
+    const episodesInitialized = useRef(false);
+    const { data: availableCategories = [] } = useQuery({ queryKey: ["series-editor-categories"], queryFn: async () => (await listCategories({ content_type: "series", page_size: 200 })).items });
+    const { data: pricingPlans = [] } = useQuery({ queryKey: ["series-editor-plans"], queryFn: () => listClientPlans({ is_active: true }) });
+    const { data: savedEpisodes, isLoading: episodesLoading, isError: episodesError, refetch: refetchEpisodes } = useQuery({ queryKey: ["series-episodes", seriesId], queryFn: () => listSeriesEpisodes(seriesId!), enabled: mode === "edit" && !!seriesId });
 
     const {
         register,
@@ -239,76 +329,111 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
         watch,
         setValue,
         setError,
+        getValues,
         formState: { errors, isSubmitting },
     } = useForm<FormValues>({
         resolver: zodResolver(schema),
         defaultValues: defaultValues ?? DEFAULT_VALUES,
     });
+    const { fields: episodeFields, append: appendEpisode, remove: removeEpisode, replace: replaceEpisodes } = useFieldArray({ control, name: "episodes", keyName: "formId" });
+
+    useEffect(() => {
+        if (!savedEpisodes || episodesInitialized.current) return;
+        replaceEpisodes(savedEpisodes.map(episode => ({
+            id: episode.id, title: episode.title, description: episode.description ?? "", season_number: episode.season_number,
+            episode_number: episode.episode_number, duration_seconds: episode.duration_seconds, video_url: episode.video_url ?? "",
+            thumbnail_url: episode.thumbnail_url ?? "", status: episode.status,
+        })));
+        setValue("total_seasons", Math.max(getValues("total_seasons"), ...savedEpisodes.map(episode => episode.season_number)));
+        episodesInitialized.current = true;
+    }, [savedEpisodes, replaceEpisodes, setValue, getValues]);
 
     const titleValue = watch("title");
-    const selectedCategories = watch("categories");
     const languages = watch("language") ?? [];
     const accessType = watch("access_type");
     const selectedPlanIds = watch("subscription_plan_ids");
 
-    useEffect(() => {
-        listCategories({ content_type: "series", page_size: 200 })
-            .then((res) => setAvailableCategories(res.items))
-            .catch(() => { /* silently ignore */ });
-        listClientPlans({ is_active: true })
-            .then(setPricingPlans)
-            .catch(() => { /* silently ignore */ });
-    }, []);
+    const episodes = watch("episodes");
+    const seasonCount = Math.min(1000, Math.max(1, Number(watch("total_seasons")) || 1));
+    const trailerType = watch("trailer_type");
+    const publishOption = watch("publish_option");
+    const hasUploads = Object.values(uploads).some(Boolean);
+    const busy = isSubmitting || hasUploads || (mode === "edit" && (episodesLoading || episodesError));
+    const uploadState = (name: string, uploading: boolean) => setUploads(previous => ({ ...previous, [name]: uploading }));
+    const onInvalid: SubmitErrorHandler<FormValues> = (invalid) => {
+        const episodeIndex = Object.keys(invalid.episodes ?? {}).find(index => /^\d+$/.test(index));
+        if (episodeIndex !== undefined) setActiveSeason(getValues("episodes")[Number(episodeIndex)].season_number);
+        if (invalid.publish_at) setAccessTab("visibility");
+        else if (invalid.subscription_plan_ids) setAccessTab("access");
+        if (invalid.trailer_url) setMediaTab("trailer");
+        setError("root", { message: "Review the highlighted fields before saving." });
+    };
 
     const paidPlans = pricingPlans.filter((plan) =>
         accessType === "ppv" ? plan.plan_type === "ppv" : plan.plan_type === "rent"
     );
 
-    const submitForm = async (data: FormValues, targetStatus: "draft" | "published") => {
+    const submitForm = async (data: FormValues, targetStatus: "draft" | "published" | "archived") => {
+        if (busy) return;
         const payload: SeriesCreate = {
             title: data.title,
             description: data.description || null,
             genre: data.genre || null,
             categories: data.categories,
             language: (data.language && data.language.length > 0) ? data.language[0] : null,
-            thumbnail_url: data.thumbnail_url || null,
-            trailer_url: data.trailer_url || null,
+            languages: data.language ?? [],
+            content_classification: data.content_classification || null,
+            age_rating: data.age_rating || null,
+            rating: data.rating,
+            thumbnails: data.thumbnails,
+            thumbnail_url: data.thumbnails.video_h_thumbnail || null,
+            trailer_type: data.trailer_type,
+            trailer_url: data.trailer_type ? data.trailer_url || null : null,
+            geo_fencing: { blocked_countries: data.geo_fencing.blocked_countries ?? [], allowed_countries: data.geo_fencing.allowed_countries ?? [] },
+            publish_option: data.publish_option,
+            publish_at: data.publish_option === "later" ? new Date(data.publish_at).toISOString() : null,
+            is_active: data.is_active,
+            is_slider: data.is_slider,
+            is_series_slider: data.is_series_slider,
+            is_category_only: data.is_category_only,
+            is_thumbnail: data.is_thumbnail,
             access_type: data.access_type,
             subscription_plan_ids: data.subscription_plan_ids,
             status: targetStatus,
             is_featured: data.is_featured,
             total_seasons: data.total_seasons,
+            episodes: data.episodes.map(episode => ({ ...episode, title: episode.title, season_number: episode.season_number, episode_number: episode.episode_number, description: episode.description || null, video_url: episode.video_url || null, thumbnail_url: episode.thumbnail_url || null })),
+            deleted_episode_ids: data.deleted_episode_ids,
         };
         try {
-            if (mode === "edit" && seriesId) {
-                await updateSeries(seriesId, payload);
-            } else {
-                await createSeries(payload);
-            }
+            await saveSeriesEditor(payload, mode === "edit" ? seriesId : undefined);
             router.push("/admin/content/series");
         } catch (err: unknown) {
-            setError("root", { message: err instanceof Error ? err.message : "Failed to save series" });
+            const response = (err as { response?: { status?: number; data?: { detail?: unknown } } })?.response;
+            setError("root", { message: response?.status === 404 && response.data?.detail === "Not Found"
+                ? "The series editor API is not deployed yet. Deploy the backend and run database migrations before saving."
+                : getApiErrorMessage(err, "Failed to save series") });
         }
     };
 
     const onSubmit = async (data: FormValues) => {
-        await submitForm(data, data.status === "published" ? "published" : "draft");
+        await submitForm(data, data.status);
     };
 
     const handleSaveDraft = async () => {
-        await handleSubmit((data) => submitForm(data, "draft"))();
+        await handleSubmit((data) => submitForm(data, "draft"), onInvalid)();
     };
 
     const handlePublish = async () => {
-        await handleSubmit((data) => submitForm(data, "published"))();
+        await handleSubmit((data) => submitForm(data, mode === "edit" ? data.status : "published"), onInvalid)();
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="w-full pb-28">
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6 items-start">
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="w-full pb-28">
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
 
                 {/* ══ LEFT ══ */}
-                <div className="space-y-6">
+                <div className="min-w-0 space-y-6">
 
                     {/* Basic Info */}
                     <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
@@ -337,11 +462,7 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="block text-xs font-semibold text-muted-foreground">Genre</label>
-                                <input {...register("genre")} placeholder="e.g. Drama, Documentary" className={inputCls()} />
-                            </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1">
                                 <label className="block text-xs font-semibold text-muted-foreground">Categories</label>
                                 <Controller
@@ -357,6 +478,20 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
                                 />
                             </div>
                             <div className="space-y-1">
+                                <label htmlFor="series-classification" className="block text-xs font-semibold text-muted-foreground">Content Classification</label>
+                                <select id="series-classification" {...register("content_classification")} className={selectCls()}>
+                                    <option value="">Select classification</option>
+                                    {CONTENT_CLASSIFICATIONS.map(value => <option key={value} value={value}>{value}</option>)}
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label htmlFor="series-age-rating" className="block text-xs font-semibold text-muted-foreground">Age Rating</label>
+                                <select id="series-age-rating" {...register("age_rating")} className={selectCls()}>
+                                    <option value="">Select age rating</option>
+                                    {AGE_RATINGS.map(value => <option key={value} value={value}>{value}</option>)}
+                                </select>
+                            </div>
+                            <div className="space-y-1">
                                 <label className="block text-xs font-semibold text-muted-foreground">Language</label>
                                 <CheckboxDropdown
                                     selected={languages}
@@ -366,116 +501,123 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
                                     columns={2}
                                 />
                             </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                                <label className="block text-xs font-semibold text-muted-foreground">Total Seasons *</label>
-                                <input
-                                    {...register("total_seasons")}
-                                    type="number"
-                                    min={1}
-                                    placeholder="1"
-                                    className={inputCls(!!errors.total_seasons)}
-                                />
-                                <FieldError msg={errors.total_seasons?.message} />
+                                <label htmlFor="series-rating" className="block text-xs font-semibold text-muted-foreground">Rating (0-10)</label>
+                                <Controller name="rating" control={control} render={({ field }) => <input id="series-rating" type="number" min={0} max={10} step={0.1} value={field.value ?? ""} onChange={event => field.onChange(event.target.value === "" ? null : Number(event.target.value))} placeholder="8.4" className={inputCls(!!errors.rating)} />} />
+                                <FieldError msg={errors.rating?.message} />
                             </div>
                             <div className="space-y-1">
-                                <label className="block text-xs font-semibold text-muted-foreground">Trailer URL</label>
-                                <input {...register("trailer_url")} placeholder="https://…" className={inputCls()} />
+                                <label htmlFor="series-genre" className="block text-xs font-semibold text-muted-foreground">Genre</label>
+                                <input id="series-genre" {...register("genre")} placeholder="e.g. Drama, Documentary" className={inputCls()} />
                             </div>
                         </div>
                     </section>
+
+                    <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <SectionHeading>Seasons & Episodes</SectionHeading>
+                            <button type="button" disabled={busy || seasonCount >= 1000} onClick={() => { setValue("total_seasons", seasonCount + 1, { shouldDirty: true }); setActiveSeason(seasonCount + 1); }} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary disabled:opacity-50"><Plus size={15} />Add Season</button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label htmlFor="series-seasons" className="block text-xs font-semibold text-muted-foreground">Total Seasons *</label>
+                                <input id="series-seasons" {...register("total_seasons")} disabled={hasUploads} type="number" min={1} max={1000} className={inputCls(!!errors.total_seasons)} />
+                                <FieldError msg={errors.total_seasons?.message} />
+                            </div>
+                            <div className="space-y-1">
+                                <label htmlFor="series-season" className="block text-xs font-semibold text-muted-foreground">Season</label>
+                                <select id="series-season" disabled={hasUploads} value={Math.min(activeSeason, seasonCount)} onChange={event => setActiveSeason(Number(event.target.value))} className={selectCls()}>
+                                    {Array.from({ length: seasonCount }, (_, index) => <option key={index + 1} value={index + 1}>Season {index + 1}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        {episodesLoading && mode === "edit" && <p role="status" className="text-sm text-muted-foreground">Loading episodes...</p>}
+                        {episodesError && <div role="alert" className="text-sm text-red-400">Episodes could not be loaded. <button type="button" onClick={() => void refetchEpisodes()} className="underline">Retry</button></div>}
+                        {episodeFields.map((episode, index) => episodes[index]?.season_number === Math.min(activeSeason, seasonCount) && <details key={episode.formId} open className="border-b border-border pb-4 last:border-b-0">
+                            <summary className="cursor-pointer py-2 text-sm font-semibold">Episode {episodes[index]?.episode_number}: {episodes[index]?.title || "Untitled episode"}{errors.episodes?.[index] && <span className="ml-2 text-xs font-normal text-red-400">Review episode</span>}</summary>
+                            <div className="space-y-4 pt-3">
+                                <div className="flex justify-end"><button type="button" disabled={busy} title="Remove episode" aria-label={`Remove episode ${episodes[index]?.episode_number}`} onClick={() => setEpisodeToRemove(index)} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"><Trash2 size={16} /></button></div>
+                                <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_120px] gap-3">
+                                    <div className="space-y-1"><label htmlFor={`episode-title-${episode.formId}`} className="block text-xs font-semibold text-muted-foreground">Episode Title *</label><input id={`episode-title-${episode.formId}`} {...register(`episodes.${index}.title`)} className={inputCls(!!errors.episodes?.[index]?.title)} /><FieldError msg={errors.episodes?.[index]?.title?.message} /></div>
+                                    <div className="space-y-1"><label htmlFor={`episode-number-${episode.formId}`} className="block text-xs font-semibold text-muted-foreground">Episode Number *</label><input id={`episode-number-${episode.formId}`} type="number" min={1} {...register(`episodes.${index}.episode_number`)} className={inputCls(!!errors.episodes?.[index]?.episode_number)} /><FieldError msg={errors.episodes?.[index]?.episode_number?.message} /></div>
+                                </div>
+                                <div className="space-y-1"><label htmlFor={`episode-description-${episode.formId}`} className="block text-xs font-semibold text-muted-foreground">Description</label><textarea id={`episode-description-${episode.formId}`} {...register(`episodes.${index}.description`)} rows={2} className={textareaCls()} /></div>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div className="space-y-1"><label htmlFor={`episode-season-${episode.formId}`} className="block text-xs font-semibold text-muted-foreground">Episode Season</label><select id={`episode-season-${episode.formId}`} disabled={hasUploads} {...register(`episodes.${index}.season_number`, { valueAsNumber: true, onChange: event => setActiveSeason(Number(event.target.value)) })} className={selectCls()}>{Array.from({ length: seasonCount }, (_, season) => <option key={season + 1} value={season + 1}>Season {season + 1}</option>)}</select></div>
+                                    <div className="space-y-1"><label htmlFor={`episode-duration-${episode.formId}`} className="block text-xs font-semibold text-muted-foreground">Duration (seconds)</label><Controller name={`episodes.${index}.duration_seconds`} control={control} render={({ field }) => <input id={`episode-duration-${episode.formId}`} type="number" min={1} step={1} value={field.value ?? ""} onChange={event => field.onChange(event.target.value === "" ? null : Number(event.target.value))} className={inputCls(!!errors.episodes?.[index]?.duration_seconds)} />} /><FieldError msg={errors.episodes?.[index]?.duration_seconds?.message} /></div>
+                                    <div className="space-y-1"><label htmlFor={`episode-status-${episode.formId}`} className="block text-xs font-semibold text-muted-foreground">Episode Status</label><select id={`episode-status-${episode.formId}`} {...register(`episodes.${index}.status`)} className={selectCls()}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></div>
+                                </div>
+                                <Controller name={`episodes.${index}.video_url`} control={control} render={({ field }) => <S3VideoField label="Episode Video" hint="Upload a video or select an existing file from Media Library" accept="video/*" value={field.value} previewSourceOnly onChange={field.onChange} onUploadStateChange={uploading => uploadState(episode.formId, uploading)} onDurationDetected={seconds => setValue(`episodes.${index}.duration_seconds`, Math.max(1, Math.round(seconds)), { shouldDirty: true })} />} />
+                                <FieldError msg={errors.episodes?.[index]?.video_url?.message} />
+                                <Controller name={`episodes.${index}.thumbnail_url`} control={control} render={({ field }) => <S3ImageField label="Episode Thumbnail (optional)" hint="16:9 episode artwork" aspect="16:9" value={field.value} onChange={field.onChange} />} />
+                            </div>
+                        </details>)}
+                        {!episodes.some(episode => episode.season_number === Math.min(activeSeason, seasonCount)) && !episodesLoading && <p className="text-sm text-muted-foreground">No episodes in this season.</p>}
+                        <button type="button" disabled={busy} onClick={() => {
+                            const season = Math.min(activeSeason, seasonCount);
+                            const lastNumber = Math.max(0, ...episodes.filter(episode => episode.season_number === season).map(episode => Number(episode.episode_number) || 0));
+                            appendEpisode({ title: "", description: "", season_number: season, episode_number: lastNumber + 1, duration_seconds: null, video_url: "", thumbnail_url: "", status: "draft" });
+                        }} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary disabled:opacity-50"><Plus size={15} />Add Episode</button>
+                    </section>
+
+                    <Tabs value={accessTab} onValueChange={setAccessTab} className="w-full">
+                        <TabsList className="mb-4 grid w-full grid-cols-3">
+                            <TabsTrigger value="access" className="gap-1.5 px-2 text-xs sm:text-sm"><ShieldCheck size={14} className="hidden sm:block" />User Access</TabsTrigger>
+                            <TabsTrigger value="geo" className="gap-1.5 px-2 text-xs sm:text-sm"><Globe size={14} className="hidden sm:block" />Geo Fencing</TabsTrigger>
+                            <TabsTrigger value="visibility" className="gap-1.5 px-2 text-xs sm:text-sm"><Eye size={14} className="hidden sm:block" />Visibility</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="access">
+                            <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
+                                <SectionHeading>User Access</SectionHeading>
+                                <label htmlFor="series-access" className="block text-xs font-semibold text-muted-foreground">Access Type</label>
+                                <select id="series-access" {...register("access_type", { onChange: () => setValue("subscription_plan_ids", [], { shouldDirty: true, shouldValidate: true }) })} className={selectCls()}><option value="free">Free</option><option value="subscription">Subscription</option><option value="ppv">Paid - one-time purchase</option><option value="rental">Paid - time-limited rental</option></select>
+                                {accessType === "subscription" && <p className="text-xs text-muted-foreground">Active subscription plans that include this series or its categories grant access to every episode.</p>}
+                                {(accessType === "ppv" || accessType === "rental") && <div className="space-y-2">
+                                    <label className="block text-xs font-semibold text-muted-foreground">{accessType === "ppv" ? "One-time purchase plan" : "Rental plan"}</label>
+                                    {paidPlans.length ? paidPlans.map(plan => <label key={plan.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border p-2.5"><input type="radio" name="series_purchase_plan" checked={selectedPlanIds.includes(plan.id)} onChange={() => setValue("subscription_plan_ids", [plan.id], { shouldDirty: true, shouldValidate: true })} className="h-3.5 w-3.5 accent-primary" /><span className="min-w-0 text-xs"><span className="block truncate font-medium">{plan.name}</span><span className="text-muted-foreground">{plan.currency} {plan.price}</span></span></label>) : <p className="text-xs text-muted-foreground">No active matching pricing plans are available.</p>}
+                                    <FieldError msg={errors.subscription_plan_ids?.message} />
+                                </div>}
+                            </section>
+                        </TabsContent>
+                        <TabsContent value="geo"><section className="rounded-2xl border border-border bg-card p-6 space-y-4"><SectionHeading>Geo Fencing</SectionHeading><label className="block text-xs font-semibold text-muted-foreground">Blocked Countries</label><CheckboxDropdown selected={watch("geo_fencing.blocked_countries")} onChange={values => setValue("geo_fencing.blocked_countries", values, { shouldDirty: true })} placeholder="+ Select countries" options={COUNTRY_OPTIONS} /><p className="text-xs text-muted-foreground">Leave empty for worldwide access.</p></section></TabsContent>
+                        <TabsContent value="visibility"><section className="rounded-2xl border border-border bg-card p-6 space-y-4"><SectionHeading>Visibility</SectionHeading>
+                            <Controller name="publish_option" control={control} render={({ field }) => <div className="flex flex-wrap gap-4">{(["now", "later"] as const).map(value => <label key={value} className="flex items-center gap-2 text-sm"><input type="radio" name={field.name} value={value} checked={field.value === value} onChange={() => field.onChange(value)} className="accent-primary" />{value === "now" ? "Publish Now" : "Schedule"}</label>)}</div>} />
+                            {publishOption === "later" && <div className="space-y-1"><label htmlFor="series-publish-at" className="block text-xs font-semibold text-muted-foreground">Publish At</label><input id="series-publish-at" type="datetime-local" {...register("publish_at")} className={inputCls(!!errors.publish_at)} /><FieldError msg={errors.publish_at?.message} /></div>}
+                        </section></TabsContent>
+                    </Tabs>
 
                 </div>
 
                 {/* ══ RIGHT ══ */}
-                <div className="space-y-6 xl:sticky xl:top-8">
+                <div className="min-w-0 space-y-6 xl:sticky xl:top-8">
 
-                    {/* Status & Access */}
-                    <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
-                        <SectionHeading>Status & Access</SectionHeading>
-
-                        <div className="space-y-1">
-                            <label className="block text-xs font-semibold text-muted-foreground">Status</label>
-                            <div className="relative">
-                                <select {...register("status")} className={selectCls()}>
-                                    <option value="draft">Draft</option>
-                                    <option value="published">Published</option>
-                                    <option value="archived">Archived</option>
-                                </select>
-                                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                            </div>
-                        </div>
-
-                        <div className="space-y-1">
-                            <label className="block text-xs font-semibold text-muted-foreground">Access Type</label>
-                            <div className="relative">
-                                <select {...register("access_type", { onChange: () => setValue("subscription_plan_ids", [], { shouldDirty: true, shouldValidate: true }) })} className={selectCls()}>
-                                    <option value="free">Free</option>
-                                    <option value="subscription">Subscription</option>
-                                    <option value="ppv">Paid - one-time purchase</option>
-                                    <option value="rental">Paid - time-limited rental</option>
-                                </select>
-                                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                            </div>
-                        </div>
-
-                        {accessType === "subscription" && (
-                            <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs text-muted-foreground">
-                                Active subscription plans that include this series or its categories grant access to every episode.
-                            </div>
-                        )}
-
-                        {(accessType === "ppv" || accessType === "rental") && (
-                            <div className="space-y-2">
-                                <label className="block text-xs font-semibold text-muted-foreground">{accessType === "ppv" ? "One-time purchase plan" : "Rental plan"}</label>
-                                {paidPlans.length ? paidPlans.map((plan) => (
-                                    <label key={plan.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border p-2.5 transition-colors hover:border-primary/40">
-                                        <input type="radio" name="series_purchase_plan" checked={selectedPlanIds.includes(plan.id)} onChange={() => setValue("subscription_plan_ids", [plan.id], { shouldDirty: true, shouldValidate: true })} className="h-3.5 w-3.5 accent-primary" />
-                                        <span className="min-w-0">
-                                            <span className="block truncate text-xs font-medium text-foreground">{plan.name}</span>
-                                            <span className="text-[11px] text-muted-foreground">{plan.currency} {plan.price}{accessType === "rental" ? ` · ${plan.billing_cycle}` : ""}</span>
-                                        </span>
-                                    </label>
-                                )) : <p className="text-xs text-muted-foreground">Create and activate a matching {accessType === "ppv" ? "PPV" : "Rent"} pricing plan before publishing this series.</p>}
-                                <FieldError msg={errors.subscription_plan_ids?.message} />
-                            </div>
-                        )}
-
-                        <Controller
-                            name="is_featured"
-                            control={control}
-                            render={({ field }) => (
-                                <LabeledSwitch
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                    label="Featured"
-                                    description="Show this series in featured sections"
-                                />
-                            )}
-                        />
-                    </section>
-
-                    {/* Thumbnail */}
-                    <section className="rounded-2xl border border-border bg-card p-6 space-y-6">
-                        <div className="flex items-center gap-2">
-                            <Clapperboard size={14} className="text-muted-foreground" />
-                            <SectionHeading>Thumbnail</SectionHeading>
-                        </div>
-
-                        <Controller name="thumbnail_url" control={control} render={({ field }) => (
-                            <S3ImageField
-                                label="Thumbnail"
-                                hint="Used in series listings and cards"
-                                aspect="2:3"
-                                value={field.value ?? ""}
-                                onChange={field.onChange}
-                            />
-                        )} />
-                    </section>
+                    <Tabs value={mediaTab} onValueChange={setMediaTab} className="w-full">
+                        <TabsList className="mb-4 grid w-full grid-cols-3">
+                            <TabsTrigger disabled={hasUploads} value="banner" className="gap-1.5 px-2 text-xs"><Image size={14} />Banner</TabsTrigger>
+                            <TabsTrigger disabled={hasUploads} value="thumbnail" className="gap-1.5 px-2 text-xs"><Image size={14} />Thumbnail</TabsTrigger>
+                            <TabsTrigger disabled={hasUploads} value="trailer" className="gap-1.5 px-2 text-xs"><Play size={14} />Trailer</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="banner"><section className="rounded-2xl border border-border bg-card p-6 space-y-4"><SectionHeading>Banner</SectionHeading><Controller name="thumbnails.video_banner" control={control} render={({ field }) => <S3ImageField label="Series Banner (1920 x 1080 px)" hint="16:9 artwork for hero and detail pages" aspect="16:9" value={field.value} onChange={field.onChange} />} /></section></TabsContent>
+                        <TabsContent value="thumbnail"><section className="rounded-2xl border border-border bg-card p-6 space-y-6"><SectionHeading>Thumbnails</SectionHeading><Controller name="thumbnails.video_h_thumbnail" control={control} render={({ field }) => <S3ImageField label="Portrait Thumbnail (600 x 900 px)" hint="2:3 series poster" aspect="2:3" value={field.value} onChange={field.onChange} />} /><Controller name="thumbnails.video_w_thumbnail" control={control} render={({ field }) => <S3ImageField label="Wide Thumbnail (1200 x 800 px)" hint="3:2 wide card" aspect="3:2" value={field.value} onChange={field.onChange} />} /></section></TabsContent>
+                        <TabsContent value="trailer"><section className="rounded-2xl border border-border bg-card p-6 space-y-4"><SectionHeading>Trailer</SectionHeading><Controller name="trailer_type" control={control} render={({ field }) => <select aria-label="Trailer source" disabled={hasUploads} value={field.value ?? "none"} onChange={event => field.onChange(event.target.value === "none" ? null : event.target.value)} className={selectCls()}><option value="none">None</option><option value="upload">Upload / Media Library</option><option value="url">URL</option></select>} />{trailerType === "url" && <input aria-label="Trailer URL" {...register("trailer_url")} placeholder="https://youtube.com/watch?v=..." className={inputCls(!!errors.trailer_url)} />}{trailerType === "upload" && <Controller name="trailer_url" control={control} render={({ field }) => <S3VideoField label="Trailer File" hint="Upload a trailer or select one from Media Library" accept="video/*" value={field.value ?? ""} previewSourceOnly onChange={field.onChange} onUploadStateChange={uploading => uploadState("trailer", uploading)} />} />}<FieldError msg={errors.trailer_url?.message} /></section></TabsContent>
+                    </Tabs>
+                    <Tabs defaultValue="series-settings" className="w-full">
+                        <TabsList className="mb-4 grid w-full grid-cols-2"><TabsTrigger value="series-settings" className="gap-1.5 px-2 text-xs"><Settings2 size={14} />Series Settings</TabsTrigger><TabsTrigger value="slider-settings" className="gap-1.5 px-2 text-xs"><SlidersHorizontal size={14} />Slider Settings</TabsTrigger></TabsList>
+                        <TabsContent value="series-settings"><section className="rounded-2xl border border-border bg-card p-6 space-y-4"><label htmlFor="series-status" className="block text-xs font-semibold text-muted-foreground">Status</label><select id="series-status" {...register("status")} className={selectCls()}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select>{([['is_active', 'Active'], ['is_featured', 'Featured'], ['is_category_only', 'Category Only View'], ['is_thumbnail', 'Thumbnail View']] as const).map(([name, label]) => <Controller key={name} name={name} control={control} render={({ field }) => <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label={label} />} />)}</section></TabsContent>
+                        <TabsContent value="slider-settings"><section className="rounded-2xl border border-border bg-card p-6 space-y-4"><Controller name="is_slider" control={control} render={({ field }) => <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Homepage Slider" />} /><Controller name="is_series_slider" control={control} render={({ field }) => <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Series Slider" />} /></section></TabsContent>
+                    </Tabs>
                 </div>
             </div>
+
+            <AlertDialog open={episodeToRemove !== null} onOpenChange={open => { if (!open) setEpisodeToRemove(null); }}>
+                <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Remove episode?</AlertDialogTitle><AlertDialogDescription>The episode will be removed when you save the series. Its media file will remain in Media Library.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => {
+                    if (episodeToRemove === null) return;
+                    const episode = getValues(`episodes.${episodeToRemove}`);
+                    if (episode.id) setValue("deleted_episode_ids", [...getValues("deleted_episode_ids"), episode.id], { shouldDirty: true });
+                    removeEpisode(episodeToRemove);
+                    setEpisodeToRemove(null);
+                }}>Remove Episode</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+            </AlertDialog>
 
             {errors.root && (
                 <div className="flex items-center gap-2 rounded-lg px-4 py-3 mt-4 text-sm text-red-300 border border-red-500/20 bg-red-500/8">
@@ -486,7 +628,7 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
             <div className="fixed flex justify-end w-full z-30 items-center bottom-0 left-0 gap-2 px-6 p-2.5 border-t border-border/50 bg-background">
                 <button
                     type="button"
-                    disabled={isSubmitting}
+                    disabled={busy}
                     onClick={() => { void handleSaveDraft(); }}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-border bg-card text-foreground text-sm font-semibold hover:bg-secondary transition-colors disabled:opacity-50"
                 >
@@ -495,7 +637,7 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
                 </button>
                 <button
                     type="button"
-                    disabled={isSubmitting}
+                    disabled={busy}
                     onClick={() => { void handlePublish(); }}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-50"
                 >
@@ -504,6 +646,7 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
                 </button>
                 <button
                     type="button"
+                    disabled={isSubmitting || hasUploads}
                     onClick={() => router.push("/admin/content/series")}
                     className="px-4 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors"
                 >

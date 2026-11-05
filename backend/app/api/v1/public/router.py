@@ -18,7 +18,7 @@ from urllib.parse import quote_plus
 from typing import Literal
 from xml.sax.saxutils import escape as xml_escape
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import SQLAlchemyError
@@ -820,6 +820,28 @@ async def list_public_categories(
     return category_outs
 
 
+def _series_country(request: Request) -> str | None:
+    for header in ("cf-ipcountry", "x-vercel-ip-country", "x-country-code"):
+        value = request.headers.get(header, "").strip().upper()
+        if len(value) == 2 and value.isalpha() and value != "XX":
+            return value
+    return None
+
+
+def _series_visibility_filters(country: str | None) -> list:
+    blocked = Series.geo_fencing["blocked_countries"]
+    allowed = Series.geo_fencing["allowed_countries"]
+    no_blocked = or_(blocked.is_(None), blocked == [])
+    no_allowed = or_(allowed.is_(None), allowed == [])
+    return [
+        Series.deleted_at.is_(None),
+        Series.is_active.is_(True),
+        or_(Series.publish_option == "now", Series.publish_at <= datetime.now(timezone.utc)),
+        or_(no_blocked, ~blocked.contains([country])) if country else no_blocked,
+        or_(no_allowed, allowed.contains([country])) if country else no_allowed,
+    ]
+
+
 @router.get(
     "/categories/{category_slug}",
     response_model=CategoryDetailOut,
@@ -827,6 +849,7 @@ async def list_public_categories(
 )
 async def get_public_category_detail(
     category_slug: str,
+    request: Request,
     slug: str = Query(..., description="Client platform slug, e.g. 'kalingo-tv'"),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -903,6 +926,7 @@ async def get_public_category_detail(
             Series.client_id == client.id,
             Category.id == category.id,
             Series.status == "published",
+            *_series_visibility_filters(_series_country(request)),
         )
         .order_by(Series.created_at.desc())
     )
@@ -2026,6 +2050,7 @@ async def _fetch_category_items(
     items_per_row: int,
     db: AsyncSession,
     content_classification: str | None = None,
+    country: str | None = None,
 ) -> list:
     """Return content items for *cat* filtered strictly through the M2M join."""
     from app.schemas.client.content import _refresh_s3_url
@@ -2093,6 +2118,7 @@ async def _fetch_category_items(
                 Series.client_id == client_id,
                 Category.id == cat.id,
                 Series.status == "published",
+                *_series_visibility_filters(country),
             )
             .order_by(Series.created_at.desc())
             .limit(items_per_row)
@@ -2136,6 +2162,7 @@ async def _fetch_category_items(
     summary="Paginated category rows with content — used by storefront home page",
 )
 async def get_home_contents(
+    request: Request,
     slug: str = Query(..., description="Client platform slug, e.g. 'kalingo-tv'"),
     page: int = Query(1, ge=1, description="Which page of category rows to return"),
     page_size: int = Query(
@@ -2190,7 +2217,7 @@ async def get_home_contents(
             # Stop early once we have one extra beyond what this page needs
             if len(non_empty) > offset + page_size:
                 break
-            items = await _fetch_category_items(ctype, cat, client.id, items_per_row, db, content_classification)
+            items = await _fetch_category_items(ctype, cat, client.id, items_per_row, db, content_classification, _series_country(request))
             if not items:
                 continue
             non_empty.append(

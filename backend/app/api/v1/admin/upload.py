@@ -17,7 +17,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_client_admin
 from app.core.storage import get_s3_client as _get_s3_client, media_display_url
-from app.models.client.content import Category, MediaAsset, MediaAssetRendition, Video
+from app.models.client.content import Category, Episode, MediaAsset, MediaAssetRendition, Series, Video
 from app.models.client.banner import ClientBannerImage
 from app.schemas.client.content import MediaAssetCreate, MediaAssetOut
 
@@ -773,6 +773,7 @@ async def list_media_assets(
                     key = urlparse(url).path.lstrip("/")
                     if key:
                         video_thumb_keys.add(key)
+        video_thumb_keys.update(await _series_asset_keys(db, admin._client_id))
 
         asset_keys = {asset.s3_key for asset in assets}
         rendition_rows = await db.execute(
@@ -810,6 +811,23 @@ async def list_media_assets(
             item.transcode_progress = rendition[1]
         out.append(item)
     return MediaLibraryListResponse(items=out, counts=counts)
+
+
+async def _series_asset_keys(db: AsyncSession, client_id: uuid.UUID) -> set[str]:
+    series_rows = await db.execute(select(
+        Series.thumbnail_url, Series.trailer_url,
+        func.jsonb_extract_path_text(Series.thumbnails, "video_banner"),
+        func.jsonb_extract_path_text(Series.thumbnails, "video_h_thumbnail"),
+        func.jsonb_extract_path_text(Series.thumbnails, "video_w_thumbnail"),
+    ).where(Series.client_id == client_id, Series.deleted_at.is_(None)))
+    episode_rows = await db.execute(select(Episode.video_url, Episode.thumbnail_url).join(
+        Series, Episode.series_id == Series.id,
+    ).where(Episode.client_id == client_id, Series.client_id == client_id, Series.deleted_at.is_(None)))
+    return {
+        urlparse(url).path.lstrip("/")
+        for row in [*series_rows.all(), *episode_rows.all()]
+        for url in row if url
+    }
 
 
 @router.get("/signed-url/{asset_id}", response_model=MediaAssetOut)
@@ -867,6 +885,9 @@ async def delete_media_asset(
     banner_usage = await db.execute(select(func.count()).select_from(ClientBannerImage).where(ClientBannerImage.client_id == admin._client_id, ClientBannerImage.media_asset_id == asset_id))
     if banner_usage.scalar_one() > 0:
         raise HTTPException(status_code=409, detail="Asset is in use by a banner. Remove it from that banner first.")
+
+    if asset.s3_key in await _series_asset_keys(db, admin._client_id):
+        raise HTTPException(status_code=409, detail="Asset is in use by a series or episode. Remove its reference before deleting the file.")
 
     # Remove from S3; log but don't block if already gone
     if settings.AWS_S3_BUCKET and settings.AWS_ACCESS_KEY_ID:

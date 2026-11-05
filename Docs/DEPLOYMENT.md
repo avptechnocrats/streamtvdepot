@@ -602,6 +602,17 @@ kubectl rollout status deployment/backend -n streamtvdepot
 
 ## Database Migrations in Production
 
+### Series Editor Update
+
+Deploy migration `m8n9o0p1q2r3` before restarting the updated backend, then deploy the admin frontend. Run `alembic upgrade head` in the server's backend environment; do not run it against a local database for this deployment.
+
+- The migration adds series metadata, multilingual values, artwork, geo fencing, publication scheduling, and slider/settings flags. Existing single-language values are backfilled into `languages` and the legacy `language` field remains compatible.
+- Check existing `content_episodes` for non-positive numbering and duplicate `(series_id, season_number, episode_number)` values before migration. Resolve conflicts explicitly; the migration does not silently renumber or delete content.
+- The enhanced form saves through `POST /api/v1/admin/content/series/editor` and `PATCH /api/v1/admin/content/series/editor/{series_id}`. These save series metadata and nested episode changes in one database transaction. An older backend returns 404 rather than silently discarding the new fields.
+- Nested `episodes` retain their IDs for updates; `deleted_episode_ids` explicitly identifies removals. Removing an episode does not remove its file from Media Library.
+- Public series listings enforce active/published state, publication dates, and geo rules. Configure the trusted edge/reverse proxy and storefront API proxy to overwrite and forward a country header (`CF-IPCountry`, `X-Vercel-IP-Country`, or `X-Country-Code`); never pass client-supplied country headers through unchanged. Restricted series are hidden when the viewer's country is unknown.
+- Verify create/edit, multiple languages, season numbering, Media Library selection, scheduled visibility, and geo filtering after deployment. Database-backed integration checks require the migrated server environment.
+
 ### Pre-Deployment Migrations
 ```bash
 # Run migrations before deployment

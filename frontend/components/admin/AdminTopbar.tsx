@@ -11,8 +11,6 @@ import { getAdminDisplayName, getAdminFirstName } from "@/lib/admin-auth";
 import { getCurrentRolePermissions, TOKEN_KEYS } from "@/lib/api";
 import { getClientSlugFromAccessToken } from "@/lib/admin-auth";
 
-const ADMIN_COLOR_MODE_KEY = "sv_admin_color_mode";
-
 type SearchRole = "superadmin" | "clientAdmin";
 
 interface SearchItem {
@@ -104,7 +102,6 @@ export default function AdminTopbar({ onMenuClick }: { onMenuClick?: () => void 
     const toggleDarkLight = () => {
         const nextMode = isLight ? "dark" : "light";
         setTheme(nextMode === "light" ? "gold-light" : "dark-gold");
-        localStorage.setItem(ADMIN_COLOR_MODE_KEY, nextMode);
     };
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -113,20 +110,6 @@ export default function AdminTopbar({ onMenuClick }: { onMenuClick?: () => void 
     const [searchQuery, setSearchQuery] = useState("");
     const [searchOpen, setSearchOpen] = useState(false);
     const [activeResultIndex, setActiveResultIndex] = useState(0);
-
-    useEffect(() => {
-        const savedMode = localStorage.getItem(ADMIN_COLOR_MODE_KEY);
-        if (savedMode === "light") {
-            setTheme("gold-light");
-            return;
-        }
-        if (savedMode === "dark") {
-            setTheme("dark-gold");
-        }
-        // Restore persisted choice once on mount; rerunning this effect can
-        // cause repeated theme state writes and render loops.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     useEffect(() => {
         function handleClickOutside(e: MouseEvent) {

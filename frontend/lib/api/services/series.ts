@@ -20,7 +20,24 @@ import { ENDPOINTS } from "../endpoints";
 export type SeriesStatus = "draft" | "published" | "archived";
 export type SeriesAccessType = "free" | "subscription" | "ppv" | "rental";
 
-export interface SeriesOut {
+export interface SeriesEditorSettings {
+    languages?: string[];
+    content_classification?: string | null;
+    age_rating?: string | null;
+    rating?: number | null;
+    thumbnails?: { video_banner?: string | null; video_h_thumbnail?: string | null; video_w_thumbnail?: string | null };
+    trailer_type?: "upload" | "url" | null;
+    geo_fencing?: { blocked_countries: string[]; allowed_countries: string[] };
+    publish_option?: "now" | "later";
+    publish_at?: string | null;
+    is_active?: boolean;
+    is_slider?: boolean;
+    is_series_slider?: boolean;
+    is_category_only?: boolean;
+    is_thumbnail?: boolean;
+}
+
+export interface SeriesOut extends SeriesEditorSettings {
     id: string;
     client_id: string;
     title: string;
@@ -38,7 +55,7 @@ export interface SeriesOut {
     created_at: string;
 }
 
-export interface SeriesCreate {
+export interface SeriesCreate extends SeriesEditorSettings {
     title: string;
     description?: string | null;
     genre?: string | null;
@@ -51,6 +68,8 @@ export interface SeriesCreate {
     status?: SeriesStatus;
     is_featured?: boolean;
     total_seasons?: number;
+    episodes?: (Omit<EpisodeCreate, "series_id"> & { id?: string })[];
+    deleted_episode_ids?: string[];
 }
 
 export interface SeriesUpdate extends Partial<SeriesCreate> { }
@@ -118,6 +137,14 @@ export async function getSeries(id: string): Promise<SeriesOut> {
 
 export async function createSeries(payload: SeriesCreate): Promise<SeriesOut> {
     const { data } = await apiClient.post<SeriesOut>(ENDPOINTS.admin.series, payload);
+    return data;
+}
+
+export async function saveSeriesEditor(payload: SeriesCreate, id?: string): Promise<SeriesOut> {
+    const url = `${ENDPOINTS.admin.series}/editor`;
+    const { data } = id
+        ? await apiClient.patch<SeriesOut>(`${url}/${id}`, payload)
+        : await apiClient.post<SeriesOut>(url, payload);
     return data;
 }
 

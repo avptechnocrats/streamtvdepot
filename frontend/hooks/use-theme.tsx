@@ -12,7 +12,7 @@ import { usePathname } from "next/navigation";
 import { THEMES, DEFAULT_THEME_ID, getThemeById } from "@/themes/registry";
 import type { ThemeDefinition } from "@/themes/types";
 
-/** Theme now sourced from API (/api/v1/admin/theme-settings). No localStorage keys used. */
+/** Storefront themes come from the API; the admin color preference is saved separately. */
 
 // ─── Context shape ────────────────────────────────────────────────────────────
 
@@ -48,12 +48,8 @@ const ThemeContext = createContext<ThemeContextType>({
 
 // ─── DOM helper ───────────────────────────────────────────────────────────────
 
-/** Writes storefront theme styling onto public pages only. */
-function applyThemeToDom(theme: ThemeDefinition, isAdminRoute: boolean) {
-    if (isAdminRoute) {
-        document.documentElement.removeAttribute("data-theme");
-        return;
-    }
+/** Applies the selected palette to the current page. */
+function applyThemeToDom(theme: ThemeDefinition) {
     document.documentElement.setAttribute("data-theme", theme.dataTheme);
 }
 
@@ -73,24 +69,34 @@ export function ThemeProvider({ children, onThemeChange }: ThemeProviderProps) {
     const pathname = usePathname();
     const [activeThemeId, setActiveThemeId] = useState(DEFAULT_THEME_ID);
     const [siteThemeId, setSiteThemeId] = useState(DEFAULT_THEME_ID);
+    const [adminThemeId, setAdminThemeId] = useState("gold-light");
     const isAdminRoute = pathname.startsWith("/admin");
 
-    /**
-     * Init: apply the default theme to the DOM immediately.
-     * The real value is hydrated by useThemeSettings() once the API responds.
-     */
     useEffect(() => {
-        applyThemeToDom(getThemeById(activeThemeId), isAdminRoute);
-    }, [activeThemeId, isAdminRoute]);
+        const mode = window.localStorage.getItem("sv_admin_color_mode");
+        setAdminThemeId(mode === "dark" ? "dark-gold" : "gold-light");
+    }, []);
+
+    /** Keep the admin palette independent of the API-loaded storefront theme. */
+    useEffect(() => {
+        applyThemeToDom(getThemeById(isAdminRoute ? adminThemeId : activeThemeId));
+    }, [activeThemeId, adminThemeId, isAdminRoute]);
 
     /** User action — personal override (Customizer Panel) */
     const setTheme = useCallback(
         (id: string) => {
             const theme = THEMES.find((t) => t.id === id);
             if (!theme) return;
+            if (isAdminRoute) {
+                const nextAdminTheme = id === "gold-light" ? "gold-light" : "dark-gold";
+                setAdminThemeId(nextAdminTheme);
+                applyThemeToDom(getThemeById(nextAdminTheme));
+                window.localStorage.setItem("sv_admin_color_mode", nextAdminTheme === "gold-light" ? "light" : "dark");
+                return;
+            }
             setActiveThemeId(id);
-            applyThemeToDom(theme, isAdminRoute);
-            if (!isAdminRoute) onThemeChange?.(theme);
+            applyThemeToDom(theme);
+            onThemeChange?.(theme);
         },
         [isAdminRoute, onThemeChange],
     );
@@ -102,17 +108,20 @@ export function ThemeProvider({ children, onThemeChange }: ThemeProviderProps) {
             if (!theme) return;
             setSiteThemeId(id);
             setActiveThemeId(id);
-            applyThemeToDom(theme, isAdminRoute);
-            if (!isAdminRoute) onThemeChange?.(theme);
+            if (!isAdminRoute) {
+                applyThemeToDom(theme);
+                onThemeChange?.(theme);
+            }
         },
         [isAdminRoute, onThemeChange],
     );
 
-    const activeTheme = getThemeById(activeThemeId);
+    const displayedThemeId = isAdminRoute ? adminThemeId : activeThemeId;
+    const activeTheme = getThemeById(displayedThemeId);
 
     return (
         <ThemeContext.Provider
-            value={{ activeThemeId, activeTheme, siteThemeId, setTheme, setSiteTheme, themes: THEMES }}
+            value={{ activeThemeId: displayedThemeId, activeTheme, siteThemeId, setTheme, setSiteTheme, themes: THEMES }}
         >
             {children}
         </ThemeContext.Provider>

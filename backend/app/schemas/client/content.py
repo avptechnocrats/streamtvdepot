@@ -558,23 +558,75 @@ class PublicVideoOut(BaseModel):
 
 # ─── Series ──────────────────────────────────────────────────────────────────
 
+class SeriesEpisodeInput(BaseModel):
+    id: uuid.UUID | None = None
+    title: str = Field(min_length=1, max_length=500)
+    description: str | None = None
+    season_number: int = Field(ge=1)
+    episode_number: int = Field(ge=1)
+    duration_seconds: int | None = Field(default=None, ge=1)
+    video_url: str | None = None
+    thumbnail_url: str | None = None
+    status: ContentStatus = ContentStatus.DRAFT
+
+    @model_validator(mode="after")
+    def validate_published_media(self) -> "SeriesEpisodeInput":
+        if self.status == ContentStatus.PUBLISHED and not (self.video_url or "").strip():
+            raise ValueError("Published episodes require a video file")
+        return self
+
+
 class SeriesCreate(BaseModel):
-    title: str
+    title: str = Field(min_length=1, max_length=500)
     description: str | None = None
     genre: str | None = None
     categories: list[str] = Field(default_factory=list)  # category slugs
     language: str | None = None
+    languages: list[str] = Field(default_factory=list)
+    content_classification: str | None = None
+    age_rating: str | None = None
+    rating: float | None = Field(default=None, ge=0, le=10)
+    thumbnails: dict[str, str | None] = Field(default_factory=dict)
+    trailer_type: Literal["upload", "url"] | None = None
+    geo_fencing: GeoFencing = Field(default_factory=GeoFencing)
+    publish_option: Literal["now", "later"] = "now"
+    publish_at: datetime | None = None
+    is_active: bool = True
+    is_slider: bool = False
+    is_series_slider: bool = False
+    is_category_only: bool = False
+    is_thumbnail: bool = False
     thumbnail_url: str | None = None
     trailer_url: str | None = None
     access_type: AccessType = AccessType.FREE
     subscription_plan_ids: list[str] = Field(default_factory=list)
     status: ContentStatus = ContentStatus.DRAFT
     is_featured: bool = False
-    total_seasons: int = 1
+    total_seasons: int = Field(default=1, ge=1)
+    episodes: list[SeriesEpisodeInput] = Field(default_factory=list)
+    deleted_episode_ids: list[uuid.UUID] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_series_configuration(self) -> "SeriesCreate":
+        if self.publish_option == "later" and not self.publish_at:
+            raise ValueError("Select a publication date for scheduled series")
+        numbers = [(episode.season_number, episode.episode_number) for episode in self.episodes]
+        if len(set(numbers)) != len(numbers):
+            raise ValueError("Episode numbers must be unique within each season")
+        ids = [episode.id for episode in self.episodes if episode.id]
+        if len(set(ids)) != len(ids) or set(ids) & set(self.deleted_episode_ids):
+            raise ValueError("Episode IDs must be unique and cannot also be removed")
+        if any(episode.season_number > self.total_seasons for episode in self.episodes):
+            raise ValueError("Episode season exceeds the series season count")
+        return self
 
 
 class SeriesUpdate(SeriesCreate):
     title: str | None = None
+
+    @model_validator(mode="after")
+    def validate_series_configuration(self) -> "SeriesUpdate":
+        return self
 
 
 class SeriesOut(BaseModel):
@@ -585,6 +637,20 @@ class SeriesOut(BaseModel):
     genre: str | None
     categories: list[str] = Field(default_factory=list)  # category slugs
     language: str | None
+    languages: list[str] = Field(default_factory=list)
+    content_classification: str | None = None
+    age_rating: str | None = None
+    rating: float | None = None
+    thumbnails: dict[str, str | None] = Field(default_factory=dict)
+    trailer_type: str | None = None
+    geo_fencing: GeoFencing = Field(default_factory=GeoFencing)
+    publish_option: str = "now"
+    publish_at: datetime | None = None
+    is_active: bool = True
+    is_slider: bool = False
+    is_series_slider: bool = False
+    is_category_only: bool = False
+    is_thumbnail: bool = False
     thumbnail_url: str | None
     trailer_url: str | None
     access_type: AccessType
@@ -608,6 +674,8 @@ class SeriesOut(BaseModel):
     @model_validator(mode="after")
     def refresh_s3_urls(self) -> "SeriesOut":
         self.thumbnail_url = _refresh_s3_url(self.thumbnail_url)
+        self.thumbnails = _refresh_thumbnail_urls(self.thumbnails)
+        self.trailer_url = _refresh_s3_url(self.trailer_url)
         return self
 
 
@@ -635,6 +703,7 @@ class EpisodeOut(BaseModel):
     client_id: uuid.UUID
     series_id: uuid.UUID
     title: str
+    description: str | None = None
     season_number: int
     episode_number: int
     duration_seconds: int | None
@@ -992,6 +1061,11 @@ class PPVEventOut(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def refresh_thumbnail_presigned_urls(self) -> "PPVEventOut":
+        self.thumbnails = _refresh_thumbnail_urls(self.thumbnails)
+        return self
 
     @model_validator(mode="after")
     def set_rtmp_ingest_url(self) -> "PPVEventOut":

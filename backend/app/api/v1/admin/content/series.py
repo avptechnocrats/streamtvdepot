@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +21,37 @@ from app.schemas.client.content import (
 )
 
 router = APIRouter()
+
+SERIES_NESTED_FIELDS = {"categories", "episodes", "deleted_episode_ids"}
+
+
+async def _apply_series_episodes(db: AsyncSession, series: Series, payload: SeriesCreate) -> None:
+    result = await db.execute(select(Episode).where(
+        Episode.series_id == series.id, Episode.client_id == series.client_id,
+    ))
+    existing = {episode.id: episode for episode in result.scalars().all()}
+    removed = set(payload.deleted_episode_ids)
+    supplied_ids = {episode.id for episode in payload.episodes if episode.id}
+    if not (removed | supplied_ids).issubset(existing):
+        raise HTTPException(status_code=404, detail="Episode not found in this series")
+    final_numbers = {
+        episode_id: (episode.season_number, episode.episode_number)
+        for episode_id, episode in existing.items() if episode_id not in removed | supplied_ids
+    }
+    numbers = list(final_numbers.values()) + [(episode.season_number, episode.episode_number) for episode in payload.episodes]
+    if len(set(numbers)) != len(numbers):
+        raise HTTPException(status_code=409, detail="Episode numbers must be unique within each season")
+    if any(season > series.total_seasons for season, _ in numbers):
+        raise HTTPException(status_code=422, detail="Remove or move episodes before reducing the season count")
+    for episode_id in removed:
+        await db.delete(existing[episode_id])
+    for values in payload.episodes:
+        data = values.model_dump(exclude={"id"})
+        if values.id:
+            for field, value in data.items():
+                setattr(existing[values.id], field, value)
+        else:
+            db.add(Episode(client_id=series.client_id, series_id=series.id, **data))
 
 
 async def _validate_series_payload(
@@ -84,6 +116,7 @@ async def list_trash_series(
     return result.scalars().all()
 
 
+@router.post("/editor", response_model=SeriesOut, status_code=status.HTTP_201_CREATED)
 @router.post("", response_model=SeriesOut, status_code=status.HTTP_201_CREATED)
 async def create_series(
     payload: SeriesCreate,
@@ -92,7 +125,10 @@ async def create_series(
 ):
     await _validate_series_payload(payload, admin._client_id, db)
     category_slugs = payload.categories or []
-    series = Series(client_id=admin._client_id, **payload.model_dump(exclude={"categories"}))
+    data = payload.model_dump(exclude=SERIES_NESTED_FIELDS)
+    data["languages"] = payload.languages or ([payload.language] if payload.language else [])
+    data["language"] = data["languages"][0] if data["languages"] else None
+    series = Series(client_id=admin._client_id, **data)
     db.add(series)
     await db.flush()
     if category_slugs:
@@ -109,6 +145,7 @@ async def create_series(
                     [{"series_id": series.id, "category_id": c.id} for c in c_list]
                 ).on_conflict_do_nothing()
             )
+    await _apply_series_episodes(db, series, payload)
     await db.flush()
     await db.refresh(series)
     return series
@@ -133,6 +170,7 @@ async def get_series(
     return series
 
 
+@router.patch("/editor/{series_id}", response_model=SeriesOut)
 @router.patch("/{series_id}", response_model=SeriesOut)
 async def update_series(
     series_id: uuid.UUID,
@@ -151,19 +189,28 @@ async def update_series(
     if not series:
         raise HTTPException(status_code=404, detail="Series not found")
 
-    merged = SeriesCreate.model_validate({
-        **{
-            field: getattr(series, field)
-            for field in SeriesCreate.model_fields
-            if field != "categories"
-        },
-        "categories": [category.slug for category in series.categories],
-        **payload.model_dump(exclude_unset=True),
-    })
+    try:
+        merged = SeriesCreate.model_validate({
+            **{
+                field: getattr(series, field)
+                for field in SeriesCreate.model_fields
+                if field not in SERIES_NESTED_FIELDS
+            },
+            "categories": [category.slug for category in series.categories],
+            **payload.model_dump(exclude_unset=True),
+        })
+    except ValidationError as error:
+        raise HTTPException(status_code=422, detail=error.errors(include_context=False)) from error
     await _validate_series_payload(merged, admin._client_id, db)
 
     updates = payload.model_dump(exclude_unset=True)
+    updates.pop("episodes", None)
+    updates.pop("deleted_episode_ids", None)
     category_slugs = updates.pop("categories", None)
+    if "languages" in updates:
+        updates["language"] = updates["languages"][0] if updates["languages"] else None
+    elif "language" in updates:
+        updates["languages"] = [updates["language"]] if updates["language"] else []
     for field, value in updates.items():
         setattr(series, field, value)
     if category_slugs is not None:
@@ -186,6 +233,7 @@ async def update_series(
                         [{"series_id": series.id, "category_id": c.id} for c in c_list]
                     ).on_conflict_do_nothing()
                 )
+    await _apply_series_episodes(db, series, merged)
     await db.flush()
     await db.refresh(series)
     return series
@@ -276,6 +324,19 @@ async def create_episode(
     db: AsyncSession = Depends(get_db),
     admin=Depends(get_current_client_admin),
 ):
+    series = await db.scalar(select(Series).where(
+        Series.id == series_id, Series.client_id == admin._client_id, Series.deleted_at.is_(None),
+    ))
+    if not series:
+        raise HTTPException(status_code=404, detail="Series not found")
+    if payload.series_id != series_id or not 1 <= payload.season_number <= series.total_seasons or payload.episode_number < 1:
+        raise HTTPException(status_code=422, detail="Invalid series or season/episode number")
+    duplicate = await db.scalar(select(Episode.id).where(
+        Episode.series_id == series_id, Episode.client_id == admin._client_id,
+        Episode.season_number == payload.season_number, Episode.episode_number == payload.episode_number,
+    ))
+    if duplicate:
+        raise HTTPException(status_code=409, detail="Episode number already exists in this season")
     episode = Episode(
         client_id=admin._client_id,
         series_id=series_id,

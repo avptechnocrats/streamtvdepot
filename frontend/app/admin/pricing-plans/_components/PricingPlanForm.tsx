@@ -22,6 +22,7 @@ import {
     type PlanType,
     type CountryPriceOverride,
 } from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/api/error-utils";
 
 // ─── Countries ────────────────────────────────────────────────────────────────
 
@@ -216,6 +217,8 @@ export function PricingPlanForm({ mode, planId, defaultValues }: PricingPlanForm
     const [appliesToDropdownOpen, setAppliesToDropdownOpen] = useState(false);
     const [selectedContentIds, setSelectedContentIds] = useState<string[]>([]);
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+    const [appliesToSelectionError, setAppliesToSelectionError] = useState<string | null>(null);
+    const appliesToSearchRef = useRef<HTMLInputElement>(null);
 
     const {
         register,
@@ -453,6 +456,7 @@ export function PricingPlanForm({ mode, planId, defaultValues }: PricingPlanForm
 
     const handleAddAppliesTo = () => {
         if (!appliesToSelectedOptionId) return;
+        setAppliesToSelectionError(null);
 
         if (appliesToScope === "content") {
             setSelectedContentIds((prev) => (prev.includes(appliesToSelectedOptionId) ? prev : [...prev, appliesToSelectedOptionId]));
@@ -480,6 +484,22 @@ export function PricingPlanForm({ mode, planId, defaultValues }: PricingPlanForm
             ? normalizedTrialDays
             : 0;
         const appliesToAllContent = data.plan_type !== "subscription" || appliesToMode === "all";
+        const contentIds = Array.from(new Set([
+            ...selectedContentIds,
+            ...(appliesToScope === "content" && appliesToSelectedOptionId ? [appliesToSelectedOptionId] : []),
+        ]));
+        const categoryIds = Array.from(new Set([
+            ...selectedCategoryIds,
+            ...(appliesToScope === "category_subcategory" && appliesToSelectedOptionId ? [appliesToSelectedOptionId] : []),
+        ]));
+        if (!appliesToAllContent && !(appliesToScope === "content" ? contentIds.length : categoryIds.length)) {
+            setAppliesToSelectionError(appliesToScope === "content"
+                ? "Select at least one content item for this plan."
+                : "Select at least one category or subcategory for this plan.");
+            appliesToSearchRef.current?.focus();
+            return;
+        }
+        setAppliesToSelectionError(null);
 
         if (submitAsFreeSubscription) {
             billing_cycle = "lifetime";
@@ -511,10 +531,10 @@ export function PricingPlanForm({ mode, planId, defaultValues }: PricingPlanForm
             applies_to_scope: data.plan_type === "subscription" ? appliesToScope : "content",
             applies_to_content_ids: appliesToAllContent
                 ? null
-                : (appliesToScope === "content" ? selectedContentIds : null),
+                : (appliesToScope === "content" ? contentIds : null),
             applies_to_category_ids: appliesToAllContent
                 ? null
-                : (appliesToScope === "category_subcategory" ? selectedCategoryIds : null),
+                : (appliesToScope === "category_subcategory" ? categoryIds : null),
             max_screens: data.max_screens,
             max_downloads: data.max_downloads,
             restriction_months,
@@ -539,7 +559,7 @@ export function PricingPlanForm({ mode, planId, defaultValues }: PricingPlanForm
                     : "/admin/pricing-plans?toast=plan-updated",
             );
         } catch (err: unknown) {
-            setError("root", { message: err instanceof Error ? err.message : "Failed to save plan" });
+            setError("root", { message: getApiErrorMessage(err, "Failed to save plan") });
         }
     };
 
@@ -778,6 +798,7 @@ export function PricingPlanForm({ mode, planId, defaultValues }: PricingPlanForm
                                 type="button"
                                 onClick={() => {
                                     setAppliesToMode("all");
+                                    setAppliesToSelectionError(null);
                                     setSelectedContentIds([]);
                                     setSelectedCategoryIds([]);
                                     setAppliesToSelectedOptionId("");
@@ -796,6 +817,7 @@ export function PricingPlanForm({ mode, planId, defaultValues }: PricingPlanForm
                                 type="button"
                                 onClick={() => {
                                     setAppliesToMode("specific");
+                                    setAppliesToSelectionError(null);
                                     setAppliesToSearchInput("");
                                     setAppliesToSelectedOptionId("");
                                     setAppliesToDropdownOpen(true);
@@ -817,6 +839,7 @@ export function PricingPlanForm({ mode, planId, defaultValues }: PricingPlanForm
                                             value={appliesToScope}
                                             onChange={(e) => {
                                                 setAppliesToScope(e.target.value as "content" | "category_subcategory");
+                                                setAppliesToSelectionError(null);
                                                 setAppliesToSelectedOptionId("");
                                                 setAppliesToSearchInput("");
                                                 setAppliesToDropdownOpen(true);
@@ -831,6 +854,10 @@ export function PricingPlanForm({ mode, planId, defaultValues }: PricingPlanForm
 
                                     <div className="relative">
                                         <input
+                                            ref={appliesToSearchRef}
+                                            aria-label="Search applicable content or categories"
+                                            aria-invalid={!!appliesToSelectionError}
+                                            aria-describedby={appliesToSelectionError ? "applies-to-selection-error" : undefined}
                                             value={appliesToSearchInput}
                                             onFocus={() => setAppliesToDropdownOpen(true)}
                                             onBlur={() => {
@@ -856,6 +883,7 @@ export function PricingPlanForm({ mode, planId, defaultValues }: PricingPlanForm
                                                         onMouseDown={(e) => {
                                                             e.preventDefault();
                                                             setAppliesToSelectedOptionId(opt.id);
+                                                            setAppliesToSelectionError(null);
                                                             setAppliesToSearchInput(opt.label);
                                                             setAppliesToDropdownOpen(false);
                                                         }}
@@ -877,6 +905,8 @@ export function PricingPlanForm({ mode, planId, defaultValues }: PricingPlanForm
                                         + Add
                                     </button>
                                 </div>
+
+                                {appliesToSelectionError && <p id="applies-to-selection-error" role="alert" className="text-xs text-red-400">{appliesToSelectionError}</p>}
 
                                 {(selectedContentIds.length > 0 || selectedCategoryIds.length > 0) && (
                                     <div className="flex flex-wrap gap-2">

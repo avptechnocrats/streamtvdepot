@@ -387,6 +387,7 @@ class MediaAssetRendition(Base, UUIDMixin, TimestampMixin):
 
 class Series(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "content_series"
+    __table_args__ = (CheckConstraint("rating >= 0 AND rating <= 10", name="ck_series_rating"),)
 
     client_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
@@ -395,6 +396,20 @@ class Series(Base, UUIDMixin, TimestampMixin):
     description: Mapped[str | None] = mapped_column(Text)
     genre: Mapped[str | None] = mapped_column(String(100))
     language: Mapped[str | None] = mapped_column(String(50))
+    languages: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    content_classification: Mapped[str | None] = mapped_column(String(100))
+    age_rating: Mapped[str | None] = mapped_column(String(20))
+    rating: Mapped[float | None] = mapped_column(Float)
+    thumbnails: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    trailer_type: Mapped[str | None] = mapped_column(String(20))
+    geo_fencing: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    publish_option: Mapped[str] = mapped_column(String(10), nullable=False, default="now")
+    publish_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_slider: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_series_slider: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_category_only: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_thumbnail: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     thumbnail_url: Mapped[str | None] = mapped_column(Text)
     trailer_url: Mapped[str | None] = mapped_column(Text)
     access_type: Mapped[AccessType] = mapped_column(
@@ -417,6 +432,10 @@ class Series(Base, UUIDMixin, TimestampMixin):
 
 class Episode(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "content_episodes"
+    __table_args__ = (
+        UniqueConstraint("series_id", "season_number", "episode_number", name="uq_series_episode_number", deferrable=True, initially="DEFERRED"),
+        CheckConstraint("season_number >= 1 AND episode_number >= 1", name="ck_episode_number_positive"),
+    )
 
     client_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
