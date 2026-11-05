@@ -52,7 +52,7 @@ function resolveSlug(request: NextRequest): string | null {
 // ── Auth constants ────────────────────────────────────────────────────────────
 
 /** Actions that require client_slug injected into the request body. */
-const SLUG_REQUIRED = new Set(["signup", "login", "forgot-password", "google-login", "verify-email", "resend-verification"]);
+const SLUG_REQUIRED = new Set(["signup", "signup-challenge", "login", "forgot-password", "google-login", "verify-email", "resend-verification"]);
 
 /** Actions that require forwarding the caller's Authorization header. */
 const AUTH_REQUIRED = new Set(["change-password"]);
@@ -60,6 +60,7 @@ const AUTH_REQUIRED = new Set(["change-password"]);
 /** Valid action → backend path segment mapping. */
 const BACKEND_PATH: Record<string, string> = {
     signup: "signup",
+    "signup-challenge": "signup-challenge",
     login: "login",
     refresh: "refresh",
     "change-password": "change-password",
@@ -136,6 +137,19 @@ export async function middleware(request: NextRequest) {
 
         if (SLUG_REQUIRED.has(action) && !slug) {
             return NextResponse.json({ detail: "Client not configured." }, { status: 500 });
+        }
+
+        if (action === "signup-challenge") {
+            const responseHeaders = { "Content-Type": "application/json", "Cache-Control": "no-store, private" };
+            if (request.method !== "GET") {
+                return NextResponse.json({ detail: "Method not allowed" }, { status: 405, headers: { Allow: "GET" } });
+            }
+            try {
+                const upstream = await fetch(`${BACKEND}/auth/user/signup-challenge?client_slug=${encodeURIComponent(slug!)}`, { cache: "no-store", signal: AbortSignal.timeout(10000) });
+                return new NextResponse(await upstream.text(), { status: upstream.status, headers: responseHeaders });
+            } catch {
+                return NextResponse.json({ detail: "Signup verification is temporarily unavailable." }, { status: 503, headers: responseHeaders });
+            }
         }
 
         const headers: Record<string, string> = { "Content-Type": "application/json" };
