@@ -6,7 +6,7 @@ import re
 import secrets
 
 from botocore.exceptions import BotoCoreError, ClientError
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 import httpx
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -14,6 +14,12 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.signup_protection import (
+    SignupProtectionUnavailable,
+    SignupVerificationError,
+    create_signup_challenge,
+    verify_signup_challenge,
+)
 from app.core.database import get_db
 from app.core.dependencies import get_current_end_user
 from app.core.email_templates import generate_professional_email_html
@@ -210,6 +216,19 @@ class AvatarUploadConfirmResponse(BaseModel):
     avatar_url: str | None
 
 
+@router.get("/signup-challenge")
+async def signup_challenge(client_slug: str, response: Response, db: AsyncSession = Depends(get_db)):
+    response.headers["Cache-Control"] = "no-store, private"
+    client_result = await db.execute(select(Client).where(Client.slug == client_slug, Client.is_active.is_(True)))
+    client = client_result.scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=404, detail="Platform not found")
+    try:
+        return create_signup_challenge(str(client.id), settings.ALTCHA_HMAC_KEY or settings.SECRET_KEY)
+    except SignupProtectionUnavailable:
+        raise HTTPException(status_code=503, detail="Signup verification is temporarily unavailable")
+
+
 @router.post(
     "/signup",
     response_model=UserSignupResponse,
@@ -221,10 +240,24 @@ async def end_user_signup(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    if payload.website:
+        raise HTTPException(status_code=400, detail="Unable to verify signup. Please try again.")
     client_result = await db.execute(select(Client).where(Client.slug == payload.client_slug))
     client = client_result.scalar_one_or_none()
     if not client or not client.is_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Platform not found")
+
+    try:
+        await verify_signup_challenge(
+            payload.altcha,
+            str(client.id),
+            settings.ALTCHA_HMAC_KEY or settings.SECRET_KEY,
+            settings.REDIS_URL,
+        )
+    except SignupVerificationError:
+        raise HTTPException(status_code=400, detail="Verification expired or is invalid. Please verify again.")
+    except SignupProtectionUnavailable:
+        raise HTTPException(status_code=503, detail="Signup verification is temporarily unavailable. Please try again.")
 
     existing = await db.execute(
         select(EndUser).where(EndUser.client_id == client.id, EndUser.email == payload.email)

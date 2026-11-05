@@ -78,6 +78,20 @@ REDIS_PORT=6379
 
 ---
 
+## Storefront Signup Protection
+
+All tenants' email/password signups require a self-hosted ALTCHA proof and an empty
+`website` honeypot field before an account is created or an OTP is sent. The existing
+email verification, OTP verification and resend flow are unchanged. No signup rate
+limit is introduced.
+
+- Install the updated backend requirements (`altcha==2.3.0`) and storefront dependencies (`altcha==3.5.0`).
+- Set `REDIS_URL` to a shared Redis instance reachable by every backend worker. Atomic, five-minute replay records prevent reusing a solved challenge; Redis outages reject signup rather than bypass protection.
+- Optionally set a dedicated `ALTCHA_HMAC_KEY` of at least 32 characters on the backend. Otherwise the existing `SECRET_KEY` is used and must be at least 32 characters. Keep this value stable across workers and never put it in a `NEXT_PUBLIC_*` variable.
+- Challenges are derived per tenant and expire after five minutes. The storefront requests `/api/auth/signup-challenge`; its proxy supplies the server-resolved tenant slug to `GET /auth/user/signup-challenge`. A proof issued for one tenant cannot register on another.
+- Deploy the backend and storefront changes together. Older clients without a proof cannot use the protected signup endpoint. No database migration or per-tenant CAPTCHA keys are needed.
+- Google sign-in is unchanged; these checks protect the storefront email/password signup endpoint.
+
 ## Docker Setup (Recommended)
 
 ### Quick Start - All Services
