@@ -12,6 +12,7 @@ import { BannerSkeleton } from "@/components/BannerSkeleton";
 import EpgGuide from "./EpgGuide";
 import ManagedBannerSlot from "@/components/ManagedBannerSlot";
 import { useRowScroll } from "@/hooks/use-row-scroll";
+import ChannelActions from "./ChannelActions";
 
 const VideoPlayer = dynamic(() => import("@/components/VideoPlayer"), { ssr: false });
 const ManagedLivePlayer = dynamic(() => import("@/components/ManagedLivePlayer"), { ssr: false });
@@ -406,12 +407,14 @@ function PpvBanner({ event }: { event: PublicPpvEvent }) {
 function TVShowsContent({
     channels,
     ppvEvents,
+    initialChannelId,
 }: {
     channels: LiveTvChannelOut[];
     ppvEvents: PublicPpvEvent[];
+    initialChannelId?: string;
 }) {
     const [activeRegion, setActiveRegion] = useState<(typeof REGIONS)[number]>("All Channels");
-    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [selectedId, setSelectedId] = useState<string | null>(initialChannelId ?? null);
     const regionChannels = activeRegion === "All Channels" ? channels : channels.filter((channel) => channel.region?.includes(activeRegion));
     const { scrollRef: channelRail, canScrollLeft, canScrollRight } = useRowScroll(regionChannels.length);
     const playableChannels = regionChannels.filter((channel) => channel.managed_playback || channel.stream_url);
@@ -422,20 +425,12 @@ function TVShowsContent({
         ?? channels[0];
     const liveChannels = channels.filter((channel) => channel.source === "rtmp" || channel.source === "srt");
     const ppvEvent = ppvEvents.find((event) => event.is_live) ?? ppvEvents[0];
-    const shareSelectedChannel = () => {
-        const url = `${window.location.origin}/tv-shows/${selected?.id}`;
-        if (navigator.share) {
-            void navigator.share({ title: selected?.title, text: selected?.description ?? undefined, url });
-            return;
-        }
-        void navigator.clipboard?.writeText(url);
-    };
 
     if (!selected) return <main className="pt-16"><ManagedBannerSlot page="/tv-shows" position="top" /><div className="flex min-h-[55vh] flex-col items-center justify-center gap-3 text-muted-foreground"><Tv size={44} className="opacity-40" /><p>No TV channels available yet.</p></div><ManagedBannerSlot page="/tv-shows" position="middle_1" /><ManagedBannerSlot page="/tv-shows" position="middle_2" /><ManagedBannerSlot page="/tv-shows" position="bottom" /></main>;
 
     return (
-        <main className="bg-[#080b12] pb-12 pt-16 text-white">
-            <div className="mx-auto max-w-[1536px] px-4 sm:px-6 lg:px-14">
+        <main className="bg-[#080b12] px-4 pb-12 pt-16 text-white sm:px-6 lg:px-14">
+            <div className="mx-auto max-w-[100rem]">
                 <section className="grid min-h-[440px] grid-cols-1 border-b border-white/10 lg:grid-cols-[minmax(330px,0.82fr)_minmax(0,1.5fr)]">
                 <div className="flex h-full flex-col justify-center bg-[#080b12] py-8">
                     <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/70"><span className={`rounded px-2 py-1 text-[10px] text-white ${selected.is_live ? "bg-red-600" : "bg-white/15"}`}>{selected.is_live ? "Live" : "Channel"}</span><span className="truncate">Channel: {selected.title}</span></div>
@@ -448,16 +443,15 @@ function TVShowsContent({
                     </div>
                     <Button className="mt-6 h-11 w-full max-w-[260px] gap-2 bg-primary font-semibold text-primary-foreground hover:bg-primary/90"><Play size={16} fill="currentColor" /> Watch Now Live</Button>
                     <div className="mt-3 flex w-full max-w-[260px] gap-2">
-                        <Button variant="outline" className="h-10 flex-1 gap-2 border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"><Heart size={15} /> Favourite</Button>
-                        <Button variant="outline" onClick={shareSelectedChannel} className="h-10 flex-1 gap-2 border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"><Share2 size={15} /> Share</Button>
+                        <ChannelActions key={selected.id} channel={selected} />
                     </div>
                 </div>
                 <div className="min-h-[270px] bg-black lg:min-h-0"><ChannelPlayer key={selected.id} channel={selected} /></div>
                 </section>
             </div>
 
-            <ManagedBannerSlot page="/tv-shows" position="top" />
-            <div className="mx-auto max-w-[1536px] space-y-9 px-4 py-8 sm:px-6 lg:px-14">
+            <ManagedBannerSlot page="/tv-shows" position="top" inset className="mx-auto max-w-[100rem]" />
+            <div className="mx-auto max-w-[100rem] space-y-9 py-8">
                 <section>
                     <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="flex items-center gap-2"><Radio size={18} className="text-primary" /><h2 className="text-xl font-semibold">Watch Live TV by Region</h2></div><p className="mt-1 text-xs text-white/55">Explore channels from around the world.</p></div></div>
                     <div role="group" aria-label="TV regions" className="grid w-full grid-cols-3 gap-2 xl:grid-cols-9">
@@ -475,14 +469,14 @@ function TVShowsContent({
                 <ManagedBannerSlot page="/tv-shows" position="middle_2" inset />
                 {ppvEvent && <PpvBanner event={ppvEvent} />}
             </div>
-            <ManagedBannerSlot page="/tv-shows" position="bottom" className="mx-auto max-w-[1536px]" />
+            <ManagedBannerSlot page="/tv-shows" position="bottom" inset className="mx-auto max-w-[100rem]" />
         </main>
     );
 }
 
 // ─── Page entry point ─────────────────────────────────────────────────────────
 
-export default function TvShowsPage() {
+export default function TvShowsPage({ initialChannelId }: { initialChannelId?: string }) {
     const { data: channelsData, isLoading: channelsLoading } = useQuery({
         queryKey: ["live-tv-channels-watch-regions"],
         queryFn: () => listLiveTvChannels({ page_size: 100 }),
@@ -498,5 +492,5 @@ export default function TvShowsPage() {
     });
 
     if (channelsLoading) return <BannerSkeleton />;
-    return <TVShowsContent channels={channelsData ?? []} ppvEvents={ppvData ?? []} />;
+    return <TVShowsContent channels={channelsData ?? []} ppvEvents={ppvData ?? []} initialChannelId={initialChannelId} />;
 }

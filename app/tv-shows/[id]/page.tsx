@@ -37,12 +37,13 @@ const ManagedLivePlayer = dynamic(() => import("@/components/ManagedLivePlayer")
 function ChannelDetailSkeleton() {
     return (
         <>
-            <div className="w-full bg-black pt-16">
-                <div className="max-w-screen-xl mx-auto">
+            <div className="w-full bg-black px-4 pt-16 sm:px-6 lg:px-14">
+                <div className="mx-auto max-w-[100rem]">
                     <div className="aspect-video w-full bg-secondary/30 animate-pulse" />
                 </div>
             </div>
-            <div className="max-w-screen-xl mx-auto px-6 lg:px-12 py-10 space-y-6">
+            <div className="px-4 sm:px-6 lg:px-14">
+            <div className="mx-auto max-w-[100rem] py-10 space-y-6">
                 <div className="flex gap-2">
                     <Skeleton className="h-6 w-16 rounded-full" />
                     <Skeleton className="h-6 w-20 rounded-full" />
@@ -58,6 +59,7 @@ function ChannelDetailSkeleton() {
                     <Skeleton className="h-4 w-5/6" />
                     <Skeleton className="h-4 w-4/6" />
                 </div>
+            </div>
             </div>
         </>
     );
@@ -302,8 +304,8 @@ export default function ChannelDetailPage() {
     return (
         <>
             {/* ── Player / Gate ────────────────────────────────────────────── */}
-            <div className="w-full bg-black pt-16">
-                <div className="relative max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10">
+            <div className="w-full bg-black px-4 pt-16 sm:px-6 lg:px-14">
+                <div className="relative mx-auto max-w-[100rem]">
                     {/* Back button */}
                     <div className="absolute top-3 left-4 z-20">
                         <Link href="/tv-shows">
@@ -402,7 +404,8 @@ export default function ChannelDetailPage() {
             </div>
 
             {/* ── Channel info ─────────────────────────────────────────────── */}
-            <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 py-8 space-y-8">
+            <div className="px-4 sm:px-6 lg:px-14">
+            <div className="mx-auto max-w-[100rem] py-8 space-y-8">
 
                 {/* Title + badges */}
                 <div className="space-y-3">
@@ -522,8 +525,7 @@ export default function ChannelDetailPage() {
                     </section>
                 )}
             </div>
-
-
+            </div>
         </>
     );
 }

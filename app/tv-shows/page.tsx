@@ -6,6 +6,7 @@ export const metadata: Metadata = {
     description: "Watch live TV channels and exclusive shows.",
 };
 
-export default function TVShowsPage() {
-    return <TvShowsPage />;
+export default async function TVShowsPage({ searchParams }: { searchParams: Promise<{ channel?: string }> }) {
+    const { channel } = await searchParams;
+    return <TvShowsPage initialChannelId={channel} />;
 }
