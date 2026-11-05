@@ -226,7 +226,7 @@ export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie
 
             <div
                 data-preview-edge={edge}
-                style={{ left: rank ? "var(--rank-gutter)" : 0, transformOrigin: `${edge} ${posterCenter ?? 0}px`, transform: `translate3d(${expanded ? (edge === "right" ? -edgeOffset : edgeOffset) : 0}px, 0, 0) scale(${expanded ? 1.2 : 1})`, transition: reducedMotion ? "none" : "transform 500ms cubic-bezier(0.4, 0, 0.2, 1)" }}
+                style={{ left: rank ? "var(--rank-gutter)" : 0, transformOrigin: `${edge} ${posterCenter ?? 0}px`, transform: `translate3d(${expanded ? (edge === "right" ? -edgeOffset : edgeOffset) : 0}px, 0, 0) scale(${expanded ? widerLandscape ? 1.02 : 1.2 : 1})`, transition: reducedMotion ? "none" : `transform ${widerLandscape ? 360 : 500}ms ${widerLandscape ? "cubic-bezier(0.22, 1, 0.36, 1)" : "cubic-bezier(0.4, 0, 0.2, 1)"}` }}
                 onTransitionEnd={event => {
                     if (event.target === event.currentTarget && event.propertyName === "transform" && !event.currentTarget.parentElement?.matches(":hover, :focus-visible")) setLayer(undefined);
                 }}

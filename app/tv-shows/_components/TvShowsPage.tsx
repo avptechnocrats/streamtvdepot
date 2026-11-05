@@ -420,7 +420,6 @@ function TVShowsContent({
         ?? playableChannels[0]
         ?? regionChannels[0]
         ?? channels[0];
-    const { scrollRef: regionRail, canScrollLeft: canScrollRegionsLeft, canScrollRight: canScrollRegionsRight } = useRowScroll(selected ? REGIONS.length : 0);
     const liveChannels = channels.filter((channel) => channel.source === "rtmp" || channel.source === "srt");
     const ppvEvent = ppvEvents.find((event) => event.is_live) ?? ppvEvents[0];
     const shareSelectedChannel = () => {
@@ -461,10 +460,8 @@ function TVShowsContent({
             <div className="mx-auto max-w-[1536px] space-y-9 px-4 py-8 sm:px-6 lg:px-14">
                 <section>
                     <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><div className="flex items-center gap-2"><Radio size={18} className="text-primary" /><h2 className="text-xl font-semibold">Watch Live TV by Region</h2></div><p className="mt-1 text-xs text-white/55">Explore channels from around the world.</p></div></div>
-                    <div className="relative group [--row-artwork-height:2.25rem] [--row-artwork-offset:0px]">
-                        <button type="button" aria-label="Previous regions" title="Previous regions" disabled={!canScrollRegionsLeft} onClick={() => regionRail.current?.scrollBy({ left: -304, behavior: "smooth" })} className="storefront-row-arrow -left-3 opacity-100 md:opacity-0"><ChevronLeft size={18} /></button>
-                        <div ref={regionRail} aria-label="TV regions" className="flex w-full min-w-0 gap-2 overflow-x-auto overscroll-x-contain scrollbar-hide pb-2" style={{ touchAction: "pan-x pan-y", WebkitOverflowScrolling: "touch" }}>{REGIONS.map((region) => <button key={region} type="button" onClick={() => setActiveRegion(region)} aria-pressed={activeRegion === region} className={`flex h-9 w-36 shrink-0 items-center justify-center whitespace-nowrap border px-3 text-xs font-medium transition-colors ${activeRegion === region ? "border-primary bg-primary text-primary-foreground" : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"}`}>{region}</button>)}</div>
-                        <button type="button" aria-label="Next regions" title="Next regions" disabled={!canScrollRegionsRight} onClick={() => regionRail.current?.scrollBy({ left: 304, behavior: "smooth" })} className="storefront-row-arrow -right-3 opacity-100 md:opacity-0"><ChevronRight size={18} /></button>
+                    <div role="group" aria-label="TV regions" className="grid w-full grid-cols-3 gap-2 xl:grid-cols-9">
+                        {REGIONS.map((region) => <button key={region} type="button" onClick={() => setActiveRegion(region)} aria-pressed={activeRegion === region} className={`flex h-10 min-w-0 w-full items-center justify-center border px-1 text-center text-xs font-medium transition-colors ${activeRegion === region ? "border-primary bg-primary text-primary-foreground" : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"}`}>{region}</button>)}
                     </div>
                     {regionChannels.length > 0 ? <div className="relative group mt-3 [--row-artwork-height:6.358rem] sm:[--row-artwork-height:6.936rem] lg:[--row-artwork-height:7.514rem] [--row-artwork-offset:4px]">
                         <button type="button" aria-label="Previous channels" title="Previous channels" disabled={!canScrollLeft} onClick={() => channelRail.current?.scrollBy({ left: -320, behavior: "smooth" })} className="storefront-row-arrow -left-3 [@media(hover:none)]:opacity-100"><ChevronLeft size={18} /></button>
@@ -478,7 +475,7 @@ function TVShowsContent({
                 <ManagedBannerSlot page="/tv-shows" position="middle_2" inset />
                 {ppvEvent && <PpvBanner event={ppvEvent} />}
             </div>
-            <ManagedBannerSlot page="/tv-shows" position="bottom" />
+            <ManagedBannerSlot page="/tv-shows" position="bottom" className="mx-auto max-w-[1536px]" />
         </main>
     );
 }

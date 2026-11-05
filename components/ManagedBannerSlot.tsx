@@ -51,7 +51,10 @@ export function usePageBanners(page?: BannerPage) {
 
 export default function ManagedBannerSlot({ page, position, inset = false, className = "" }: { page: BannerPage; position: BannerPosition; inset?: boolean; className?: string }) {
     const { data = [], isError } = usePageBanners(page);
-    const banners = data.filter(banner => banner.page === page && banner.position === position);
+    const banners = data.filter(banner => {
+        const placements = banner.placements?.length ? banner.placements : [{ page: banner.page, position: banner.position }];
+        return placements.some(placement => placement.page === page && placement.position === position);
+    });
     if (isError || !banners.length) return null;
 
     return (

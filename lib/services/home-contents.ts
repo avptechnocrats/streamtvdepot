@@ -51,6 +51,7 @@ interface FetchHomeContentRowsParams {
     itemsPerRow?: number;
     categoryId?: string;
     contentType?: string;
+    contentClassification?: string;
 }
 
 function isTenantlessLocalRequest(): boolean {
@@ -68,6 +69,7 @@ export async function fetchHomeVideoRows({
     itemsPerRow = HOME_CONTENT_ITEMS_PER_ROW,
     categoryId,
     contentType = "video",
+    contentClassification,
 }: FetchHomeContentRowsParams = {}): Promise<HomeContentsResponse> {
     if (isTenantlessLocalRequest()) {
         return {
@@ -85,6 +87,7 @@ export async function fetchHomeVideoRows({
                 page,
                 page_size: pageSize,
                 items_per_row: itemsPerRow,
+                ...(contentClassification ? { content_classification: contentClassification } : {}),
                 ...(categoryId ? { category_id: categoryId } : {}),
             },
         });

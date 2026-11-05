@@ -85,17 +85,17 @@ function toSlide(v: VideoOut): BannerSlide {
 export function useBannerVideos() {
     const isMoviesPage = usePathname() === "/movies";
     const { data, isLoading, isError } = useQuery({
-        queryKey: isMoviesPage ? ["movie-banner-videos", "selected-or-random"] : ["banner-videos"],
+        queryKey: isMoviesPage ? ["movie-banner-videos", "selected-or-random", "Movie"] : ["banner-videos"],
         queryFn: isMoviesPage ? async () => {
-            const videos = await listVideos({ is_movie_slider: true, page_size: 100 });
+            const videos = await listVideos({ is_movie_slider: true, page_size: 100, content_classification: "Movie" });
             const assigned = Array.from(new Map(videos
-                .filter(video => video.is_active && video.is_movie_slider && video.thumbnails.video_banner)
+                .filter(video => video.content_classification === "Movie" && video.is_active && video.is_movie_slider && video.thumbnails.video_banner)
                 .map(video => [video.id, video])).values());
             if (assigned.length > 0) return assigned;
 
-            const fallback = await listVideos({ is_active: true, page_size: 100 });
+            const fallback = await listVideos({ is_active: true, page_size: 100, content_classification: "Movie" });
             const candidates = Array.from(new Map(fallback
-                .filter(video => video.is_active && video.thumbnails.video_banner)
+                .filter(video => video.content_classification === "Movie" && video.is_active && video.thumbnails.video_banner)
                 .map(video => [video.id, video])).values());
             for (let index = candidates.length - 1; index > 0; index--) {
                 const randomIndex = Math.floor(Math.random() * (index + 1));
