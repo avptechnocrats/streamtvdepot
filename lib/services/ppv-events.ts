@@ -1,7 +1,9 @@
 import publicApiClient from "./public-client";
+import apiClient from "./client";
 
 export interface PublicPpvEvent {
     id: string;
+    scheduled_at: string | null;
     title: string;
     slug: string | null;
     description: string | null;
@@ -26,5 +28,10 @@ export async function listPpvEvents(params?: { page?: number; page_size?: number
 
 export async function getPpvEvent(id: string): Promise<PublicPpvEvent> {
     const response = await publicApiClient.get<PublicPpvEvent>(`/ppv-events/${id}`);
+    return response.data;
+}
+
+export async function authorizePpvPlayback(id: string): Promise<{ stream_url: string }> {
+    const response = await apiClient.post<{ stream_url: string }>(`/auth/user/my-subscriptions/playback/ppv-events/${id}`);
     return response.data;
 }

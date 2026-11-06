@@ -23,6 +23,7 @@ function PpvEventCard({ event }: { event: Awaited<ReturnType<typeof listPpvEvent
                 </span>
             </div>
             <div className="mt-2 space-y-0.5"><p className="truncate text-sm font-medium text-foreground">{event.title}</p><p className="truncate text-xs text-muted-foreground">{event.category || "Pay-per-view event"}</p></div>
+            {event.scheduled_at && <time dateTime={event.scheduled_at} className="mt-1 block text-xs text-muted-foreground">{new Date(event.scheduled_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short", timeZoneName: undefined })}</time>}
         </Link>
     );
 }
@@ -32,6 +33,7 @@ export default function PpvEventsPage() {
         queryKey: ["ppv-events"],
         queryFn: () => listPpvEvents({ page_size: 100 }),
         staleTime: 60_000,
+        refetchInterval: 30_000,
     });
     const firstBoundary = Math.ceil(events.length / 3);
     const secondBoundary = Math.ceil(events.length * 2 / 3);

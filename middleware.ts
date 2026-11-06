@@ -100,12 +100,20 @@ export async function middleware(request: NextRequest) {
         const upstreamPath = pathname.slice("/api/public/".length);
         const searchParams = new URLSearchParams(request.nextUrl.searchParams);
         searchParams.set("slug", slug);
+        const upstreamHeaders: Record<string, string> = { "Content-Type": "application/json" };
+        for (const header of ["x-geo-country", "x-geo-auth"]) {
+            const value = request.headers.get(header);
+            if (value) upstreamHeaders[header] = value;
+        }
+        const episodePlayback = request.method === "POST" && /^series\/[^/]+\/episodes\/[^/]+\/playback$/.test(upstreamPath);
+        const authorization = episodePlayback ? request.headers.get("Authorization") : null;
+        if (authorization) upstreamHeaders.Authorization = authorization;
 
         const upstream = await fetch(
             `${BACKEND}/public/${upstreamPath}?${searchParams.toString()}`,
             {
                 method: request.method,
-                headers: { "Content-Type": "application/json" },
+                headers: upstreamHeaders,
                 body: request.method === "GET" || request.method === "HEAD"
                     ? undefined
                     : await request.text(),
@@ -116,7 +124,7 @@ export async function middleware(request: NextRequest) {
         const body = await upstream.text();
         return new NextResponse(body, {
             status: upstream.status,
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "Cache-Control": "no-store, private" },
         });
     }
 
