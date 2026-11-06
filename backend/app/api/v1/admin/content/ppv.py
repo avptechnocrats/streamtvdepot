@@ -2,6 +2,7 @@ import secrets
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,9 +10,23 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.core.dependencies import get_current_client_admin, get_current_client_admin_with_active_plan
 from app.models.client.content import PPVEvent
+from app.models.client.subscription import ClientSubscriptionPlan, PlanType
 from app.schemas.client.content import PPVEventCreate, PPVEventOut, PPVEventUpdate
 
 router = APIRouter()
+
+
+async def _validate_ppv_plan(db: AsyncSession, client_id: uuid.UUID, plan_id: uuid.UUID | None) -> None:
+    if plan_id is None:
+        raise HTTPException(status_code=422, detail="Select a PPV pricing plan")
+    plan = (await db.execute(select(ClientSubscriptionPlan.id).where(
+        ClientSubscriptionPlan.id == plan_id,
+        ClientSubscriptionPlan.client_id == client_id,
+        ClientSubscriptionPlan.plan_type == PlanType.PPV,
+        ClientSubscriptionPlan.is_active.is_(True),
+    ))).scalar_one_or_none()
+    if plan is None:
+        raise HTTPException(status_code=422, detail="Select an active PPV plan for this client")
 
 
 def _build_rtmp_credentials(slug: str) -> dict:
@@ -45,6 +60,7 @@ async def create_ppv_event(
     admin=Depends(get_current_client_admin_with_active_plan),
 ):
     data = payload.model_dump()
+    await _validate_ppv_plan(db, admin._client_id, payload.pricing_plan_id)
     if payload.source == "rtmp":
         data.update(_build_rtmp_credentials(payload.slug))
     event = PPVEvent(client_id=admin._client_id, **data)
@@ -87,11 +103,27 @@ async def update_ppv_event(
     if not event:
         raise HTTPException(status_code=404, detail="PPV event not found")
 
-    updates = payload.model_dump(exclude_unset=True, exclude_none=True)
-    if updates.get("source") == "rtmp" and (event.source != "rtmp" or not event.rtmp_key):
-        updates.update(_build_rtmp_credentials(event.slug or str(event.id)))
-    elif updates.get("source") == "external":
+    updates = payload.model_dump(exclude_unset=True)
+    try:
+        merged = PPVEventCreate.model_validate({
+            **{field: getattr(event, field) for field in PPVEventCreate.model_fields},
+            **updates,
+        })
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors(include_context=False, include_input=False)) from exc
+    await _validate_ppv_plan(db, admin._client_id, merged.pricing_plan_id)
+    if "stream_url" in updates:
+        updates["stream_url"] = merged.stream_url
+    if merged.source != event.source:
+        updates["is_live"] = False
+    if merged.source == "rtmp":
+        if event.source != "rtmp" or not event.rtmp_key:
+            updates.update(_build_rtmp_credentials(merged.slug or str(event.id)))
+        else:
+            updates.pop("stream_url", None)
+    elif merged.source == "external":
         updates["rtmp_key"] = None
+        updates["stream_url"] = merged.stream_url
     for field, value in updates.items():
         setattr(event, field, value)
     await db.flush()
@@ -141,10 +173,10 @@ async def toggle_ppv_live(
     event = result.scalar_one_or_none()
     if not event:
         raise HTTPException(status_code=404, detail="PPV event not found")
-    if event.source != "rtmp":
-        raise HTTPException(status_code=400, detail="Only RTMP PPV events can be toggled live")
-    if is_live and not event.rtmp_key:
+    if is_live and event.source == "rtmp" and not event.rtmp_key:
         raise HTTPException(status_code=400, detail="Generate RTMP credentials before going live")
+    if is_live and not event.stream_url:
+        raise HTTPException(status_code=400, detail="Configure a stream URL before going live")
 
     event.is_live = is_live
     await db.flush()

@@ -128,6 +128,7 @@ export function PpvEventCard({ event, onDelete, onUpdate }: PpvEventCardProps) {
                 </div>
 
                 {/* Source badge */}
+                {event.scheduled_at && <time dateTime={event.scheduled_at} className="text-xs text-muted-foreground">{new Date(event.scheduled_at).toLocaleString()}</time>}
                 <div className="flex flex-wrap gap-2 text-[11px]">
                     <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold ${SOURCE_COLORS[event.source] ?? "bg-muted text-muted-foreground border-border"}`}>
                         {sourceLabel}
@@ -156,8 +157,8 @@ export function PpvEventCard({ event, onDelete, onUpdate }: PpvEventCardProps) {
                             {event.rtmp_key ? <KeyRound size={12} /> : <RefreshCw size={12} />} Credentials
                         </button>
                     )}
-                    {event.source === "rtmp" && (
-                        <button type="button" onClick={toggleLive} disabled={isTogglingLive || !credentials.rtmp_key} title={!credentials.rtmp_key ? "Generate credentials before going live" : isLive ? "Stop publishing this event" : "Publish this event live"} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${isLive ? "text-red-400 hover:bg-red-500/10" : "text-emerald-400 hover:bg-emerald-500/10"}`}>
+                    {(event.source === "rtmp" || event.source === "external") && (
+                        <button type="button" onClick={toggleLive} disabled={isTogglingLive || !credentials.stream_url} title={isLive ? "Stop publishing this event" : "Publish this event live"} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${isLive ? "text-red-400 hover:bg-red-500/10" : "text-emerald-400 hover:bg-emerald-500/10"}`}>
                             {isTogglingLive ? <Loader2 size={12} className="animate-spin" /> : isLive ? <Square size={12} /> : <Play size={12} />}
                             {isLive ? "Stop" : "Go Live"}
                         </button>

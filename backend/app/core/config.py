@@ -62,12 +62,12 @@ class Settings(BaseSettings):
     SUPERADMIN_EMAIL: str = "superadmin@streamtvdepot.com"
     SUPERADMIN_PASSWORD: str = "xxxxxx"
 
-    # Storage
-    STORAGE_BACKEND: str = "local"
+    # AWS CREDENTIALS and Storage
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""
-    AWS_S3_BUCKET: str = ""
     AWS_REGION: str = "us-east-1"
+    STORAGE_BACKEND: str = "local"
+    AWS_S3_BUCKET: str = ""
     AWS_S3_STORAGE_CLASS: str = "STANDARD"
 
     # AWS MediaConvert (ABR transcoding)
@@ -112,6 +112,12 @@ class Settings(BaseSettings):
     RTMP_HLS_BASE_URL: str = ""         # e.g. "http://203.0.113.10/hls"
     # Local directory where recorded live streams are written as MP4 files.
     RTMP_RECORDINGS_DIR: str = "/recordings"
+    INTERNAL_RTMP_AUTH_TOKEN: str = ""
+    PLAYBACK_URL_TTL_SECONDS: int = 900
+    PLAYBACK_CF_KEY_PAIR_ID: str = ""
+    PLAYBACK_CF_PRIVATE_KEY_PEM: str = ""
+    PLAYBACK_PROTECTED_CDN_HOSTS: List[str] = ["dl8tsfs5d3hbb.cloudfront.net"]
+    PLAYBACK_GEO_AUTH_SECRET: str = ""
 
     # OTT Ads (Hybrid model: CSAI VMAP/VAST + SSAI)
     AD_HYBRID_DEFAULT_MODE: str = "hybrid"   # hybrid | csai | ssai | none

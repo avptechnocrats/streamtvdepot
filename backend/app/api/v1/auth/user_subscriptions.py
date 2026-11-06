@@ -7,7 +7,7 @@ GET /auth/user/my-subscriptions/access  → check access to specific content
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select, update
@@ -18,6 +18,8 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_end_user, get_current_end_user_optional
 from app.core.config import settings
 from app.core.drm import create_key_access_token
+from app.core.security import create_access_token
+from app.core.playback_security import enforce_geo_access, protected_playback_url
 from app.models.client.content import (
     Audio,
     EPGProgram,
@@ -271,7 +273,7 @@ async def _get_content_access_type(
         if val is not None:
             if isinstance(val, uuid.UUID):
                 return "pay_per_view"
-            return str(val)
+            return str(getattr(val, "value", val))
     return None
 
 
@@ -577,6 +579,44 @@ async def check_content_access(
         current_user.id,
         content_id,
     )
+
+
+@router.post("/playback/ppv-events/{event_id}", response_model=PlaybackAuthorizationOut)
+async def authorize_ppv_playback(
+    event_id: uuid.UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_end_user),
+):
+    event = (await db.execute(select(PPVEvent).where(
+        PPVEvent.id == event_id,
+        PPVEvent.client_id == current_user._client_id,
+        PPVEvent.is_active.is_(True),
+    ))).scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="PPV event not found")
+    enforce_geo_access(request, event.geo_fencing)
+    access = await get_content_access(db, event.client_id, current_user.id, event.id)
+    if not access.has_access:
+        raise HTTPException(status_code=403, detail="Purchase access to watch this event")
+    if event.scheduled_at:
+        start = datetime.fromisoformat(event.scheduled_at.replace("Z", "+00:00"))
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        if start > datetime.now(timezone.utc):
+            raise HTTPException(status_code=409, detail="This event has not started yet")
+    if not event.is_live or not event.stream_url:
+        raise HTTPException(status_code=409, detail="This event is not live right now")
+    if event.source == "external":
+        return PlaybackAuthorizationOut(stream_url=protected_playback_url(event.stream_url, external=True, expires_at=access.expires_at))
+    token = create_access_token(str(current_user.id), {
+        "type": "ppv_playback", "event_id": str(event.id), "client_id": str(event.client_id),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=15),
+    })
+    if not settings.RTMP_HLS_BASE_URL:
+        raise HTTPException(status_code=503, detail="RTMP playback is not configured")
+    stream_url = f"{settings.RTMP_HLS_BASE_URL.rstrip('/')}/ppv-event-{event.id}.m3u8"
+    return PlaybackAuthorizationOut(stream_url=f"{stream_url}?token={token}")
 
 
 @router.post("/playback/videos/{video_id}", response_model=PlaybackAuthorizationOut)

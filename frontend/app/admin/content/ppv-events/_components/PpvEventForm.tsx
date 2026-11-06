@@ -5,9 +5,13 @@ import { useEffect, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Globe, Loader2, AlertTriangle, CheckCircle2, Radio, Users } from "lucide-react";
+import { Check, ChevronDown, Eye, Globe, Loader2, AlertTriangle, CheckCircle2, Radio, Users } from "lucide-react";
 import { LabeledSwitch } from "@/components/ui/labeled-switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { createPpvEvent, updatePpvEvent, type PpvEventOut, type PpvEventCreate, PPV_EVENT_SOURCES, listCategories, listClientPlans, type CategoryOut, type ClientPricingPlanOut } from "@/lib/api";
 import { slugify } from "../../videos/_components/utils";
 
@@ -17,6 +21,10 @@ import { AiWriteButton } from "@/components/AiWriteButton";
 
 const schema = z.object({
     title: z.string().min(1, "Title is required"),
+    scheduled_at: z.string().min(1, "Event start date and time are required").refine(
+        (value) => Number.isFinite(new Date(value).getTime()), "Enter a valid start date and time",
+    ),
+    time_zone: z.string().min(1, "Select a timezone"),
     slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9-]+$/, "Only lowercase, numbers, hyphens"),
     description: z.string().optional(),
     category: z.string().optional(),
@@ -26,11 +34,21 @@ const schema = z.object({
     portrait: z.string().optional(),
     wide: z.string().optional(),
     geo_fencing: z.object({ blocked_countries: z.array(z.string()) }),
-    pricing_plan_id: z.string().nullable(),
+    pricing_plan_id: z.string().nullable().refine((value) => Boolean(value), "Select a PPV pricing plan"),
     is_active: z.boolean(),
 }).refine((data) => data.source !== "external" || /^https:\/\/.+\.m3u8(?:[?#].*)?$/i.test(data.stream_url?.trim() ?? ""), {
     message: "Enter a secure HTTPS HLS (.m3u8) URL",
     path: ["stream_url"],
+}).superRefine((data, context) => {
+    if (!data.scheduled_at) return;
+    try {
+        const instant = fromZonedTime(data.scheduled_at, data.time_zone);
+        if (formatInTimeZone(instant, data.time_zone, "yyyy-MM-dd'T'HH:mm") !== data.scheduled_at) {
+            context.addIssue({ code: z.ZodIssueCode.custom, path: ["scheduled_at"], message: "This time does not exist in the selected timezone" });
+        }
+    } catch {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ["scheduled_at"], message: "Enter a valid time and timezone" });
+    }
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -38,15 +56,15 @@ type FormValues = z.infer<typeof schema>;
 // ─── Shared UI helpers ────────────────────────────────────────────────────────
 
 function inputCls(hasError = false) {
-    return `w-full h-9 rounded-lg bg-secondary border ${hasError ? "border-red-500/60" : "border-border"} px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
+    return `w-full h-9 rounded-lg bg-background border ${hasError ? "border-red-500/60" : "border-input"} px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
 }
 
 function selectCls(hasError = false) {
-    return `w-full h-9 rounded-lg bg-secondary border ${hasError ? "border-red-500/60" : "border-border"} px-3 pr-8 text-sm text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
+    return `w-full h-9 rounded-lg bg-background border ${hasError ? "border-red-500/60" : "border-input"} px-3 pr-8 text-sm text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
 }
 
 function textareaCls() {
-    return `w-full rounded-lg bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none`;
+    return `w-full rounded-lg bg-background border border-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none`;
 }
 
 function FieldError({ msg }: { msg?: string }) {
@@ -71,7 +89,7 @@ function CountryPicker({ selected, onChange }: { selected: string[]; onChange: (
     );
 
     return (
-        <details className="group rounded-lg border border-border bg-secondary/40">
+        <details className="group rounded-lg border border-input bg-background">
             <summary className="flex h-9 cursor-pointer items-center justify-between px-3 text-xs text-muted-foreground">
                 {selected.length ? `${selected.length} countr${selected.length === 1 ? "y" : "ies"} blocked` : "+ Select countries"}
                 <ChevronDown size={13} className="transition-transform group-open:rotate-180" />
@@ -91,8 +109,15 @@ function CountryPicker({ selected, onChange }: { selected: string[]; onChange: (
 // ─── Converter (used by edit page) ───────────────────────────────────────────
 
 export function ppvEventToFormValues(event: PpvEventOut): FormValues {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const start = event.scheduled_at ? new Date(event.scheduled_at) : null;
+    const localStart = start && Number.isFinite(start.getTime())
+        ? formatInTimeZone(start, timeZone, "yyyy-MM-dd'T'HH:mm")
+        : "";
     return {
         title: event.title,
+        scheduled_at: localStart,
+        time_zone: timeZone,
         slug: event.slug,
         description: event.description ?? "",
         category: event.category ?? "",
@@ -117,6 +142,8 @@ interface PpvEventFormProps {
 
 const DEFAULT_VALUES: FormValues = {
     title: "",
+    scheduled_at: "",
+    time_zone: "UTC",
     slug: "",
     description: "",
     category: "",
@@ -136,6 +163,9 @@ export function PpvEventForm({ mode, eventId, defaultValues }: PpvEventFormProps
     const router = useRouter();
     const [videoCategories, setVideoCategories] = useState<CategoryOut[]>([]);
     const [plans, setPlans] = useState<ClientPricingPlanOut[]>([]);
+    const [timeZones, setTimeZones] = useState<string[]>(["UTC"]);
+    const [timeZoneOpen, setTimeZoneOpen] = useState(false);
+    const [accessTab, setAccessTab] = useState("access");
 
     const {
         register,
@@ -155,6 +185,13 @@ export function PpvEventForm({ mode, eventId, defaultValues }: PpvEventFormProps
     const selectedPlanId = watch("pricing_plan_id");
     const source = watch("source");
     const slugSetByUser = useRef(false);
+
+    useEffect(() => {
+        const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const zones = Intl.supportedValuesOf("timeZone");
+        setTimeZones(Array.from(new Set(["UTC", detected, defaultValues?.time_zone ?? detected, ...zones])).sort());
+        if (!defaultValues) setValue("time_zone", detected);
+    }, [defaultValues, setValue]);
 
     // Load categories (reuse categories API filtered by livestream type)
     useEffect(() => {
@@ -176,6 +213,7 @@ export function PpvEventForm({ mode, eventId, defaultValues }: PpvEventFormProps
     const onSubmit = async (data: FormValues) => {
         const payload: PpvEventCreate = {
             title: data.title,
+            scheduled_at: fromZonedTime(data.scheduled_at, data.time_zone).toISOString(),
             slug: data.slug,
             description: data.description || null,
             category: data.category || null,
@@ -203,11 +241,11 @@ export function PpvEventForm({ mode, eventId, defaultValues }: PpvEventFormProps
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="w-full">
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6 items-start">
+        <form onSubmit={handleSubmit(onSubmit, (validation) => { if (validation.pricing_plan_id) setAccessTab("access"); })} className="w-full">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start mb-14">
 
                 {/* ══════════════ LEFT COLUMN ══════════════ */}
-                <div className="space-y-6">
+                <div className="min-w-0 space-y-6 xl:col-span-2">
 
                     {/* ── Basic Information ─────────────────────────────────── */}
                     <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
@@ -306,6 +344,46 @@ export function PpvEventForm({ mode, eventId, defaultValues }: PpvEventFormProps
                                 <FieldError msg={errors.stream_url?.message} />
                             </div>
                         )}
+                        <div className="border-t border-border pt-4 space-y-4">
+                            <SectionHeading>Event Schedule</SectionHeading>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="min-w-0 space-y-1">
+                                <label htmlFor="event-start" className="block text-xs font-semibold text-muted-foreground">
+                                    Start Date &amp; Time *
+                                </label>
+                                <input id="event-start" type="datetime-local" {...register("scheduled_at")} className={inputCls(!!errors.scheduled_at)} />
+                                <FieldError msg={errors.scheduled_at?.message} />
+                            </div>
+                            <div className="min-w-0 space-y-1">
+                                <label htmlFor="event-timezone" className="block text-xs font-semibold text-muted-foreground">Timezone *</label>
+                                <Controller name="time_zone" control={control} render={({ field }) => (
+                                    <Popover open={timeZoneOpen} onOpenChange={(open) => { setTimeZoneOpen(open); if (!open) field.onBlur(); }}>
+                                        <PopoverTrigger asChild>
+                                            <button ref={field.ref} id="event-timezone" type="button" role="combobox" aria-label="Timezone" aria-expanded={timeZoneOpen} aria-invalid={!!errors.time_zone} className={`${inputCls(!!errors.time_zone)} flex items-center justify-between gap-2 text-left`}>
+                                                <span className="truncate">{field.value.replaceAll("_", " ")}</span>
+                                                <ChevronDown size={13} className="shrink-0 text-muted-foreground" />
+                                            </button>
+                                        </PopoverTrigger>
+                                        <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-0">
+                                            <Command filter={(value, search) => value.replaceAll("_", " ").toLowerCase().includes(search.trim().toLowerCase()) ? 1 : 0}>
+                                                <CommandInput placeholder="Search timezones..." aria-label="Search timezones" />
+                                                <CommandList className="max-h-64">
+                                                    <CommandEmpty>No timezone found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {timeZones.map((zone) => <CommandItem key={zone} value={zone} keywords={[zone.replaceAll("_", " ")]} onSelect={() => { field.onChange(zone); setTimeZoneOpen(false); field.onBlur(); }}>
+                                                            <Check size={14} className={`shrink-0 ${field.value === zone ? "opacity-100" : "opacity-0"}`} />
+                                                            <span className="truncate">{zone.replaceAll("_", " ")}</span>
+                                                        </CommandItem>)}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+                                )} />
+                                <FieldError msg={errors.time_zone?.message} />
+                            </div>
+                            </div>
+                        </div>
                     </section>
 
                     <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
@@ -317,14 +395,19 @@ export function PpvEventForm({ mode, eventId, defaultValues }: PpvEventFormProps
                         <p className="text-[11px] text-muted-foreground">Leave empty for worldwide access.</p>
                     </section>
 
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 items-start">
-                        <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
-                            <SectionHeading><Users size={14} className="inline mr-1 -mt-0.5" />User Access</SectionHeading>
+                    <section className="rounded-2xl border border-border bg-card p-6">
+                        <Tabs value={accessTab} onValueChange={setAccessTab}>
+                            <TabsList aria-label="Event access settings" className="mb-4 grid w-full grid-cols-2 sm:w-fit">
+                                <TabsTrigger value="access" className="gap-2"><Users size={14} />User Access</TabsTrigger>
+                                <TabsTrigger value="visibility" className="gap-2"><Eye size={14} />Visibility</TabsTrigger>
+                            </TabsList>
+                        <TabsContent value="access" className="space-y-4">
+                            <FieldError msg={errors.pricing_plan_id?.message} />
                             {plans.length ? (
                                 <div className="space-y-1.5">
                                     <label className="block text-xs font-semibold text-muted-foreground">PPV Plan</label>
                                     {plans.map((plan) => (
-                                        <label key={plan.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border p-2.5 transition-colors hover:border-primary/40">
+                                        <label key={plan.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-input bg-background p-2.5 transition-colors hover:border-primary/40">
                                             <input type="radio" name="pricing_plan_id" checked={selectedPlanId === plan.id} onChange={() => setValue("pricing_plan_id", plan.id)} className="h-3.5 w-3.5 accent-primary" />
                                             <span className="min-w-0"><span className="block truncate text-xs font-medium text-foreground">{plan.name}</span><span className="text-[11px] text-muted-foreground">{plan.currency} {plan.price}</span></span>
                                         </label>
@@ -332,13 +415,12 @@ export function PpvEventForm({ mode, eventId, defaultValues }: PpvEventFormProps
                                     <button type="button" onClick={() => setValue("pricing_plan_id", null)} className="text-[11px] text-muted-foreground hover:text-foreground">Clear selection</button>
                                 </div>
                             ) : <p className="text-xs text-muted-foreground">No active PPV pricing plans are available.</p>}
-                        </section>
-
-                        <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
-                            <SectionHeading>Visibility</SectionHeading>
+                        </TabsContent>
+                        <TabsContent value="visibility" className="space-y-4">
                             <Controller name="is_active" control={control} render={({ field }) => <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Visible to viewers" description="Turn off to hide this event from your storefront." />} />
-                        </section>
-                    </div>
+                        </TabsContent>
+                        </Tabs>
+                    </section>
 
                 </div>
 
