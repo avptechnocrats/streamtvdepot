@@ -36,6 +36,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { RotateCcw, RotateCw, Play, Pause, Volume2, VolumeX, Maximize, Minimize, X, ChevronLeft, PictureInPicture2, Settings, Check } from "lucide-react";
 import videojs from "video.js";
+import { authorizePlaybackRequest } from "@/lib/playback-authorization";
 import type Player from "video.js/dist/types/player";
 import "video.js/dist/video-js.css";
 
@@ -111,6 +112,7 @@ export type DirectAdEventType = "impression" | "start" | "first_quartile" | "mid
 export interface VideoPlayerProps {
     /** HLS manifest (.m3u8) or plain mp4/webm URL */
     src: string;
+    authorizationSrc?: string;
     /**
      * Video UUID. When provided the player auto-fetches the short-lived DRM
      * key token before initialising so AES-128 encrypted streams play without
@@ -257,6 +259,7 @@ function waitForIma(timeoutMs = 10_000): Promise<void> {
 
 export default function VideoPlayer({
     src,
+    authorizationSrc,
     videoId,
     drmKeyToken,
     poster,
@@ -286,6 +289,8 @@ export default function VideoPlayer({
     onAdError,
 }: VideoPlayerProps) {
     const containerRef = useRef<HTMLDivElement>(null);
+    const authorizationRef = useRef(authorizationSrc ?? src);
+    authorizationRef.current = authorizationSrc ?? src;
     const playerRef = useRef<ExtendedPlayer | null>(null);
     const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const progressRef = useRef<HTMLDivElement>(null);
@@ -642,7 +647,6 @@ export default function VideoPlayer({
             }
 
             // ── 2. Main content source ──────────────────────────────────────
-            player.src(contentSource);
 
             // Linear channel: join the current program at its already-elapsed offset
             // so every viewer sees the same point, like real broadcast TV. Applied
@@ -698,14 +702,18 @@ export default function VideoPlayer({
             //    Filtering on /drm/key/ prevents sending the token to S3/CDN.
             //    We hook on "loadstart" (not "loadedmetadata") because VHS downloads
             //    the AES key BEFORE loadedmetadata fires; loadstart is early enough.
-            if (resolvedDrmToken) {
+            {
                 const _injectDrmHook = () => {
                     if (cancelled) return;
                     const tech = player.tech(true) as any;
                     const vhs = tech?.vhs ?? tech?.hls;
                     if (vhs?.xhr) {
                         vhs.xhr.beforeRequest = (options: any) => {
+                            if (typeof options.uri === "string") {
+                                options.uri = authorizePlaybackRequest(options.uri, authorizationRef.current);
+                            }
                             if (
+                                resolvedDrmToken &&
                                 typeof options.uri === "string" &&
                                 options.uri.includes("/drm/key/")
                             ) {
@@ -718,8 +726,12 @@ export default function VideoPlayer({
                         };
                     }
                 };
+                player.on("xhr-hooks-ready", _injectDrmHook);
+                player.ready(_injectDrmHook);
                 player.on("loadstart", _injectDrmHook);
             }
+
+            player.src(contentSource);
 
             // ── 6. Quality-change analytics ──────────────────────────────────
             if (onQualityChange) {
@@ -782,6 +794,21 @@ export default function VideoPlayer({
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [src, videoId, drmKeyToken, adConfig?.tagUrl]);
+
+    useEffect(() => {
+        const player = playerRef.current;
+        if (!player || !authorizationSrc || player.isDisposed() || player.currentSrc() === authorizationSrc) return;
+        const tech = player.tech(true) as any;
+        if (tech?.vhs || tech?.hls) return;
+        const position = player.currentTime() ?? 0;
+        const wasPaused = player.paused();
+        player.one("loadedmetadata", () => {
+            if (player.isDisposed()) return;
+            if (position > 0) player.currentTime(position);
+            if (!wasPaused) void player.play()?.catch(() => undefined);
+        });
+        player.src({ src: authorizationSrc, type: authorizationSrc.split(/[?#]/, 1)[0].endsWith(".m3u8") ? "application/x-mpegURL" : "video/mp4" });
+    }, [authorizationSrc]);
 
     const playPct = durationSt > 0 ? (currentTimeSt / durationSt) * 100 : 0;
 

@@ -10,17 +10,15 @@ import { getUserCountry, setSelectedCountry, getCountryName } from "@/lib/servic
 import { PricingHeaderWithCountry } from "@/components/CountrySelector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type BillingTab = "monthly" | "yearly" | "others" | "free";
+type BillingTab = "monthly" | "yearly" | "others";
 
 const BILLING_TABS: { value: BillingTab; label: string }[] = [
-    { value: "free", label: "Free" },
     { value: "monthly", label: "Monthly" },
     { value: "yearly", label: "Yearly" },
     { value: "others", label: "Others" },
 ];
 
 function billingTabForPlan(plan: SubscriptionPlan): BillingTab {
-    if (plan.price === 0) return "free";
     return plan.billing_cycle === "monthly" ? "monthly" : plan.billing_cycle === "yearly" ? "yearly" : "others";
 }
 
@@ -223,11 +221,16 @@ export default function PricingClient() {
     const searchParams = useSearchParams();
     const returnTo = searchParams.get("returnTo") ?? "/";
     const { user } = useAuth();
-    const availableBillingTabs = BILLING_TABS.filter(tab => plans.some(plan => billingTabForPlan(plan) === tab.value));
+    const freePlans = plans.filter(plan => plan.price === 0);
+    const paidPlans = plans.filter(plan => plan.price !== 0);
+    const populatedBillingTabs = BILLING_TABS.filter(tab => paidPlans.some(plan => billingTabForPlan(plan) === tab.value));
+    const availableBillingTabs = populatedBillingTabs.length
+        ? populatedBillingTabs
+        : freePlans.length ? [BILLING_TABS[0]] : [];
     const activeBillingTab = availableBillingTabs.some(tab => tab.value === selectedBillingTab)
         ? selectedBillingTab
         : availableBillingTabs[0]?.value ?? "monthly";
-    const visiblePlans = plans.filter(plan => billingTabForPlan(plan) === activeBillingTab);
+    const visiblePlans = [...freePlans, ...paidPlans.filter(plan => billingTabForPlan(plan) === activeBillingTab)];
 
     // Determine the country to display
     // Priority: User profile → Selected country → Detected country
