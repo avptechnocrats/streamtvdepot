@@ -165,10 +165,14 @@ services:
     image: nginx:alpine
     container_name: streamtvdepot_nginx
     restart: unless-stopped
+    environment:
+      INTERNAL_RTMP_AUTH_TOKEN: ${INTERNAL_RTMP_AUTH_TOKEN:-}
+      NGINX_ENVSUBST_FILTER: ^INTERNAL_RTMP_AUTH_TOKEN$
+      NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx
     ports:
       - "8081:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/templates/nginx.conf.template:ro
       - ./logs:/logs
     depends_on:
       - stv_backend

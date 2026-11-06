@@ -47,15 +47,15 @@ type FormValues = z.infer<typeof schema>;
 // ─── Shared UI helpers ────────────────────────────────────────────────────────
 
 function inputCls(hasError = false) {
-    return `w-full h-9 rounded-lg bg-secondary border ${hasError ? "border-red-500/60" : "border-border"} px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
+    return `w-full h-9 rounded-lg bg-background border ${hasError ? "border-red-500/60" : "border-input"} px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
 }
 
 function selectCls() {
-    return `w-full h-9 rounded-lg bg-secondary border border-border px-3 pr-8 text-sm text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
+    return `w-full h-9 rounded-lg bg-background border border-input px-3 pr-8 text-sm text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-primary transition-colors`;
 }
 
 function textareaCls() {
-    return `w-full rounded-lg bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none`;
+    return `w-full rounded-lg bg-background border border-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-none`;
 }
 
 function FieldError({ msg }: { msg?: string }) {
@@ -230,10 +230,10 @@ export function AudioForm({ mode, audioId, defaultValues }: AudioFormProps) {
                 }}
                 usedUrls={watch("file_url") ? [watch("file_url")] : []}
             />
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6 items-start">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start mb-14">
 
                 {/* ══ LEFT ══ */}
-                <div className="space-y-6">
+                <div className="min-w-0 space-y-6 xl:col-span-2">
 
                     {/* Basic Info */}
                     <section className="rounded-2xl border border-border bg-card p-6 space-y-4">

@@ -803,6 +803,17 @@ async def complete_payment(
                     pass
         subscription = _build_subscription(plan, client, current_user, payment, content_id, start=chain_start)
 
+    if plan.plan_type == PlanType.PPV and content_id:
+        event_start = (await db.execute(select(PPVEvent.scheduled_at).where(
+            PPVEvent.id == content_id,
+            PPVEvent.client_id == client.id,
+        ))).scalar_one_or_none()
+        if event_start:
+            scheduled = datetime.fromisoformat(event_start.replace("Z", "+00:00"))
+            if scheduled.tzinfo is None:
+                scheduled = scheduled.replace(tzinfo=timezone.utc)
+            subscription.expires_at = (max(now, scheduled) + timedelta(days=plan.restriction_days or 1)).isoformat()
+
     db.add(subscription)
 
     # Get coupon code if coupon was applied

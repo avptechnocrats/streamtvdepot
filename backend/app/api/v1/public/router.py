@@ -27,17 +27,20 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.dependencies import get_current_end_user_optional
+from app.api.v1.auth.user_subscriptions import get_content_access
 from app.core.banner_management import read_managed_banners
 from app.core.site_content import read_site_content
 from app.core.payment_gateways import get_active_payment_gateway_config
 from app.core.subscription_guard import enforce_active_client_saas_subscription
 from app.core.storage import presign_get_url
+from app.core.playback_security import protected_playback_url, trusted_country
 from app.core.security import create_ad_playback_token, decode_token
 from app.models.superadmin.client import Client
 from app.models.superadmin.plan import SaasSubscriptionPlan
 from app.models.client.content import Category, ContentStatus, EPGProgram, LiveStream, PPVEvent, Video
 from app.models.client.advertisement import AdEventType, AdPlacement, AdStatus, AdType, Advertisement, AdvertisementEvent
-from app.models.client.content import Series, Audio
+from app.models.client.content import Series, Audio, Episode
 from app.models.client.subscription import ClientSubscriptionPlan
 from app.models.client.page import ClientPage
 from app.schemas.superadmin.client import PublicClientOut
@@ -821,11 +824,7 @@ async def list_public_categories(
 
 
 def _series_country(request: Request) -> str | None:
-    for header in ("cf-ipcountry", "x-vercel-ip-country", "x-country-code"):
-        value = request.headers.get(header, "").strip().upper()
-        if len(value) == 2 and value.isalpha() and value != "XX":
-            return value
-    return None
+    return trusted_country(request)
 
 
 def _series_visibility_filters(country: str | None) -> list:
@@ -840,6 +839,102 @@ def _series_visibility_filters(country: str | None) -> list:
         or_(no_blocked, ~blocked.contains([country])) if country else no_blocked,
         or_(no_allowed, allowed.contains([country])) if country else no_allowed,
     ]
+
+
+async def _public_series_by_id(series_id: uuid.UUID, request: Request, slug: str, db: AsyncSession) -> Series:
+    client = await _resolve_client(slug, db)
+    series = await db.scalar(select(Series).where(
+        Series.id == series_id, Series.client_id == client.id,
+        Series.status == ContentStatus.PUBLISHED,
+        *_series_visibility_filters(_series_country(request)),
+    ))
+    if not series:
+        raise HTTPException(status_code=404, detail="Series not found")
+    return series
+
+
+@router.get("/series", response_model=list[SeriesOut])
+async def list_public_series(
+    request: Request,
+    slug: str = Query(...),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(30, ge=1, le=100),
+    search: str | None = None,
+    category: str | None = None,
+    language: str | None = None,
+    sort: Literal["featured", "latest", "rating"] = "featured",
+    db: AsyncSession = Depends(get_db),
+):
+    client = await _resolve_client(slug, db)
+    query = select(Series).where(
+        Series.client_id == client.id, Series.status == ContentStatus.PUBLISHED,
+        *_series_visibility_filters(_series_country(request)),
+    )
+    if search:
+        query = query.where(or_(Series.title.ilike(f"%{search}%"), Series.genre.ilike(f"%{search}%")))
+    if category:
+        query = query.where(Series.categories.any(Category.slug == category))
+    else:
+        query = query.where(Series.is_category_only.is_(False))
+    if language:
+        query = query.where(or_(Series.languages.contains([language]), Series.language == language))
+    if sort == "rating":
+        query = query.order_by(Series.rating.desc().nullslast())
+    elif sort == "featured":
+        query = query.order_by(Series.is_series_slider.desc(), Series.is_featured.desc())
+    result = await db.execute(query.order_by(Series.created_at.desc(), Series.id).offset((page - 1) * page_size).limit(page_size))
+    return result.scalars().all()
+
+
+@router.get("/series/{series_id}", response_model=SeriesOut)
+async def get_public_series(series_id: uuid.UUID, request: Request, slug: str = Query(...), db: AsyncSession = Depends(get_db)):
+    return await _public_series_by_id(series_id, request, slug, db)
+
+
+@router.get("/series/{series_id}/episodes")
+async def list_public_series_episodes(series_id: uuid.UUID, request: Request, slug: str = Query(...), db: AsyncSession = Depends(get_db)):
+    from app.schemas.client.content import _refresh_s3_url
+
+    series = await _public_series_by_id(series_id, request, slug, db)
+    result = await db.execute(select(Episode).where(
+        Episode.series_id == series.id, Episode.client_id == series.client_id,
+        Episode.status == ContentStatus.PUBLISHED,
+    ).order_by(Episode.season_number, Episode.episode_number))
+    return [{
+        "id": episode.id, "title": episode.title, "description": episode.description,
+        "season_number": episode.season_number, "episode_number": episode.episode_number,
+        "duration_seconds": episode.duration_seconds,
+        "thumbnail_url": _refresh_s3_url(episode.thumbnail_url), "has_media": bool(episode.video_url),
+    } for episode in result.scalars().all()]
+
+
+@router.post("/series/{series_id}/episodes/{episode_id}/playback")
+async def authorize_public_series_episode(
+    series_id: uuid.UUID, episode_id: uuid.UUID, request: Request,
+    slug: str = Query(...), db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_end_user_optional),
+):
+    from app.schemas.client.content import _refresh_s3_url
+
+    series = await _public_series_by_id(series_id, request, slug, db)
+    if series.access_type != "free":
+        if current_user is None:
+            raise HTTPException(status_code=401, detail="Sign in to watch this series")
+        if current_user._client_id != series.client_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        access = await get_content_access(db, series.client_id, current_user.id, series.id)
+        if not access.has_access:
+            raise HTTPException(status_code=403, detail="An active series entitlement is required")
+    episode = await db.scalar(select(Episode).where(
+        Episode.id == episode_id, Episode.series_id == series.id, Episode.client_id == series.client_id,
+        Episode.status == ContentStatus.PUBLISHED,
+    ))
+    if not episode or not episode.video_url:
+        raise HTTPException(status_code=404, detail="Episode playback is not available")
+    return {"stream_url": protected_playback_url(
+        episode.video_url,
+        expires_at=access.expires_at if series.access_type != "free" else None,
+    )}
 
 
 @router.get(

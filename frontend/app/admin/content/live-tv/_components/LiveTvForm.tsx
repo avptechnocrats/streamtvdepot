@@ -384,10 +384,10 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="w-full">
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_450px] gap-6 items-start mb-14">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start mb-14">
 
                 {/* ══════════════ LEFT COLUMN ══════════════ */}
-                <div className="space-y-6">
+                <div className="min-w-0 space-y-6 xl:col-span-2">
 
                     {/* ── Basic Information ─────────────────────────────────── */}
                     <section className="rounded-2xl border border-border bg-card p-6 space-y-4">

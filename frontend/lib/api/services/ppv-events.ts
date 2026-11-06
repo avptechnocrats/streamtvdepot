@@ -24,6 +24,7 @@ export interface PpvEventThumbnails {
 
 export interface PpvEventOut {
     id: string;
+    scheduled_at: string | null;
     client_id: string;
     title: string;
     slug: string;
@@ -46,6 +47,7 @@ export interface PpvEventOut {
 
 export interface PpvEventCreate {
     title: string;
+    scheduled_at?: string | null;
     slug: string;
     description?: string | null;
     category?: string | null;

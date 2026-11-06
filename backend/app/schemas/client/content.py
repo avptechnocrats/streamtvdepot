@@ -1,7 +1,7 @@
 import re
 import uuid
 from typing import Literal
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -1001,6 +1001,7 @@ class CategoryDetailOut(BaseModel):
 class PPVEventCreate(BaseModel):
     title: str
     slug: str
+    scheduled_at: str | None = None
     description: str | None = None
     category: str | None = None
     source: str
@@ -1012,6 +1013,16 @@ class PPVEventCreate(BaseModel):
     pricing_plan_id: uuid.UUID | None = None
     is_active: bool = True
     is_live: bool = False
+
+    @field_validator("scheduled_at")
+    @classmethod
+    def validate_schedule(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        scheduled = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if scheduled.tzinfo is None or scheduled.utcoffset() is None:
+            raise ValueError("Event start time must include a timezone")
+        return scheduled.astimezone(timezone.utc).isoformat()
 
     @field_validator("source")
     @classmethod
@@ -1033,17 +1044,30 @@ class PPVEventCreate(BaseModel):
         return self
 
 
-class PPVEventUpdate(PPVEventCreate):
+class PPVEventUpdate(BaseModel):
     title: str | None = None
     slug: str | None = None
+    scheduled_at: str | None = None
+    description: str | None = None
+    category: str | None = None
     source: str | None = None
     stream_url: str | None = None
+    thumbnails: dict[str, str | None] | None = None
+    geo_fencing: dict[str, list[str]] | None = None
+    pricing_plan_id: uuid.UUID | None = None
+    is_active: bool | None = None
     is_live: bool | None = None
+
+    @field_validator("scheduled_at")
+    @classmethod
+    def validate_schedule(cls, value: str | None) -> str | None:
+        return PPVEventCreate.validate_schedule(value)
 
 
 class PPVEventOut(BaseModel):
     id: uuid.UUID
     client_id: uuid.UUID
+    scheduled_at: str | None = None
     title: str
     slug: str | None
     description: str | None
@@ -1079,6 +1103,7 @@ class PPVEventOut(BaseModel):
 class PublicPPVEventOut(BaseModel):
     """Storefront-safe PPV event data without RTMP ingest credentials."""
     id: uuid.UUID
+    scheduled_at: str | None = None
     title: str
     slug: str | None
     description: str | None
@@ -1096,6 +1121,7 @@ class PublicPPVEventOut(BaseModel):
     @model_validator(mode="after")
     def refresh_thumbnail_presigned_urls(self) -> "PublicPPVEventOut":
         self.thumbnails = _refresh_thumbnail_urls(self.thumbnails)
+        self.stream_url = None
         return self
 
 

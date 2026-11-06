@@ -613,6 +613,14 @@ Deploy migration `m8n9o0p1q2r3` before restarting the updated backend, then depl
 - Public series listings enforce active/published state, publication dates, and geo rules. Configure the trusted edge/reverse proxy and storefront API proxy to overwrite and forward a country header (`CF-IPCountry`, `X-Vercel-IP-Country`, or `X-Country-Code`); never pass client-supplied country headers through unchanged. Restricted series are hidden when the viewer's country is unknown.
 - Verify create/edit, multiple languages, season numbering, Media Library selection, scheduled visibility, and geo filtering after deployment. Database-backed integration checks require the migrated server environment.
 
+#### Series Storefront
+
+- Deploy the updated backend and storefront together after the series editor migration. No additional database migration is introduced by the storefront routes.
+- The storefront uses `GET /api/v1/public/series`, `GET /api/v1/public/series/{id}`, and `GET /api/v1/public/series/{id}/episodes`. These enforce tenant, published/active state, scheduling, and country visibility. Episode lists contain metadata only, not video source URLs.
+- `POST /api/v1/public/series/{id}/episodes/{episode_id}/playback` checks the parent series entitlement before returning an episode URL. Free episodes allow anonymous viewers; paid episodes require a same-tenant entitled viewer. The storefront proxy forwards bearer tokens only for this playback path and disables response caching.
+- The catalog falls back to existing series category rows when the new list endpoint returns 404. Details and episode playback require the new backend routes; the page does not substitute sample records when the live catalog is empty.
+- Episode resume positions are scoped to the current tenant, signed-in viewer, and series in browser storage. They do not synchronize across devices.
+
 ### Pre-Deployment Migrations
 ```bash
 # Run migrations before deployment
