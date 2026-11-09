@@ -5,6 +5,8 @@ import "./globals.css";
 import Providers from "@/components/Providers";
 import AppShell from "@/components/AppShell";
 
+const bundledLogoUrl = process.env.NEXT_PUBLIC_CLIENT_LOGO?.trim();
+
 async function fetchSiteTitle(): Promise<{ title: string; desc: string }> {
     try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -42,6 +44,9 @@ export default function RootLayout({
 }) {
     return (
         <html lang="en" suppressHydrationWarning>
+            <head>
+                {bundledLogoUrl && <link rel="preload" as="image" href={bundledLogoUrl} fetchPriority="high" />}
+            </head>
             <body>
                 {/*
                   * Google IMA3 SDK — required by videojs-ima for VAST / VPAID / VMAP ads.

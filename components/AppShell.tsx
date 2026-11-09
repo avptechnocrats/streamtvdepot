@@ -7,6 +7,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { useUserPrefs } from "@/hooks/use-user-prefs";
 import { useSiteSettings } from "@/hooks/use-site-settings";
 import TenantMaintenanceScreen from "@/components/TenantMaintenanceScreen";
+import SiteLogo from "@/components/SiteLogo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { checkTenantAvailability } from "@/lib/services/tenant-status";
 import { fetchPublicActiveMenus, type PublicActiveMenus } from "@/lib/services/menus";
@@ -48,14 +49,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (!prefsReady || settingsLoading || menusLoading) {
         return <div className="min-h-screen bg-background" aria-busy="true" aria-label="Loading site">
             <div role="status" className="sr-only">Loading site</div>
-            <div aria-hidden="true" className="flex h-[73px] items-center justify-between gap-6 border-b border-border/30 px-4 sm:px-6 lg:px-14">
-                <Skeleton className="h-8 w-32 rounded-md" />
-                <div className="hidden items-center gap-6 md:flex">
+            <div className="flex h-[73px] items-center justify-between gap-6 border-b border-border/30 px-4 sm:px-6 lg:px-14">
+                <SiteLogo />
+                <div aria-hidden="true" className="hidden items-center gap-6 md:flex">
                     <Skeleton className="h-4 w-16 rounded" />
                     <Skeleton className="h-4 w-16 rounded" />
                     <Skeleton className="h-4 w-16 rounded" />
                 </div>
-                <Skeleton className="h-8 w-20 rounded-md" />
+                <Skeleton aria-hidden="true" className="h-8 w-20 rounded-md" />
             </div>
         </div>;
     }
