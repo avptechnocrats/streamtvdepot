@@ -19,14 +19,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import SiteLogo from "@/components/SiteLogo";
 import SearchOverlay from "@/components/SearchOverlay";
 import NotificationsDropdown from "@/components/NotificationsDropdown";
-import { fetchPublicActiveMenus, type PublicMenuLink } from "@/lib/services/menus";
+import { fetchPublicActiveMenus, getFallbackHeaderLinks, type PublicMenuLink } from "@/lib/services/menus";
 
-const FALLBACK_HEADER_LINKS: PublicMenuLink[] = [
+const DEFAULT_HEADER_LINKS: PublicMenuLink[] = [
   { id: "home", label: "Home", url: "/", sort_order: 0 },
+  { id: "tv-shows", label: "Watch TV", url: "/tv-shows", sort_order: 2 },
   { id: "movies", label: "Movies", url: "/movies", sort_order: 1 },
-  { id: "tv-shows", label: "TV Shows", url: "/tv-shows", sort_order: 2 },
-  { id: "pricing", label: "Pricing", url: "/pricing", sort_order: 3 },
+  { id: "series", label: "Series", url: "/series", sort_order: 1 },
+  { id: "on-demand", label: "On Demand", url: "/on-demand", sort_order: 3 },
+  { id: "ppv-events", label: "PPV Events", url: "/ppv-events", sort_order: 4 },
+  { id: "sports", label: "Sports", url: "/sports", sort_order: 5 },
+  { id: "music", label: "Music", url: "/music", sort_order: 6 },
+  { id: "radio", label: "Radio", url: "/radio", sort_order: 7 },
 ];
+
+const FALLBACK_HEADER_LINKS = getFallbackHeaderLinks(DEFAULT_HEADER_LINKS);
 
 const Navbar = () => {
   const pathname = usePathname();

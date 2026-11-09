@@ -129,9 +129,13 @@ export const THEMES: ThemeDefinition[] = [
     },
 ];
 
-export const DEFAULT_THEME_ID = "dark-gold";
+export const DEFAULT_THEME_ID = THEMES.find(
+    (theme) => theme.id === process.env.NEXT_PUBLIC_CLIENT_THEME?.trim(),
+)?.id ?? "dark-gold";
 
 /** Convenience lookup by id */
 export function getThemeById(id: string): ThemeDefinition {
-    return THEMES.find((t) => t.id === id) ?? THEMES[0];
+    return THEMES.find((t) => t.id === id)
+        ?? THEMES.find((t) => t.id === DEFAULT_THEME_ID)
+        ?? THEMES[0];
 }

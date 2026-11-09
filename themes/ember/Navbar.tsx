@@ -21,15 +21,17 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { fetchPublicActiveMenus, type PublicMenuLink } from "@/lib/services/menus";
+import { fetchPublicActiveMenus, getFallbackHeaderLinks, type PublicMenuLink } from "@/lib/services/menus";
 
-const FALLBACK_HEADER_LINKS: PublicMenuLink[] = [
+const DEFAULT_HEADER_LINKS: PublicMenuLink[] = [
     { id: "home", label: "Home", url: "/", sort_order: 0 },
     { id: "movies", label: "Movies", url: "/movies", sort_order: 1 },
     { id: "tv-shows", label: "Series", url: "/tv-shows", sort_order: 2 },
     { id: "ppv", label: "PPV", url: "/ppv-events", sort_order: 3 },
     { id: "pricing", label: "Pricing", url: "/pricing", sort_order: 4 },
 ];
+
+const FALLBACK_HEADER_LINKS = getFallbackHeaderLinks(DEFAULT_HEADER_LINKS);
 
 export default function Navbar() {
     const pathname = usePathname();
