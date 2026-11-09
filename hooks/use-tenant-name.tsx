@@ -15,17 +15,11 @@ export function useTenantName(fallback = "Your OTT"): string {
             return;
         }
 
-        const fromBrand = process.env.NEXT_PUBLIC_CLIENT_BRAND?.trim();
-        if (fromBrand) {
-            setHostTenantName(fromBrand);
-            return;
-        }
-
         const fromEnv = process.env.NEXT_PUBLIC_CLIENT_SLUG
             ? toDisplayName(process.env.NEXT_PUBLIC_CLIENT_SLUG)
             : "";
         setHostTenantName(fromEnv || null);
     }, []);
 
-    return site_title?.trim() || hostTenantName || fallback;
+    return site_title?.trim() || process.env.NEXT_PUBLIC_CLIENT_BRAND?.trim() || hostTenantName || fallback;
 }

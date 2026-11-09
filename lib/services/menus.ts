@@ -30,6 +30,30 @@ export interface PublicActiveMenus {
     footer: PublicMenuGroup | null;
 }
 
+export function getFallbackHeaderLinks(defaultLinks: PublicMenuLink[]): PublicMenuLink[] {
+    const configuredLinks = process.env.NEXT_PUBLIC_CLIENT_HEADER_LINKS;
+    if (!configuredLinks) return defaultLinks;
+    try {
+        const links: unknown = JSON.parse(configuredLinks);
+        if (!Array.isArray(links)) return defaultLinks;
+        const validLinks = links.flatMap((item, index) => {
+            if (!item || typeof item.label !== "string" || !item.label.trim() || typeof item.url !== "string") return [];
+            const url = item.url.trim();
+            if (!/^\/(?!\/)|^https?:\/\//i.test(url)) return [];
+            return [{
+                id: typeof item.id === "string" ? item.id : `fallback-${index}`,
+                label: item.label.trim(),
+                url,
+                sort_order: index,
+                target: item.target === "_blank" ? "_blank" as const : "_self" as const,
+            }];
+        });
+        return links.length && !validLinks.length ? defaultLinks : validLinks;
+    } catch {
+        return defaultLinks;
+    }
+}
+
 export async function fetchPublicActiveMenus(): Promise<PublicActiveMenus> {
     const { data } = await publicApiClient.get<PublicActiveMenus>("/menus/active");
     return {

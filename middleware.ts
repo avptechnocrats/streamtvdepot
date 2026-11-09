@@ -121,6 +121,16 @@ export async function middleware(request: NextRequest) {
             },
         );
 
+        if (upstreamPath === "site-logo") {
+            return new NextResponse(await upstream.arrayBuffer(), {
+                status: upstream.status,
+                headers: {
+                    "Content-Type": upstream.headers.get("Content-Type") || "application/octet-stream",
+                    "Cache-Control": "no-store",
+                },
+            });
+        }
+
         const body = await upstream.text();
         return new NextResponse(body, {
             status: upstream.status,
