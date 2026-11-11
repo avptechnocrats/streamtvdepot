@@ -20,7 +20,7 @@ export interface WatchlistItem {
     thumbnail_url: string | null;
     duration: number | null;
     access_type: string | null;
-    content_type?: "video" | "live_stream";
+    content_type?: "video" | "live_stream" | "series";
 }
 
 export async function getWatchlist(): Promise<WatchlistItem[]> {
@@ -43,7 +43,7 @@ export async function getWatchlist(): Promise<WatchlistItem[]> {
     }));
 }
 
-export async function addToWatchlist(videoId: string, contentType: "video" | "live_stream" = "video"): Promise<WatchlistItem> {
+export async function addToWatchlist(videoId: string, contentType: "video" | "live_stream" | "series" = "video"): Promise<WatchlistItem> {
     const { data } = await apiClient.post<WatchlistItem>("/auth/user/watchlist", {
         video_id: videoId,
         content_type: contentType,

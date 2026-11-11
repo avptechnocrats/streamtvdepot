@@ -147,7 +147,7 @@ export default function SeriesDetails({ id }: { id: string }) {
     const nextEpisode = playback ? episodes[episodes.findIndex(episode => episode.id === playback.episode.id) + 1] : null;
 
     return <>
-        <div className="relative"><Link href="/series" className="absolute left-4 top-[84px] z-20 inline-flex items-center gap-1 text-sm font-medium text-white/85 hover:text-white sm:left-6 lg:left-14"><ChevronLeft size={17} />All Series</Link>
+        <div className="relative">
             <SeriesHero series={series} previewEnabled={!showTrailer && !playback} actions={<>
                 <Button size="lg" className="gap-2 px-5" disabled={!firstEpisode || authorization.isPending || accessLoading || (series.access_type !== "free" && authLoading)} onClick={() => firstEpisode && chooseEpisode(firstEpisode)}>{authorization.isPending || accessLoading ? <Loader2 size={17} className="animate-spin" /> : <Play size={18} fill="currentColor" />}{resumeEpisode ? "Resume" : "Watch Now"}</Button>
                 {trailer && <Button variant="secondary" size="lg" className="gap-2 bg-white/15 text-white hover:bg-white/25" onClick={() => setShowTrailer(true)}><Film size={17} />Trailer</Button>}
@@ -155,7 +155,7 @@ export default function SeriesDetails({ id }: { id: string }) {
             </>} />
         </div>
 
-        <div className="storefront-row py-8 pb-16"><Tabs value={tab} onValueChange={setTab}>
+        <div className="storefront-row py-8 pb-16"><Link href="/series" className="mb-5 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"><ChevronLeft size={17} />All Series</Link><Tabs value={tab} onValueChange={setTab}>
             <TabsList className="mb-6 grid w-full grid-cols-3 sm:w-auto sm:inline-flex"><TabsTrigger value="episodes" className="px-2 text-xs sm:px-5 sm:text-sm">Episodes</TabsTrigger><TabsTrigger value="related" className="px-2 text-xs sm:px-5 sm:text-sm">More Like This</TabsTrigger><TabsTrigger value="details" className="px-2 text-xs sm:px-5 sm:text-sm">Details</TabsTrigger></TabsList>
             <TabsContent value="episodes">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-bold">Episodes</h2>{seasons.length > 0 && <select aria-label="Select season" value={activeSeason} onChange={event => setSeason(Number(event.target.value))} className="h-10 max-w-full rounded-md border border-border bg-background px-3 text-sm">{seasons.map(value => <option key={value} value={value}>Season {value}</option>)}</select>}</div>

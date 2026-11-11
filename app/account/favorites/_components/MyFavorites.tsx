@@ -35,7 +35,7 @@ function FavoritesRow({ title, channelRow, count, children }: { title: string; c
                 </div>}
             </div>
             <div ref={scrollRef} className="flex min-w-0 gap-3 overflow-x-auto overscroll-x-contain pb-3 pt-1 scrollbar-hide">
-                {count ? children : <p className="py-4 text-sm text-muted-foreground">No saved {channelRow ? "TV channels" : "movies"} yet.</p>}
+                {count ? children : <p className="py-4 text-sm text-muted-foreground">No saved {title.toLowerCase()} yet.</p>}
             </div>
         </section>
     );
@@ -64,7 +64,7 @@ export default function FavoritesClient() {
             queryFn: () => getVideo(item.video_id),
             staleTime: 5 * 60 * 1000,
             retry: 1,
-            enabled: !!user && item.content_type !== "live_stream",
+            enabled: !!user && item.content_type !== "live_stream" && item.content_type !== "series",
         })),
     });
 
@@ -99,7 +99,8 @@ export default function FavoritesClient() {
     if (!authLoading && !user) return null;
 
     const groups = [
-        { title: "Movies", channelRow: false, items: (watchlist ?? []).filter(item => item.content_type !== "live_stream") },
+        { title: "Movies", channelRow: false, items: (watchlist ?? []).filter(item => item.content_type !== "live_stream" && item.content_type !== "series") },
+        { title: "Series", channelRow: false, items: (watchlist ?? []).filter(item => item.content_type === "series") },
         { title: "TV Channels", channelRow: true, items: (watchlist ?? []).filter(item => item.content_type === "live_stream") },
     ];
 
@@ -132,7 +133,7 @@ export default function FavoritesClient() {
                     <div>
                         <p className="text-base font-semibold text-foreground">Your list is empty</p>
                         <p className="text-sm text-muted-foreground mt-1">
-                            Save movies and favourite TV channels to add them here.
+                            Save movies, series and favourite TV channels to add them here.
                         </p>
                     </div>
                     <Link href="/">
@@ -144,7 +145,7 @@ export default function FavoritesClient() {
                     {groups.map(group => <FavoritesRow key={group.title} title={group.title} channelRow={group.channelRow} count={group.items.length}>
                     {group.items.map((item) => (
                         <div key={item.id} className={`group relative shrink-0 ${group.channelRow ? "w-52 sm:w-60" : "w-32 sm:w-36 lg:w-40"}`}>
-                            <Link href={item.content_type === "live_stream" ? `/tv-shows/${item.video_id}` : `/movies/${item.video_id}`}>
+                            <Link href={item.content_type === "live_stream" ? `/tv-shows/${item.video_id}` : item.content_type === "series" ? `/series/${item.video_id}` : `/movies/${item.video_id}`}>
                                 <div className={`relative ${group.channelRow ? "aspect-video" : "aspect-[2/3]"} rounded-lg overflow-hidden bg-secondary`}>
                                     {getThumbnail(item.video_id) ? (
                                         <img
