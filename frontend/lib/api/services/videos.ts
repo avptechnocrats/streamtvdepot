@@ -114,6 +114,7 @@ export interface VideoOut {
     short_description: string | null;
     long_description: string | null;
     categories: string[];  // category slugs
+    tags: string[];
     age_rating: string | null;
     content_classification: string | null;
     language: string[];

@@ -31,6 +31,8 @@ from app.schemas.client.content import (
     LiveVodExportIn,
 )
 
+from .tags import resolve_tag_names
+
 router = APIRouter()
 
 
@@ -114,6 +116,7 @@ async def create_stream(
 ):
     category_slugs = payload.categories or []
     data = payload.model_dump(exclude={"categories", "live_options", "pipeline"})
+    data["tags"] = await resolve_tag_names(db, admin._client_id, payload.tags)
     pipeline = payload.pipeline or aws_live.default_pipeline()
     managed = payload.source == "rtmp" and pipeline == "aws"
     if managed:
@@ -191,6 +194,8 @@ async def update_stream(
         raise HTTPException(status_code=404, detail="Live stream not found")
 
     updates = payload.model_dump(exclude_unset=True)
+    if "tags" in updates:
+        updates["tags"] = await resolve_tag_names(db, admin._client_id, updates["tags"])
     category_slugs = updates.pop("categories", None)
     if stream.aws_live:
         # Managed channels are fixed to the pipeline source and never expose a public URL.

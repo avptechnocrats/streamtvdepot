@@ -4,13 +4,14 @@
  * Import everything your components need from "@/lib/api"
  */
 
-export { default as apiClient, setTokens, clearTokens, TOKEN_KEYS, setClientSlug } from "./client";
+export { default as apiClient, setTokens, clearTokens, TOKEN_KEYS, setClientSlug, getClientSlug } from "./client";
 export { ENDPOINTS } from "./endpoints";
 export * from "./error-utils";
 export * from "./services/auth";
 export * from "./services/superadmin";
 export * from "./services/videos";
 export * from "./services/categories";
+export * from "./services/content-tags";
 export * from "./services/audios";
 export * from "./services/users";
 export * from "./services/roles";

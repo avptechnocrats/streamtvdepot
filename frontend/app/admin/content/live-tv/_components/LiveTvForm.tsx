@@ -14,6 +14,7 @@ import { slugify } from "../../videos/_components/utils";
 
 import { AiWriteButton } from "@/components/AiWriteButton";
 import { CategoryPicker } from "@/components/CategoryPicker";
+import ContentTagPicker from "@/components/content/ContentTagPicker";
 
 // ─── Countries ──────────────────────────────────────────────────────────────
 
@@ -48,6 +49,7 @@ const schema = z.object({
     description: z.string().optional(),
     region: z.array(z.enum(REGIONS)),
     categories: z.array(z.string()),  // category slugs
+    tags: z.array(z.string()),
     language: z.array(z.string()).optional(),
     // SRT will implement in future.
     source: z.enum(["rtmp", "external"], { required_error: "Source is required" }),
@@ -142,25 +144,7 @@ function CheckboxDropdown({
         : options;
 
     return (
-        <div ref={ref} className="space-y-2">
-            {selected.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                    {selected.map((val) => {
-                        const opt = options.find((o) => o.value === val);
-                        return (
-                            <span
-                                key={val}
-                                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20"
-                            >
-                                {opt?.label ?? val}
-                                <button type="button" onClick={() => toggle(val)} className="hover:text-primary/60">
-                                    <X size={10} />
-                                </button>
-                            </span>
-                        );
-                    })}
-                </div>
-            )}
+        <div ref={ref} className="min-w-0 space-y-2">
             <div className="relative">
                 <button
                     type="button"
@@ -211,6 +195,24 @@ function CheckboxDropdown({
                     </div>
                 )}
             </div>
+            {selected.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                    {selected.map((val) => {
+                        const opt = options.find((o) => o.value === val);
+                        return (
+                            <span
+                                key={val}
+                                className="flex max-w-full items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20"
+                            >
+                                <span className="min-w-0 break-words">{opt?.label ?? val}</span>
+                                <button type="button" onClick={() => toggle(val)} className="shrink-0 hover:text-primary/60" aria-label={`Remove ${opt?.label ?? val}`}>
+                                    <X size={10} />
+                                </button>
+                            </span>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }
@@ -230,6 +232,7 @@ export function liveTvChannelToFormValues(c: LiveTvChannelOut): FormValues {
         description: c.description ?? "",
         region: c.region ?? [],
         categories: c.categories ?? [],
+        tags: c.tags ?? [],
         language: c.language ?? [],
         source: c.source as "rtmp" | "external",
         stream_url: c.stream_url ?? "",
@@ -264,6 +267,7 @@ const DEFAULT_VALUES: FormValues = {
     description: "",
     region: [],
     categories: [],
+    tags: [],
     language: [],
     source: "rtmp",
     stream_url: "",
@@ -348,6 +352,7 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
             description: data.description || null,
             region: data.region,
             categories: data.categories,
+            tags: data.tags,
             language: data.language ?? [],
             source: data.source,
             stream_url: data.stream_url || null,
@@ -443,6 +448,10 @@ export function LiveTvForm({ mode, channelId, defaultValues }: LiveTvFormProps) 
                                 )}
                             />
                         </div>
+
+                        <Controller name="tags" control={control} render={({ field }) => (
+                            <ContentTagPicker selected={field.value ?? []} onChange={field.onChange} />
+                        )} />
 
                         <div className="space-y-1">
                             <label className="block text-xs font-semibold text-muted-foreground">Region</label>

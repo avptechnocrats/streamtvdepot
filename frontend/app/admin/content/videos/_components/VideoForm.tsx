@@ -17,6 +17,7 @@ import { ENDPOINTS } from "@/lib/api/endpoints";
 import MediaLibraryModal from "./MediaLibraryModal";
 import { AiWriteButton } from "@/components/AiWriteButton";
 import { CategoryPicker } from "@/components/CategoryPicker";
+import ContentTagPicker from "@/components/content/ContentTagPicker";
 import VideoPlayer from "@/components/VideoPlayer";
 import { getDrmKeyToken, getTranscodeStatus, getTrailerTranscodeStatus, triggerTranscode, triggerTrailerTranscode, type TrailerStatusResponse } from "@/lib/api/transcoding";
 import { uploadAssetToS3 } from "@/lib/upload/s3-upload";
@@ -83,6 +84,7 @@ export const videoFormSchema = z.object({
     short_description: z.string().optional(),
     long_description: z.string().optional(),
     categories: z.array(z.string()),   // category slugs stored in DB
+    tags: z.array(z.string()),
     age_rating: z.string().optional(),
     content_classification: z.string().optional(),
     language: z.array(z.string()).optional(),
@@ -269,6 +271,7 @@ export function videoToFormValues(v: VideoOut): VideoFormValues {
         short_description: v.short_description ?? "",
         long_description: v.long_description ?? "",
         categories: v.categories ?? [],
+        tags: v.tags ?? [],
         age_rating: v.age_rating ?? "",
         content_classification: v.content_classification ?? "",
         language: v.language ?? [],
@@ -356,6 +359,7 @@ const FIELD_TAB_MAP: Record<string, { group: "basic" | "access" | "media"; tab: 
     short_description: { group: "basic", tab: "basic" },
     long_description: { group: "basic", tab: "basic" },
     categories: { group: "basic", tab: "basic" },
+    tags: { group: "basic", tab: "basic" },
     age_rating: { group: "basic", tab: "basic" },
     content_classification: { group: "basic", tab: "basic" },
     language: { group: "basic", tab: "basic" },
@@ -629,7 +633,6 @@ export function S3VideoField({ label, hint, accept, value, thumbnailUrl, preview
                                 drmKeyToken={streamDrmKeyToken}
                                 poster={thumbnailUrl ?? undefined}
                                 autoPlay={false}
-                                onDurationDetected={onDurationDetected}
                                 onError={(message) => setPreviewError(message || "The HLS preview could not be played.")}
                             />
                         ) : isFailed ? (
@@ -831,26 +834,7 @@ function CheckboxDropdown({
         : options;
 
     return (
-        <div ref={ref} className="space-y-2">
-            {/* Selected tags */}
-            {selected.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                    {selected.map((val) => {
-                        const opt = options.find((o) => o.value === val);
-                        return (
-                            <span
-                                key={val}
-                                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20"
-                            >
-                                {opt?.label ?? val}
-                                <button type="button" onClick={() => toggle(val)} className="hover:text-primary/60">
-                                    <X size={10} />
-                                </button>
-                            </span>
-                        );
-                    })}
-                </div>
-            )}
+        <div ref={ref} className="min-w-0 space-y-2">
             {/* Trigger button */}
             <div className="relative">
                 <button
@@ -904,6 +888,24 @@ function CheckboxDropdown({
                     </div>
                 )}
             </div>
+            {selected.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                    {selected.map((val) => {
+                        const opt = options.find((o) => o.value === val);
+                        return (
+                            <span
+                                key={val}
+                                className="flex max-w-full items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20"
+                            >
+                                <span className="min-w-0 break-words">{opt?.label ?? val}</span>
+                                <button type="button" onClick={() => toggle(val)} className="shrink-0 hover:text-primary/60" aria-label={`Remove ${opt?.label ?? val}`}>
+                                    <X size={10} />
+                                </button>
+                            </span>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }
@@ -1116,6 +1118,7 @@ const DEFAULT_FORM_VALUES: VideoFormValues = {
     short_description: "",
     long_description: "",
     categories: [],
+    tags: [],
     age_rating: "",
     content_classification: "",
     language: [],
@@ -1561,6 +1564,7 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
             short_description: data.short_description || null,
             long_description: data.long_description || null,
             categories: data.categories,
+            tags: data.tags,
             age_rating: data.age_rating || null,
             content_classification: data.content_classification || null,
             language: data.language ?? [],
@@ -1797,6 +1801,11 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
                                                 </select>
                                                 <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                                             </div>
+                                        </div>
+                                        <div className="col-span-2 min-w-0">
+                                            <Controller name="tags" control={control} render={({ field }) => (
+                                                <ContentTagPicker selected={field.value ?? []} onChange={field.onChange} />
+                                            )} />
                                         </div>
                                         <div className="space-y-1">
                                             <label className="block text-xs font-semibold text-muted-foreground">Age Rating</label>

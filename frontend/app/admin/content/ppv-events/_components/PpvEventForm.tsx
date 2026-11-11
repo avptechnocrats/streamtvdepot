@@ -16,6 +16,7 @@ import { createPpvEvent, updatePpvEvent, type PpvEventOut, type PpvEventCreate, 
 import { slugify } from "../../videos/_components/utils";
 
 import { AiWriteButton } from "@/components/AiWriteButton";
+import ContentTagPicker from "@/components/content/ContentTagPicker";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,7 @@ const schema = z.object({
     slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9-]+$/, "Only lowercase, numbers, hyphens"),
     description: z.string().optional(),
     category: z.string().optional(),
+    tags: z.array(z.string()),
     source: z.enum(["rtmp", "external"], { required_error: "Source is required" }),
     stream_url: z.string().optional(),
     banner: z.string().optional(),
@@ -121,6 +123,7 @@ export function ppvEventToFormValues(event: PpvEventOut): FormValues {
         slug: event.slug,
         description: event.description ?? "",
         category: event.category ?? "",
+        tags: event.tags ?? [],
         source: event.source,
         stream_url: event.stream_url ?? "",
         banner: event.thumbnails.banner ?? "",
@@ -147,6 +150,7 @@ const DEFAULT_VALUES: FormValues = {
     slug: "",
     description: "",
     category: "",
+    tags: [],
     source: "rtmp",
     stream_url: "",
     banner: "",
@@ -217,6 +221,7 @@ export function PpvEventForm({ mode, eventId, defaultValues }: PpvEventFormProps
             slug: data.slug,
             description: data.description || null,
             category: data.category || null,
+            tags: data.tags,
             source: data.source,
             stream_url: data.source === "external" ? data.stream_url?.trim() || null : null,
             thumbnails: {
@@ -299,6 +304,9 @@ export function PpvEventForm({ mode, eventId, defaultValues }: PpvEventFormProps
                                 <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                             </div>
                         </div>
+                        <Controller name="tags" control={control} render={({ field }) => (
+                            <ContentTagPicker selected={field.value ?? []} onChange={field.onChange} />
+                        )} />
                     </section>
 
                     {/* ── Stream Source ─────────────────────────────────────── */}

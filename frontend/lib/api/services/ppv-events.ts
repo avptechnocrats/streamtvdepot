@@ -30,6 +30,7 @@ export interface PpvEventOut {
     slug: string;
     description: string | null;
     category: string | null;
+    tags: string[];
     source: PpvEventSource;
     /** HLS playback URL: auto-generated for RTMP, supplied for external feeds. */
     stream_url: string | null;
@@ -51,6 +52,7 @@ export interface PpvEventCreate {
     slug: string;
     description?: string | null;
     category?: string | null;
+    tags?: string[];
     source: PpvEventSource;
     stream_url?: string | null;
     thumbnails: PpvEventThumbnails;

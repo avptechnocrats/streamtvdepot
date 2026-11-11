@@ -7,6 +7,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.models.client.content import AccessType, ContentStatus
+from app.schemas.client.tags import ContentTagFields
 
 
 # ─── Thumbnail URL helpers ────────────────────────────────────────────────────
@@ -180,7 +181,7 @@ class CategoryListResponse(BaseModel):
 
 # ─── Audio ───────────────────────────────────────────────────────────────────
 
-class AudioCreate(BaseModel):
+class AudioCreate(ContentTagFields):
     title: str
     description: str | None = None
     artist: str | None = None
@@ -200,7 +201,7 @@ class AudioUpdate(AudioCreate):
     title: str | None = None
 
 
-class AudioOut(BaseModel):
+class AudioOut(ContentTagFields):
     id: uuid.UUID
     client_id: uuid.UUID
     title: str
@@ -349,7 +350,7 @@ class VideoThumbnails(BaseModel):
         return self
 
 
-class VideoCreate(BaseModel):
+class VideoCreate(ContentTagFields):
     title: str
     slug: str
     short_description: str | None = None
@@ -385,7 +386,7 @@ class VideoCreate(BaseModel):
     partner_id: uuid.UUID | None = None
 
 
-class VideoUpdate(BaseModel):
+class VideoUpdate(ContentTagFields):
     title: str | None = None
     slug: str | None = None
     short_description: str | None = None
@@ -421,7 +422,7 @@ class VideoUpdate(BaseModel):
     partner_id: uuid.UUID | None = None
 
 
-class VideoOut(BaseModel):
+class VideoOut(ContentTagFields):
     id: uuid.UUID
     title: str
     slug: str
@@ -576,7 +577,7 @@ class SeriesEpisodeInput(BaseModel):
         return self
 
 
-class SeriesCreate(BaseModel):
+class SeriesCreate(ContentTagFields):
     title: str = Field(min_length=1, max_length=500)
     description: str | None = None
     genre: str | None = None
@@ -629,7 +630,7 @@ class SeriesUpdate(SeriesCreate):
         return self
 
 
-class SeriesOut(BaseModel):
+class SeriesOut(ContentTagFields):
     id: uuid.UUID
     client_id: uuid.UUID
     title: str
@@ -789,7 +790,7 @@ def _managed_view(aws_live: dict | None, rtmp_key: str | None) -> "LiveManagedOu
     )
 
 
-class LiveStreamCreate(BaseModel):
+class LiveStreamCreate(ContentTagFields):
     title: str
     slug: str
     description: str | None = None
@@ -821,7 +822,7 @@ class LivePipelinesOut(BaseModel):
     aws: LivePipelineStatusOut
 
 
-class LiveStreamUpdate(BaseModel):
+class LiveStreamUpdate(ContentTagFields):
     title: str | None = None
     slug: str | None = None
     description: str | None = None
@@ -839,7 +840,7 @@ class LiveStreamUpdate(BaseModel):
     subscription_plan_ids: list[str] | None = None
 
 
-class LiveStreamOut(BaseModel):
+class LiveStreamOut(ContentTagFields):
     id: uuid.UUID
     client_id: uuid.UUID
     title: str
@@ -1003,7 +1004,7 @@ class CategoryDetailOut(BaseModel):
 
 # ─── PPV Event ───────────────────────────────────────────────────────────────
 
-class PPVEventCreate(BaseModel):
+class PPVEventCreate(ContentTagFields):
     title: str
     slug: str
     scheduled_at: str | None = None
@@ -1049,7 +1050,7 @@ class PPVEventCreate(BaseModel):
         return self
 
 
-class PPVEventUpdate(BaseModel):
+class PPVEventUpdate(ContentTagFields):
     title: str | None = None
     slug: str | None = None
     scheduled_at: str | None = None
@@ -1069,7 +1070,7 @@ class PPVEventUpdate(BaseModel):
         return PPVEventCreate.validate_schedule(value)
 
 
-class PPVEventOut(BaseModel):
+class PPVEventOut(ContentTagFields):
     id: uuid.UUID
     client_id: uuid.UUID
     scheduled_at: str | None = None

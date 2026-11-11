@@ -44,6 +44,7 @@ export interface SeriesOut extends SeriesEditorSettings {
     description: string | null;
     genre: string | null;
     categories: string[];
+    tags: string[];
     language: string | null;
     thumbnail_url: string | null;
     trailer_url: string | null;
@@ -60,6 +61,7 @@ export interface SeriesCreate extends SeriesEditorSettings {
     description?: string | null;
     genre?: string | null;
     categories?: string[];
+    tags?: string[];
     language?: string | null;
     thumbnail_url?: string | null;
     trailer_url?: string | null;

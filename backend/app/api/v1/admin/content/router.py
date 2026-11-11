@@ -8,8 +8,10 @@ from .ppv import router as ppv_router
 from .rentals import router as rentals_router
 from .series import router as series_router
 from .videos import router as videos_router
+from .tags import router as tags_router
 
 router = APIRouter()
+router.include_router(tags_router, prefix="/tags", tags=["Admin - Content: Tags"])
 
 router.include_router(categories_router, prefix="/categories", tags=["Admin – Content: Categories"])
 router.include_router(audios_router, prefix="/audios", tags=["Admin – Content: Audios"])

@@ -13,6 +13,7 @@ from app.core.storage import media_display_url
 from app.models.client.advertisement import Advertisement as AdvertisementModel
 from app.models.client.content import ContentPartner, ContentStatus, Category, Video, video_categories as video_categories_table
 from app.schemas.client.content import VideoCreate, VideoOut, VideoThumbnails, VideoUpdate
+from .tags import resolve_tag_names
 
 router = APIRouter()
 
@@ -264,6 +265,7 @@ async def create_video(
     # Resolve category slugs → Category ORM objects
     category_slugs = payload.categories or []
     data = _serialize_nested(payload.model_dump(exclude={"categories", "partner_id"}))
+    data["tags"] = await resolve_tag_names(db, admin._client_id, payload.tags)
     data["partner_id"] = await _resolve_partner_id(payload.partner_id, admin, db)
     video = Video(client_id=admin._client_id, **data)
     db.add(video)
@@ -333,6 +335,8 @@ async def update_video(
         raise HTTPException(status_code=404, detail="Video not found")
 
     updates = payload.model_dump(exclude_unset=True)
+    if "tags" in updates:
+        updates["tags"] = await resolve_tag_names(db, admin._client_id, updates["tags"])
     if "partner_id" in updates:
         updates["partner_id"] = await _resolve_partner_id(updates["partner_id"], admin, db)
 

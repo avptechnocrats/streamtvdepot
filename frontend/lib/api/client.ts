@@ -27,6 +27,10 @@ export function setClientSlug(slug: string): void {
     _clientSlug = slug;
 }
 
+export function getClientSlug(): string | null {
+    return _clientSlug;
+}
+
 // ─── Token storage keys ───────────────────────────────────────────────────────
 
 export const TOKEN_KEYS = {

@@ -21,6 +21,8 @@ from app.schemas.client.content import (
     SeriesUpdate,
 )
 
+from .tags import resolve_tag_names
+
 router = APIRouter()
 
 SERIES_NESTED_FIELDS = {"categories", "episodes", "deleted_episode_ids"}
@@ -131,6 +133,7 @@ async def create_series(
     await _validate_series_payload(payload, admin._client_id, db)
     category_slugs = payload.categories or []
     data = payload.model_dump(exclude=SERIES_NESTED_FIELDS)
+    data["tags"] = await resolve_tag_names(db, admin._client_id, payload.tags)
     data["languages"] = payload.languages or ([payload.language] if payload.language else [])
     data["language"] = data["languages"][0] if data["languages"] else None
     series = Series(client_id=admin._client_id, **data)
@@ -214,6 +217,8 @@ async def update_series(
     await _validate_series_payload(merged, admin._client_id, db)
 
     updates = payload.model_dump(exclude_unset=True)
+    if "tags" in updates:
+        updates["tags"] = await resolve_tag_names(db, admin._client_id, updates["tags"])
     updates.pop("episodes", None)
     updates.pop("deleted_episode_ids", None)
     category_slugs = updates.pop("categories", None)

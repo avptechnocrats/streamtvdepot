@@ -25,6 +25,7 @@ export interface AudioOut {
     album: string | null;
     genre: string | null;
     categories: string[];
+    tags: string[];
     duration_seconds: number | null;
     file_url: string | null;
     thumbnail_url: string | null;
@@ -42,6 +43,7 @@ export interface AudioCreate {
     album?: string | null;
     genre?: string | null;
     categories?: string[];
+    tags?: string[];
     duration_seconds?: number | null;
     file_url?: string | null;
     thumbnail_url?: string | null;
