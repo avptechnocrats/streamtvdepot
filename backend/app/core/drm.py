@@ -96,7 +96,7 @@ _KEY_TOKEN_ALGORITHM = "HS256"
 _KEY_TOKEN_PURPOSE = "drm_key_access"
 
 
-def create_key_access_token(*, video_id: str, user_id: str) -> str:
+def create_key_access_token(*, video_id: str, user_id: str, expires_at: datetime | None = None) -> str:
     """
     Issue a JWT that authorises *user_id* to fetch the AES key for *video_id*.
     Frontend must include this as ``Authorization: Bearer <token>`` when the
@@ -108,7 +108,7 @@ def create_key_access_token(*, video_id: str, user_id: str) -> str:
         "vid": video_id,
         "purpose": _KEY_TOKEN_PURPOSE,
         "iat": now,
-        "exp": now + timedelta(hours=_KEY_TOKEN_EXPIRE_HOURS),
+        "exp": min(now + timedelta(hours=_KEY_TOKEN_EXPIRE_HOURS), expires_at) if expires_at else now + timedelta(hours=_KEY_TOKEN_EXPIRE_HOURS),
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=_KEY_TOKEN_ALGORITHM)
 

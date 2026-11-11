@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_REGION: str = "us-east-1"
     STORAGE_BACKEND: str = "local"
+    LOCAL_BRANDING_DIR: str = "uploads/branding"
     AWS_S3_BUCKET: str = ""
     AWS_S3_STORAGE_CLASS: str = "STANDARD"
 

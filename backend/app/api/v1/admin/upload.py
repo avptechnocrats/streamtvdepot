@@ -5,17 +5,18 @@ import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Literal
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from botocore.exceptions import BotoCoreError, ClientError
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_client_admin
+from app.core.episode_transcoding import LIBRARY_PROFILE, prepare_media_asset_transcode, process_episode_transcodes, reusable_episode_rendition
 from app.core.storage import get_s3_client as _get_s3_client, media_display_url
 from app.models.client.content import Category, Episode, MediaAsset, MediaAssetRendition, Series, Video
 from app.models.client.banner import ClientBannerImage
@@ -524,9 +525,30 @@ async def multipart_abort_upload(
         raise HTTPException(status_code=502, detail=f"S3 error: {exc}") from exc
 
 
+async def _existing_upload(db: AsyncSession, client_id: uuid.UUID, s3_key: str) -> MediaAsset | None:
+    await db.execute(select(func.pg_advisory_xact_lock(func.hashtextextended(f"upload:{client_id}:{s3_key}", 0))))
+    return await db.scalar(select(MediaAsset).where(
+        MediaAsset.client_id == client_id, MediaAsset.s3_key == s3_key,
+    ).order_by(MediaAsset.created_at.desc()).limit(1))
+
+
+async def _uploaded_asset_out(db: AsyncSession, asset: MediaAsset, background_tasks: BackgroundTasks) -> MediaAssetOut:
+    rendition = await prepare_media_asset_transcode(db, asset)
+    out = MediaAssetOut.model_validate(asset)
+    out.display_url = media_display_url(asset.s3_key, original_filename=asset.original_filename)
+    if rendition:
+        out.transcode_status = rendition.status
+        out.transcode_progress = rendition.progress
+    await db.commit()
+    if rendition and rendition.status == "pending":
+        background_tasks.add_task(process_episode_transcodes)
+    return out
+
+
 @router.post("/confirm", response_model=MediaAssetOut, status_code=status.HTTP_201_CREATED)
 async def confirm_upload(
     payload: ConfirmUploadRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     admin=Depends(get_current_client_admin),
 ):
@@ -569,6 +591,10 @@ async def confirm_upload(
     except BotoCoreError as exc:
         raise HTTPException(status_code=502, detail=f"S3 error: {exc}") from exc
 
+    existing_asset = await _existing_upload(db, admin._client_id, payload.s3_key)
+    if existing_asset:
+        return await _uploaded_asset_out(db, existing_asset, background_tasks)
+
     public_url = (
         f"https://{settings.AWS_S3_BUCKET}.s3.{settings.AWS_REGION}.amazonaws.com/{payload.s3_key}"
     )
@@ -586,8 +612,7 @@ async def confirm_upload(
     db.add(asset)
     await db.flush()
     await db.refresh(asset)
-    out = MediaAssetOut.model_validate(asset)
-    out.display_url = media_display_url(asset.s3_key, original_filename=asset.original_filename)
+    out = await _uploaded_asset_out(db, asset, background_tasks)
 
     # Apply desired storage class server-side (avoids signing it into the presigned PUT URL,
     # which would trigger a CORS preflight that browsers cannot pass against S3).
@@ -613,6 +638,7 @@ async def confirm_upload(
 @router.post("/reconcile", response_model=MediaAssetOut)
 async def reconcile_upload(
     payload: ReconcileUploadRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     admin=Depends(get_current_client_admin),
 ):
@@ -626,17 +652,9 @@ async def reconcile_upload(
     if not _is_valid_admin_s3_key(admin=admin, s3_key=payload.s3_key):
         raise HTTPException(status_code=403, detail="Invalid s3_key for this client")
 
-    existing_result = await db.execute(
-        select(MediaAsset).where(
-            MediaAsset.client_id == admin._client_id,
-            MediaAsset.s3_key == payload.s3_key,
-        )
-    )
-    existing_asset = existing_result.scalar_one_or_none()
+    existing_asset = await _existing_upload(db, admin._client_id, payload.s3_key)
     if existing_asset:
-        out = MediaAssetOut.model_validate(existing_asset)
-        out.display_url = media_display_url(existing_asset.s3_key, original_filename=existing_asset.original_filename)
-        return out
+        return await _uploaded_asset_out(db, existing_asset, background_tasks)
 
     if not settings.AWS_S3_BUCKET or not settings.AWS_ACCESS_KEY_ID or not settings.AWS_SECRET_ACCESS_KEY:
         raise HTTPException(
@@ -677,8 +695,50 @@ async def reconcile_upload(
     await db.flush()
     await db.refresh(asset)
 
-    out = MediaAssetOut.model_validate(asset)
-    out.display_url = media_display_url(asset.s3_key, original_filename=asset.original_filename)
+    return await _uploaded_asset_out(db, asset, background_tasks)
+
+
+class MediaAssetVideoStatusOut(BaseModel):
+    asset_id: uuid.UUID
+    media_asset_rendition_id: uuid.UUID | None = None
+    transcode_status: str | None = None
+    transcode_progress: int | None = None
+    transcode_error: str | None = None
+    stream_ready: bool = False
+    stream_url: str | None = None
+
+
+@router.get("/video-rendition", response_model=MediaAssetVideoStatusOut)
+async def get_video_asset_rendition(
+    source_url: str,
+    db: AsyncSession = Depends(get_db),
+    admin=Depends(get_current_client_admin),
+):
+    source_key = unquote(urlparse(source_url).path.lstrip("/"))
+    asset = await db.scalar(select(MediaAsset).where(
+        MediaAsset.client_id == admin._client_id, MediaAsset.s3_key == source_key,
+        MediaAsset.content_type.like("video/%"),
+    ).order_by(MediaAsset.created_at.desc()).limit(1))
+    if not asset:
+        raise HTTPException(status_code=404, detail="Video asset not found in this tenant's Media Library")
+    rendition = await reusable_episode_rendition(db, admin._client_id, source_key)
+    out = MediaAssetVideoStatusOut(asset_id=asset.id)
+    if rendition:
+        out.media_asset_rendition_id = rendition.id
+        out.transcode_status = rendition.status
+        out.transcode_progress = rendition.progress
+        out.transcode_error = rendition.error_message
+        out.stream_ready = rendition.status == "complete" and bool(rendition.hls_manifest_key)
+        if out.stream_ready:
+            from app.core.drm import create_key_access_token
+
+            token = create_key_access_token(
+                video_id=f"asset-preview:{admin._client_id}:{rendition.id}", user_id=str(admin.id),
+            )
+            out.stream_url = (
+                f"{settings.BACKEND_PUBLIC_URL.rstrip('/')}/{settings.API_V1_PREFIX.strip('/')}"
+                f"/media/stream/asset/{rendition.id}/manifest.m3u8?token={token}"
+            )
     return out
 
 
@@ -787,7 +847,10 @@ async def list_media_assets(
                 MediaAssetRendition.source_s3_key.in_(asset_keys),
                 MediaAssetRendition.profile.in_(("abr_hls_v1_drm", "abr_hls_v1_clear")),
             )
-            .order_by(MediaAssetRendition.updated_at.desc())
+            .order_by(
+                case((MediaAssetRendition.profile == LIBRARY_PROFILE, 0), else_=1),
+                MediaAssetRendition.updated_at.desc(),
+            )
         )
         rendition_by_key: dict[str, tuple[str, int | None]] = {}
         for source_key, transcode_status, progress in rendition_rows.all():
@@ -850,6 +913,24 @@ async def get_signed_url(
     out = MediaAssetOut.model_validate(asset)
     out.display_url = media_display_url(asset.s3_key, original_filename=asset.original_filename)
     return out
+
+
+@router.post("/media-assets/{asset_id}/transcode", response_model=MediaAssetOut)
+async def retry_asset_transcode(
+    asset_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    admin=Depends(get_current_client_admin),
+):
+    asset = await db.scalar(select(MediaAsset).where(
+        MediaAsset.id == asset_id, MediaAsset.client_id == admin._client_id,
+    ))
+    if not asset:
+        raise HTTPException(status_code=404, detail="Media asset not found")
+    if not asset.content_type or not asset.content_type.startswith("video/"):
+        raise HTTPException(status_code=422, detail="Only video assets can be transcoded")
+    await prepare_media_asset_transcode(db, asset, retry=True)
+    return await _uploaded_asset_out(db, asset, background_tasks)
 
 
 @router.delete("/media-assets/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)

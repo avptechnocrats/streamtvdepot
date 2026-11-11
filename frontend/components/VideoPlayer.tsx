@@ -169,6 +169,7 @@ export interface VideoPlayerProps {
     onEnded?: () => void;
     onError?: (message: string) => void;
     onTimeUpdate?: (currentTime: number, duration: number) => void;
+    onDurationDetected?: (seconds: number) => void;
     /** Fires when ABR switches the active rendition */
     onQualityChange?: (height: number, bitrate: number) => void;
     /** IMA3 ad lifecycle */
@@ -276,6 +277,7 @@ export default function VideoPlayer({
     onEnded,
     onError,
     onTimeUpdate,
+    onDurationDetected,
     onQualityChange,
     onAdStart,
     onAdEnd,
@@ -285,6 +287,11 @@ export default function VideoPlayer({
     const containerRef = useRef<HTMLDivElement>(null);
     const playerRef = useRef<ExtendedPlayer | null>(null);
     const keyboardHandlerRef = useRef<((e: KeyboardEvent) => void) | null>(null);
+    const durationCallbackRef = useRef(onDurationDetected);
+
+    useEffect(() => {
+        durationCallbackRef.current = onDurationDetected;
+    }, [onDurationDetected]);
 
     useEffect(() => {
         if (typeof window === "undefined" || !containerRef.current) return;
@@ -559,6 +566,18 @@ export default function VideoPlayer({
                     onTimeUpdate(player.currentTime() ?? 0, player.duration() ?? 0);
                 });
             }
+
+            let reportedDuration: number | undefined;
+            const reportDuration = () => {
+                const duration = player.duration();
+                if (!isLive && typeof duration === "number" && Number.isFinite(duration) && duration > 0 && duration !== reportedDuration) {
+                    reportedDuration = duration;
+                    durationCallbackRef.current?.(duration);
+                }
+            };
+            player.on("loadedmetadata", reportDuration);
+            player.on("durationchange", reportDuration);
+            player.ready(reportDuration);
 
             player.on("error", () => {
                 const err = player.error();

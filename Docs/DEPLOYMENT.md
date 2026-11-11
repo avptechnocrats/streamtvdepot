@@ -621,6 +621,17 @@ Deploy migration `m8n9o0p1q2r3` before restarting the updated backend, then depl
 - The catalog falls back to existing series category rows when the new list endpoint returns 404. Details and episode playback require the new backend routes; the page does not substitute sample records when the live catalog is empty.
 - Episode resume positions are scoped to the current tenant, signed-in viewer, and series in browser storage. They do not synchronize across devices.
 
+#### Episode Transcoding And Publication
+
+- Apply migration `n9o0p1q2r3s4` on the server before deploying the backend and admin frontend. It links episodes to shared asset renditions and allows asset-owned job audit records; it does not start AWS jobs during migration.
+- Save episode uploads or Media Library selections as a series draft. This persists the source and queues adaptive HLS preparation. Matching completed/in-flight `abr_hls_v1_clear` renditions are reused; a failed attempt is retried only with the explicit retry action.
+- Enable the backend scheduler. Its `episode_transcoding` job runs every minute, recovers pending/stale submissions using AWS client request tokens, and reconciles MediaConvert status when callbacks are missed. API background processing provides prompt submission but is not the sole queue mechanism.
+- Configure the existing AWS credentials, `MEDIACONVERT_ROLE_ARN`, input/output S3 buckets, and signed HLS segment delivery. Episodes use non-encrypted ABR renditions with private, signed delivery; they do not expose original-file fallback playback on the storefront.
+- Admins can preview ready draft streams and see Queued/Processing/Ready/Failed status with retry. Published episode states require a ready stream in the editor. A series can be published only when at least one episode is published and every published episode has completed HLS; draft episodes do not block an otherwise ready series.
+- The server and all public series queries enforce readiness independently of the UI. Existing published series without ready episode renditions become hidden after this deployment; resave them as drafts, wait for processing, then publish. Completion does not automatically publish drafts.
+- HLS authorization is bound to episode and rendition IDs. A source replacement invalidates old stream tokens. Manifest/segment authorization is capped by the viewer's entitlement expiry. Episode callbacks verify job state directly against MediaConvert before accepting completion.
+- Downgrade refuses to delete asset-owned audit history automatically. Archive those records before reverting the migration. Validate real MediaConvert completion, retry/recovery, private HLS playback, and storefront readiness on the migrated server; local verification does not submit paid AWS jobs.
+
 ### Pre-Deployment Migrations
 ```bash
 # Run migrations before deployment

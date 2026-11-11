@@ -87,6 +87,11 @@ export interface EpisodeOut {
     thumbnail_url: string | null;
     status: SeriesStatus;
     created_at: string;
+    media_asset_rendition_id?: string | null;
+    transcode_status?: "pending" | "processing" | "complete" | "failed" | null;
+    transcode_progress?: number | null;
+    transcode_error?: string | null;
+    stream_ready?: boolean;
 }
 
 export interface EpisodeCreate {
@@ -173,6 +178,16 @@ export async function listSeriesEpisodes(seriesId: string, season?: number): Pro
         ENDPOINTS.admin.seriesEpisodes(seriesId),
         season !== undefined ? { params: { season } } : undefined,
     );
+    return data;
+}
+
+export async function retryEpisodeTranscode(seriesId: string, episodeId: string): Promise<EpisodeOut> {
+    const { data } = await apiClient.post<EpisodeOut>(`${ENDPOINTS.admin.seriesEpisode(seriesId, episodeId)}/transcode`);
+    return data;
+}
+
+export async function getEpisodeStreamPreview(seriesId: string, episodeId: string): Promise<{ stream_url: string }> {
+    const { data } = await apiClient.get<{ stream_url: string }>(`${ENDPOINTS.admin.seriesEpisode(seriesId, episodeId)}/preview`);
     return data;
 }
 

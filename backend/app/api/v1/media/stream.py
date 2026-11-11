@@ -59,14 +59,15 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.drm import verify_key_access_token
-from app.models.client.content import MediaAssetRendition, Video
+from app.core.drm import decrypt_key, verify_key_access_token
+from app.core.episode_transcoding import EPISODE_PLAYBACK_PROFILES, series_readiness_filters
+from app.models.client.content import ContentStatus, Episode, MediaAssetRendition, Series, Video
 
 router = APIRouter(tags=["Media – HLS Proxy"])
 logger = logging.getLogger(__name__)
@@ -112,7 +113,7 @@ def _cloudfront_signer(key_pair_id: str, private_key_pem: str) -> CloudFrontSign
     return CloudFrontSigner(key_pair_id, sign)
 
 
-def _cloudfront_segment_base(dir_prefix: str) -> tuple[str, str] | None:
+def _cloudfront_segment_base(dir_prefix: str, expires_seconds: int = _SEGMENT_PRESIGN_TTL) -> tuple[str, str] | None:
     domain = settings.CLOUDFRONT_DOMAIN.strip().strip("/")
     if not (dir_prefix and domain and settings.VOD_CF_KEY_PAIR_ID and settings.VOD_CF_PRIVATE_KEY_PEM):
         return None
@@ -122,7 +123,7 @@ def _cloudfront_segment_base(dir_prefix: str) -> tuple[str, str] | None:
     prefix = f"https://{domain}/{quote(dir_prefix, safe='/')}"
     signer = _cloudfront_signer(settings.VOD_CF_KEY_PAIR_ID, settings.VOD_CF_PRIVATE_KEY_PEM)
     policy = signer.build_policy(
-        prefix + "*", datetime.now(timezone.utc) + timedelta(seconds=_SEGMENT_PRESIGN_TTL),
+        prefix + "*", datetime.now(timezone.utc) + timedelta(seconds=expires_seconds),
     )
     signed = signer.generate_presigned_url(prefix + "*", policy=policy)
     return prefix, urlsplit(signed).query
@@ -170,6 +171,9 @@ def _rewrite_key_uri(uri: str, video_id: str, token: str | None) -> str:
     parsed = urlsplit(uri)
     if "/drm/key/" not in parsed.path:
         return uri
+    if video_id.startswith(("episode/", "asset/")):
+        suffix = "?" + urlencode({"token": token}) if token else ""
+        return f"{settings.API_V1_PREFIX}/media/stream/{video_id}/key{suffix}"
     key_path = parsed.path.rsplit("/", 1)[0] + f"/{video_id}"
     query = [(key, value) for key, value in parse_qsl(parsed.query, keep_blank_values=True) if key != "token"]
     if token:
@@ -183,9 +187,10 @@ def _rewrite_sub_playlist(
     bucket: str,
     video_id: str,
     token: str | None = None,
+    expires_seconds: int = _SEGMENT_PRESIGN_TTL,
 ) -> str:
     """Rewrite segments and bind shared HLS key delivery to the requesting video."""
-    cloudfront = _cloudfront_segment_base(dir_prefix)
+    cloudfront = _cloudfront_segment_base(dir_prefix, expires_seconds)
     s3 = None
     lines = content.splitlines(keepends=True)
     out: list[str] = []
@@ -211,7 +216,7 @@ def _rewrite_sub_playlist(
                     presigned = s3.generate_presigned_url(
                         "get_object",
                         Params={"Bucket": bucket, "Key": segment_key},
-                        ExpiresIn=_SEGMENT_PRESIGN_TTL,
+                        ExpiresIn=expires_seconds,
                     )
                 newline = line[len(line.rstrip()):]
                 out.append(presigned + newline)
@@ -267,6 +272,137 @@ async def _get_active_video(video_id: str, token: str | None, db: AsyncSession) 
 
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
+
+async def _get_asset_preview(rendition_id: str, token: str | None, db: AsyncSession):
+    if not token:
+        raise HTTPException(status_code=401, detail="Asset preview authorization is required")
+    try:
+        claims = verify_key_access_token(token)
+        purpose, client_id, subject_id = str(claims.get("vid", "")).split(":")
+        rendition_uuid = _uuid_module.UUID(rendition_id)
+        client_uuid = _uuid_module.UUID(client_id)
+    except ValueError as error:
+        raise HTTPException(status_code=401, detail="Invalid asset preview authorization") from error
+    if purpose != "asset-preview" or subject_id != str(rendition_uuid):
+        raise HTTPException(status_code=403, detail="Token is not valid for this asset")
+    rendition = await db.scalar(select(MediaAssetRendition).where(
+        MediaAssetRendition.id == rendition_uuid, MediaAssetRendition.client_id == client_uuid,
+        MediaAssetRendition.profile.in_(EPISODE_PLAYBACK_PROFILES),
+        MediaAssetRendition.status == "complete", MediaAssetRendition.hls_manifest_key.is_not(None),
+    ))
+    if not rendition:
+        raise HTTPException(status_code=404, detail="Asset stream is not ready")
+    remaining = int(claims["exp"] - datetime.now(timezone.utc).timestamp())
+    if remaining <= 0:
+        raise HTTPException(status_code=401, detail="Asset preview authorization expired")
+    return rendition, min(remaining, _SEGMENT_PRESIGN_TTL)
+
+
+@router.get("/asset/{rendition_id}/{filename}", response_class=Response)
+async def proxy_asset_preview(rendition_id: str, filename: str, token: str | None = Query(None), db: AsyncSession = Depends(get_db)):
+    rendition, ttl = await _get_asset_preview(rendition_id, token, db)
+    if filename == "key":
+        if not rendition.drm_key_encrypted:
+            raise HTTPException(status_code=404, detail="Asset DRM key not found")
+        try:
+            raw_key = decrypt_key(rendition.drm_key_encrypted)
+        except RuntimeError as error:
+            raise HTTPException(status_code=500, detail="Key delivery error") from error
+        return Response(content=raw_key, media_type="application/octet-stream", headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache",
+        })
+    if not filename.endswith(".m3u8") or ".." in filename:
+        raise HTTPException(status_code=404)
+    directory = _dir_prefix(rendition.hls_manifest_key)
+    key = rendition.hls_manifest_key if filename == "manifest.m3u8" else directory + filename
+    try:
+        raw = await run_in_threadpool(_fetch_s3_text, _hls_bucket(), key)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Asset playlist not found")
+    except (BotoCoreError, ClientError):
+        raise HTTPException(status_code=502, detail="Asset storage is unavailable")
+    subject = f"asset/{rendition_id}"
+    rewritten = _rewrite_master(raw, subject, token) if filename == "manifest.m3u8" else await run_in_threadpool(
+        _rewrite_sub_playlist, raw, directory, _hls_bucket(), subject, token, ttl,
+    )
+    return Response(content=rewritten, media_type=_HLS_CONTENT_TYPE, headers={"Cache-Control": "no-store, private"})
+
+
+async def _get_ready_episode(episode_id: str, token: str | None, db: AsyncSession):
+    if not token:
+        raise HTTPException(status_code=401, detail="Episode playback authorization is required")
+    try:
+        claims = verify_key_access_token(token)
+        episode_uuid = _uuid_module.UUID(episode_id)
+    except ValueError as error:
+        raise HTTPException(status_code=401, detail="Invalid episode playback authorization") from error
+    preview = str(claims.get("vid", "")).startswith("episode-preview:")
+    query = select(Episode).join(Series, Episode.series_id == Series.id).where(
+        Episode.id == episode_uuid, Episode.client_id == Series.client_id, Series.deleted_at.is_(None),
+    )
+    if not preview:
+        query = query.where(
+            Episode.status == ContentStatus.PUBLISHED, Series.status == ContentStatus.PUBLISHED,
+            Series.is_active.is_(True), or_(Series.publish_option == "now", Series.publish_at <= datetime.now(timezone.utc)),
+            *series_readiness_filters(),
+        )
+    episode = await db.scalar(query)
+    if not episode or not episode.stream_ready or episode.rendition.profile not in EPISODE_PLAYBACK_PROFILES or episode.rendition.client_id != episode.client_id:
+        raise HTTPException(status_code=404, detail="Episode stream is not ready")
+    purpose = "episode-preview" if preview else "episode"
+    if claims.get("vid") != f"{purpose}:{episode.id}:{episode.media_asset_rendition_id}":
+        raise HTTPException(status_code=403, detail="Token is not valid for this episode source")
+    remaining = int(claims["exp"] - datetime.now(timezone.utc).timestamp())
+    if remaining <= 0:
+        raise HTTPException(status_code=401, detail="Episode playback authorization expired")
+    return episode, min(remaining, _SEGMENT_PRESIGN_TTL)
+
+
+@router.get("/episode/{episode_id}/manifest.m3u8", response_class=Response)
+async def proxy_episode_manifest(episode_id: str, token: str | None = Query(None), db: AsyncSession = Depends(get_db)):
+    episode, _ = await _get_ready_episode(episode_id, token, db)
+    key = episode.rendition.hls_manifest_key
+    try:
+        raw = await run_in_threadpool(_fetch_s3_text, _hls_bucket(), key)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Episode manifest not found")
+    except (BotoCoreError, ClientError):
+        raise HTTPException(status_code=502, detail="Episode storage is unavailable")
+    return Response(content=_rewrite_master(raw, f"episode/{episode_id}", token), media_type=_HLS_CONTENT_TYPE, headers={"Cache-Control": "no-store, private"})
+
+
+@router.get("/episode/{episode_id}/key", response_class=Response)
+async def deliver_episode_key(episode_id: str, token: str | None = Query(None), db: AsyncSession = Depends(get_db)):
+    episode, _ = await _get_ready_episode(episode_id, token, db)
+    encrypted_key = episode.rendition.drm_key_encrypted
+    if not encrypted_key:
+        raise HTTPException(status_code=404, detail="Episode DRM key not found")
+    try:
+        raw_key = decrypt_key(encrypted_key)
+    except RuntimeError as error:
+        logger.error("DRM key decryption failed for episode %s", episode_id)
+        raise HTTPException(status_code=500, detail="Key delivery error") from error
+    return Response(content=raw_key, media_type="application/octet-stream", headers={
+        "Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache",
+    })
+
+
+@router.get("/episode/{episode_id}/{filename:path}", response_class=Response)
+async def proxy_episode_sub_playlist(episode_id: str, filename: str, token: str | None = Query(None), db: AsyncSession = Depends(get_db)):
+    if not filename.endswith(".m3u8") or "/" in filename or ".." in filename:
+        raise HTTPException(status_code=404)
+    episode, ttl = await _get_ready_episode(episode_id, token, db)
+    key = episode.rendition.hls_manifest_key
+    directory = _dir_prefix(key)
+    try:
+        raw = await run_in_threadpool(_fetch_s3_text, _hls_bucket(), directory + filename)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Episode playlist not found")
+    except (BotoCoreError, ClientError):
+        raise HTTPException(status_code=502, detail="Episode storage is unavailable")
+    rewritten = await run_in_threadpool(_rewrite_sub_playlist, raw, directory, _hls_bucket(), f"episode/{episode_id}", token, ttl)
+    return Response(content=rewritten, media_type=_HLS_CONTENT_TYPE, headers={"Cache-Control": "no-store, private"})
+
 
 async def _get_trailer_manifest_key(video_id: str, db: AsyncSession) -> str:
     """Trailer previews are public marketing content: no token, but only a completed, active one is served."""

@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import get_current_end_user
 from app.models.client.user import UserWatchlist
-from app.models.client.content import LiveStream, Video
+from app.models.client.content import ContentStatus, LiveStream, Series, Video
 from app.schemas.client.content import _refresh_s3_url
 
 router = APIRouter()
@@ -29,7 +29,7 @@ router = APIRouter()
 
 class WatchlistAddRequest(BaseModel):
     video_id: uuid.UUID
-    content_type: Literal["video", "live_stream"] = "video"
+    content_type: Literal["video", "live_stream", "series"] = "video"
 
 
 class WatchlistItemOut(BaseModel):
@@ -41,18 +41,20 @@ class WatchlistItemOut(BaseModel):
     thumbnail_url: str | None = None
     duration: int | None = None
     access_type: str | None = None
-    content_type: Literal["video", "live_stream"] = "video"
+    content_type: Literal["video", "live_stream", "series"] = "video"
 
     model_config = {"from_attributes": True}
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
-def _watchlist_output(item: UserWatchlist, content: Video | LiveStream | None) -> WatchlistItemOut:
+def _watchlist_output(item: UserWatchlist, content: Video | LiveStream | Series | None) -> WatchlistItemOut:
     thumbnails = content.thumbnails if content else {}
     thumbnail = next((thumbnails.get(key) for key in (
         "wide", "portrait", "banner", "video_h_thumbnail", "video_w_thumbnail", "video_banner", "landscape"
     ) if thumbnails.get(key)), None) if thumbnails else None
+    if not thumbnail and isinstance(content, Series):
+        thumbnail = content.thumbnail_url
     return WatchlistItemOut(
         id=item.id,
         video_id=item.video_id,
@@ -61,7 +63,7 @@ def _watchlist_output(item: UserWatchlist, content: Video | LiveStream | None) -
         thumbnail_url=_refresh_s3_url(thumbnail) if thumbnail else None,
         duration=content.duration if isinstance(content, Video) else None,
         access_type=content.access_type if content else None,
-        content_type="live_stream" if isinstance(content, LiveStream) else "video",
+        content_type="live_stream" if isinstance(content, LiveStream) else "series" if isinstance(content, Series) else "video",
     )
 
 
@@ -95,7 +97,13 @@ async def get_watchlist(
             select(LiveStream).where(LiveStream.id.in_(video_ids), LiveStream.client_id == current_user._client_id)
         )
         channel_map = {channel.id: channel for channel in channels_result.scalars().all()}
-    return [_watchlist_output(item, video_map.get(item.video_id) or channel_map.get(item.video_id)) for item in items]
+    series_map: dict[uuid.UUID, Series] = {}
+    if video_ids:
+        series_result = await db.execute(
+            select(Series).where(Series.id.in_(video_ids), Series.client_id == current_user._client_id)
+        )
+        series_map = {series.id: series for series in series_result.scalars().all()}
+    return [_watchlist_output(item, video_map.get(item.video_id) or channel_map.get(item.video_id) or series_map.get(item.video_id)) for item in items]
 
 
 @router.post("", response_model=WatchlistItemOut, status_code=status.HTTP_201_CREATED,
@@ -105,13 +113,12 @@ async def add_to_watchlist(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_end_user),
 ):
-    content_model = LiveStream if payload.content_type == "live_stream" else Video
+    content_model = {"live_stream": LiveStream, "series": Series, "video": Video}[payload.content_type]
+    filters = [content_model.id == payload.video_id, content_model.client_id == current_user._client_id, content_model.is_active.is_(True)]
+    if payload.content_type == "series":
+        filters.extend([Series.deleted_at.is_(None), Series.status == ContentStatus.PUBLISHED])
     content_result = await db.execute(
-        select(content_model).where(
-            content_model.id == payload.video_id,
-            content_model.client_id == current_user._client_id,
-            content_model.is_active.is_(True),
-        )
+        select(content_model).where(*filters)
     )
     content = content_result.scalar_one_or_none()
     if content is None:

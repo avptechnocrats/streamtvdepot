@@ -383,6 +383,16 @@ def schedule_jobs() -> AsyncIOScheduler:
     """Initialize and start background scheduler."""
     global scheduler
     scheduler = AsyncIOScheduler(timezone="UTC")
+    from app.core.episode_transcoding import process_episode_transcodes
+
+    JOB_NAMES["episode_transcoding"] = "Recover and reconcile media asset transcoding"
+    JOB_SCHEDULES["episode_transcoding"] = "Every minute"
+    JOB_EXECUTORS["episode_transcoding"] = _job_wrapper("episode_transcoding", process_episode_transcodes)
+    scheduler.add_job(
+        func=JOB_EXECUTORS["episode_transcoding"], trigger="interval", seconds=60,
+        id="episode_transcoding", name=JOB_NAMES["episode_transcoding"],
+        coalesce=True, max_instances=1, replace_existing=True,
+    )
 
     JOB_EXECUTORS["monthly_usage_collection"] = _job_wrapper("monthly_usage_collection", _monthly_usage_collection_job)
     JOB_EXECUTORS["subscription_renewal"] = _job_wrapper("subscription_renewal", _subscription_renewal_job)

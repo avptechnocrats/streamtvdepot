@@ -10,6 +10,7 @@ URLs. SigV4 presigned GET URLs never include storage-class headers, so they
 work directly as <img src> without any extra request headers.
 """
 import asyncio
+import hashlib
 import logging
 import re
 import uuid
@@ -48,6 +49,38 @@ def build_tenant_s3_key(client_slug: str, filename: str, folder: str = "support-
     """Build S3 key with tenant-specific folder structure."""
     safe_slug = re.sub(r"[^a-z0-9-]+", "-", client_slug.lower()).strip("-")
     return f"{safe_slug}/{folder}/{filename}"
+
+
+def local_logo_path(client_id: uuid.UUID, s3_key: str) -> Path:
+    tenant_id = str(uuid.UUID(str(client_id)))
+    asset_id = hashlib.sha256(s3_key.encode()).hexdigest()
+    return Path(settings.LOCAL_BRANDING_DIR).resolve() / tenant_id / asset_id
+
+
+async def cache_logo_locally(client_id: uuid.UUID, s3_key: str) -> Path:
+    path = local_logo_path(client_id, s3_key)
+
+    def copy_logo() -> None:
+        response = get_s3_client().get_object(Bucket=settings.AWS_S3_BUCKET, Key=s3_key)
+        body = response["Body"]
+        try:
+            if response.get("ContentType") not in {"image/jpeg", "image/png", "image/webp"}:
+                raise ValueError("Unsupported logo content type")
+            content = body.read(5 * 1024 * 1024 + 1)
+        finally:
+            body.close()
+        if not content or len(content) > 5 * 1024 * 1024:
+            raise ValueError("Logo must be between 1 byte and 5 MB")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
+        try:
+            temporary_path.write_bytes(content)
+            temporary_path.replace(path)
+        finally:
+            temporary_path.unlink(missing_ok=True)
+
+    await asyncio.to_thread(copy_logo)
+    return path
 
 
 async def upload_attachment_to_s3(

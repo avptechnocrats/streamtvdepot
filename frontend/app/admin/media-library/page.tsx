@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
     ImageIcon, AlertTriangle,
     CheckCircle2, X, Upload, Search, Image, Video, Music, RefreshCw, Table2, LayoutGrid,
@@ -9,6 +10,7 @@ import {
 import apiClient from "@/lib/api/client";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { deleteMediaAsset } from "@/lib/api";
+import { retryMediaAssetTranscode } from "@/lib/api/services/upload";
 import {
     Pagination,
     PaginationContent,
@@ -81,7 +83,6 @@ export default function MediaLibraryPage() {
         video: 0,
         audio: 0,
     });
-    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [search, setSearch] = useState("");
     const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
@@ -120,14 +121,9 @@ export default function MediaLibraryPage() {
         setTimeout(() => setToast(null), 4000);
     }
 
-    const fetchAssets = useCallback(async (manualRefresh = false) => {
-        if (manualRefresh) {
-            setRefreshing(true);
-        } else {
-            setLoading(true);
-        }
-
-        try {
+    const assetsQuery = useQuery({
+        queryKey: ["media-library", displayPage, search.trim(), typeFilter],
+        queryFn: async () => {
             const query = search.trim();
             const res = await apiClient.get<{
                 items: MediaAsset[];
@@ -141,19 +137,46 @@ export default function MediaLibraryPage() {
                 },
             });
 
-            setAssets(res.data.items);
-            setTabCounts(res.data.counts);
-            // The active tab's count from the API is the pagination total for the current filter/search.
-            setTotalCount(res.data.counts[typeFilter]);
-        } catch {
-            showToast("Failed to load media assets.", false);
+            return res.data;
+        },
+        refetchInterval: (query) => query.state.data?.items.some((asset) =>
+            asset.transcode_status === "pending" || asset.transcode_status === "processing"
+        ) ? 5000 : false,
+    });
+    const loading = assetsQuery.isLoading;
+    const { data: assetData, refetch: refetchAssets } = assetsQuery;
+
+    useEffect(() => {
+        if (!assetData) return;
+        setAssets(assetData.items);
+        setTabCounts(assetData.counts);
+        setTotalCount(assetData.counts[typeFilter]);
+    }, [assetData, typeFilter]);
+
+    useEffect(() => {
+        if (assetsQuery.isError) showToast("Failed to load media assets.", false);
+    }, [assetsQuery.isError]);
+
+    const fetchAssets = useCallback(async (manualRefresh = false) => {
+        if (manualRefresh) setRefreshing(true);
+        try {
+            await refetchAssets();
         } finally {
-            setLoading(false);
             setRefreshing(false);
         }
-    }, [displayPage, search, typeFilter]);
+    }, [refetchAssets]);
 
-    useEffect(() => { fetchAssets(); }, [fetchAssets]);
+    async function retryTranscode(asset: MediaAsset) {
+        upsertAsset({ ...asset, retrying: true });
+        try {
+            const result = await retryMediaAssetTranscode(asset.id);
+            upsertAsset({ ...asset, ...result, retrying: false });
+            await fetchAssets();
+        } catch {
+            upsertAsset({ ...asset, retrying: false });
+            showToast("Could not start transcoding.", false);
+        }
+    }
 
     // ── Multi-file upload queue ──
     const [tableDragging, setTableDragging] = useState(false);
@@ -451,6 +474,7 @@ export default function MediaLibraryPage() {
                             key={asset.id}
                             asset={asset}
                             view={view}
+                            onRetry={() => void retryTranscode(asset)}
                             onPreview={() => setPreviewAsset(asset)}
                             onDelete={() => setConfirmAsset(asset)}
                         />
