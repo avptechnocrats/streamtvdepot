@@ -22,7 +22,7 @@ import { fetchCategories } from "@/lib/services/categories";
 import { BannerTrailer, useBannerAutoplay } from "@/components/BannerTrailer";
 import { VideoHoverPreview, WIDER_LANDSCAPE_CARD_WIDTH } from "@/components/VideoHoverPreview";
 
-export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie; rank?: number; variant?: ContentRowProps["variant"] }) {
+export function PosterCard({ movie, rank, variant = "portrait", contentType = "video" }: { movie: Movie; rank?: number; variant?: ContentRowProps["variant"]; contentType?: "video" | "series" }) {
     const widerLandscape = variant === "wider-landscape" && !rank;
     const landscape = (variant === "landscape" || widerLandscape) && !rank;
     const featured = variant === "featured" && !rank;
@@ -33,7 +33,7 @@ export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie
     const router = useRouter();
     const { user } = useAuth();
     const queryClient = useQueryClient();
-    const href = movie.id ? `/movies/${movie.id}` : "#";
+    const href = movie.id ? `/${contentType === "series" ? "series" : "movies"}/${movie.id}` : "#";
     const [edge, setEdge] = useState<"left" | "center" | "right">("center");
     const [edgeOffset, setEdgeOffset] = useState(0);
     const [layer, setLayer] = useState<number>();
@@ -76,10 +76,10 @@ export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie
         enabled: !!user,
         staleTime: 60_000,
     });
-    const inList = !!movie.id && watchlist.some((i) => i.video_id === movie.id);
+    const inList = !!movie.id && watchlist.some((i) => i.video_id === movie.id && (contentType === "series" ? i.content_type === "series" : i.content_type !== "series"));
     const { data: categoryCatalog = [] } = useQuery({
-        queryKey: ["poster-categories", "video"],
-        queryFn: () => fetchCategories("video"),
+        queryKey: ["poster-categories", contentType],
+        queryFn: () => fetchCategories(contentType),
         enabled: expanded && !!movie.categories?.length,
         staleTime: 5 * 60_000,
     });
@@ -89,7 +89,7 @@ export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie
     ))).join(" \u2022 ");
 
     const toggleList = useMutation<void | WatchlistItem>({
-        mutationFn: () => (inList ? removeFromWatchlist(movie.id!) : addToWatchlist(movie.id!)),
+        mutationFn: () => (inList ? removeFromWatchlist(movie.id!) : addToWatchlist(movie.id!, contentType)),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["watchlist"] });
             toast({ title: inList ? "Removed from My List" : "Added to My List" });
@@ -111,6 +111,7 @@ export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie
     if (featured) return (
         <div
             ref={previewRef}
+            data-series-card={contentType === "series" ? movie.id : undefined}
             data-featured-card
             data-expanded={expanded}
             onPointerEnter={event => {
@@ -187,7 +188,7 @@ export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie
             onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                if (movie.id) router.push(`/movies/${movie.id}?play=true`);
+                if (movie.id) router.push(`${href}?play=true`);
             }}
             className="w-7 h-7 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer hover:brightness-110"
         >
@@ -209,6 +210,7 @@ export function PosterCard({ movie, rank, variant = "portrait" }: { movie: Movie
     return (
         <Link
             href={href}
+            data-series-card={contentType === "series" ? movie.id : undefined}
             aria-label={rank ? `${rank}. ${movie.title}` : landscape ? movie.title : undefined}
             onPointerEnter={preparePreview}
             onPointerLeave={releasePreview}
