@@ -17,6 +17,7 @@ import { S3VideoField, COUNTRY_OPTIONS } from "../../videos/_components/VideoFor
 
 import { AiWriteButton } from "@/components/AiWriteButton";
 import { CategoryPicker } from "@/components/CategoryPicker";
+import ContentTagPicker from "@/components/content/ContentTagPicker";
 import EpisodeVideoField, { assetRenditionQueryOptions, episodeSourceMatches } from "@/components/content/EpisodeVideoField";
 import { useToast } from "@/hooks/use-toast";
 
@@ -27,6 +28,7 @@ const schema = z.object({
     description: z.string().optional(),
     genre: z.string().optional(),
     categories: z.array(z.string()),
+    tags: z.array(z.string()),
     language: z.array(z.string()).optional(),
     content_classification: z.string(),
     age_rating: z.string(),
@@ -148,26 +150,7 @@ function CheckboxDropdown({
         : options;
 
     return (
-        <div ref={ref} className="space-y-2">
-            {/* Selected tags */}
-            {selected.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                    {selected.map((val) => {
-                        const opt = options.find((o) => o.value === val);
-                        return (
-                            <span
-                                key={val}
-                                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20"
-                            >
-                                {opt?.label ?? val}
-                                <button type="button" aria-label={`Remove ${opt?.label ?? val}`} onClick={() => toggle(val)} className="hover:text-primary/60">
-                                    <X size={10} />
-                                </button>
-                            </span>
-                        );
-                    })}
-                </div>
-            )}
+        <div ref={ref} className="min-w-0 space-y-2">
             {/* Trigger button */}
             <div className="relative">
                 <button
@@ -222,6 +205,24 @@ function CheckboxDropdown({
                     </div>
                 )}
             </div>
+            {selected.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                    {selected.map((val) => {
+                        const opt = options.find((o) => o.value === val);
+                        return (
+                            <span
+                                key={val}
+                                className="flex max-w-full items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20"
+                            >
+                                <span className="min-w-0 break-words">{opt?.label ?? val}</span>
+                                <button type="button" aria-label={`Remove ${opt?.label ?? val}`} onClick={() => toggle(val)} className="shrink-0 hover:text-primary/60">
+                                    <X size={10} />
+                                </button>
+                            </span>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }
@@ -240,6 +241,7 @@ export function seriesToFormValues(series: SeriesOut): FormValues {
         description: series.description ?? "",
         genre: series.genre ?? "",
         categories: series.categories ?? [],
+        tags: series.tags ?? [],
         language: series.languages?.length ? series.languages : series.language ? [series.language] : [],
         content_classification: series.content_classification ?? "",
         age_rating: series.age_rating ?? "",
@@ -283,6 +285,7 @@ const DEFAULT_VALUES: FormValues = {
     description: "",
     genre: "",
     categories: [],
+    tags: [],
     language: [],
     content_classification: "",
     age_rating: "",
@@ -416,6 +419,7 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
             description: data.description || null,
             genre: data.genre || null,
             categories: data.categories,
+            tags: data.tags,
             language: (data.language && data.language.length > 0) ? data.language[0] : null,
             languages: data.language ?? [],
             content_classification: data.content_classification || null,
@@ -585,6 +589,11 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
                                     <option value="">Select classification</option>
                                     {CONTENT_CLASSIFICATIONS.map(value => <option key={value} value={value}>{value}</option>)}
                                 </select>
+                            </div>
+                            <div className="min-w-0 sm:col-span-2">
+                                <Controller name="tags" control={control} render={({ field }) => (
+                                    <ContentTagPicker selected={field.value ?? []} onChange={field.onChange} />
+                                )} />
                             </div>
                             <div className="space-y-1">
                                 <label htmlFor="series-age-rating" className="block text-xs font-semibold text-muted-foreground">Age Rating</label>

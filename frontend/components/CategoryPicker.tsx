@@ -49,22 +49,7 @@ export function CategoryPicker({
         : availableOptions;
 
     return (
-        <div ref={containerRef} className="space-y-1.5">
-            {selected.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                    {selected.map(value => {
-                        const option = options.find(item => item.value === value);
-                        return (
-                            <span key={value} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/15 text-primary text-xs font-medium">
-                                {option?.label ?? value}
-                                <button type="button" onClick={() => toggle(value)} className="hover:text-red-400 transition-colors" aria-label={`Remove ${option?.label ?? value}`}>
-                                    <X size={11} />
-                                </button>
-                            </span>
-                        );
-                    })}
-                </div>
-            )}
+        <div ref={containerRef} className="min-w-0 space-y-1.5">
             {searchable ? (
                 <div className="relative">
                     <input
@@ -92,6 +77,21 @@ export function CategoryPicker({
                         {availableOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                     </select>
                     <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                </div>
+            )}
+            {selected.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                    {selected.map(value => {
+                        const option = options.find(item => item.value === value);
+                        return (
+                            <span key={value} className="inline-flex max-w-full items-center gap-1 px-2 py-0.5 rounded-md bg-primary/15 text-primary text-xs font-medium">
+                                <span className="min-w-0 break-words">{option?.label ?? value}</span>
+                                <button type="button" onClick={() => toggle(value)} className="shrink-0 hover:text-red-400 transition-colors" aria-label={`Remove ${option?.label ?? value}`}>
+                                    <X size={11} />
+                                </button>
+                            </span>
+                        );
+                    })}
                 </div>
             )}
         </div>

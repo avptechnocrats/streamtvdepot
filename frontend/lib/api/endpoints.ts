@@ -101,6 +101,7 @@ export const ENDPOINTS = {
         audioRestore: (id: string) => `/admin/content/audios/${id}/restore`,
         audioPermanent: (id: string) => `/admin/content/audios/${id}/permanent`,
         videos: "/admin/content/videos",
+        contentTags: "/admin/content/tags",
         videosTrash: "/admin/content/videos/trash",
         video: (id: string) => `/admin/content/videos/${id}`,
         videoRestore: (id: string) => `/admin/content/videos/${id}/restore`,

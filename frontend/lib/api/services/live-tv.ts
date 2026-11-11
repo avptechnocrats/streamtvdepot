@@ -75,6 +75,7 @@ export interface LiveTvChannelOut {
     description: string | null;
     region: LiveTvRegion[];
     categories: string[];  // category slugs
+    tags: string[];
     language: string[];
     source: LiveTvSource;
     /** HLS playback URL — admin-supplied for external; auto-generated for rtmp */
@@ -113,6 +114,7 @@ export interface LiveTvChannelCreate {
     description?: string | null;
     region?: LiveTvRegion[];
     categories?: string[];  // category slugs
+    tags?: string[];
     language?: string[];
     source: LiveTvSource;
     stream_url?: string | null;

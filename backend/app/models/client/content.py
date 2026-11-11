@@ -9,6 +9,21 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin, UUIDMixin
 
 
+class ContentTag(Base, UUIDMixin, TimestampMixin):
+    __tablename__ = "content_tags"
+    __table_args__ = (UniqueConstraint("client_id", "normalized_name", name="uq_content_tags_client_name"),)
+
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    normalized_name: Mapped[str] = mapped_column(String(240), nullable=False)
+
+
+class ContentTagMixin:
+    tags: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+
+
 # ─── Media Asset ─────────────────────────────────────────────────────────────
 
 class MediaAsset(Base, UUIDMixin, TimestampMixin):
@@ -156,7 +171,7 @@ class PartnerRevenueLedger(Base, UUIDMixin, TimestampMixin):
 
 # ─── Audio ───────────────────────────────────────────────────────────────────
 
-class Audio(Base, UUIDMixin, TimestampMixin):
+class Audio(Base, UUIDMixin, TimestampMixin, ContentTagMixin):
     __tablename__ = "content_audio"
 
     client_id: Mapped[uuid.UUID] = mapped_column(
@@ -228,7 +243,7 @@ livestream_categories = Table(
 
 # ─── Video ───────────────────────────────────────────────────────────────────
 
-class Video(Base, UUIDMixin, TimestampMixin):
+class Video(Base, UUIDMixin, TimestampMixin, ContentTagMixin):
     __tablename__ = "content_videos"
 
     client_id: Mapped[uuid.UUID] = mapped_column(
@@ -385,7 +400,7 @@ class MediaAssetRendition(Base, UUIDMixin, TimestampMixin):
 
 # ─── Series ──────────────────────────────────────────────────────────────────
 
-class Series(Base, UUIDMixin, TimestampMixin):
+class Series(Base, UUIDMixin, TimestampMixin, ContentTagMixin):
     __tablename__ = "content_series"
     __table_args__ = (CheckConstraint("rating >= 0 AND rating <= 10", name="ck_series_rating"),)
 
@@ -482,7 +497,7 @@ class Episode(Base, UUIDMixin, TimestampMixin):
 
 # ─── Live Streaming ──────────────────────────────────────────────────────────
 
-class LiveStream(Base, UUIDMixin, TimestampMixin):
+class LiveStream(Base, UUIDMixin, TimestampMixin, ContentTagMixin):
     __tablename__ = "content_live_streams"
 
     client_id: Mapped[uuid.UUID] = mapped_column(
@@ -549,7 +564,7 @@ class LiveAdBreak(Base, UUIDMixin, TimestampMixin):
 
 # ─── PPV Events ──────────────────────────────────────────────────────────────
 
-class PPVEvent(Base, UUIDMixin, TimestampMixin):
+class PPVEvent(Base, UUIDMixin, TimestampMixin, ContentTagMixin):
     __tablename__ = "content_ppv_events"
 
     client_id: Mapped[uuid.UUID] = mapped_column(

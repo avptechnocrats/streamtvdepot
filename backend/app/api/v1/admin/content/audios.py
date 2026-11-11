@@ -11,6 +11,7 @@ from app.core.dependencies import get_current_client_admin, get_current_client_a
 from app.models.client.content import Audio, Category, ContentStatus, audio_categories as audio_categories_table
 from app.models.client.subscription import ClientSubscriptionPlan, PlanType
 from app.schemas.client.content import AudioCreate, AudioOut, AudioUpdate
+from .tags import resolve_tag_names
 
 router = APIRouter()
 
@@ -89,7 +90,9 @@ async def create_audio(
 ):
     await _validate_audio_payload(payload, admin._client_id, db)
     category_slugs = payload.categories or []
-    audio = Audio(client_id=admin._client_id, **payload.model_dump(exclude={"categories"}))
+    data = payload.model_dump(exclude={"categories"})
+    data["tags"] = await resolve_tag_names(db, admin._client_id, payload.tags)
+    audio = Audio(client_id=admin._client_id, **data)
     db.add(audio)
     await db.flush()
     if category_slugs:
@@ -160,6 +163,8 @@ async def update_audio(
     await _validate_audio_payload(merged, admin._client_id, db)
 
     updates = payload.model_dump(exclude_unset=True)
+    if "tags" in updates:
+        updates["tags"] = await resolve_tag_names(db, admin._client_id, updates["tags"])
     category_slugs = updates.pop("categories", None)
     for field, value in updates.items():
         setattr(audio, field, value)

@@ -12,6 +12,7 @@ from app.core.dependencies import get_current_client_admin, get_current_client_a
 from app.models.client.content import PPVEvent
 from app.models.client.subscription import ClientSubscriptionPlan, PlanType
 from app.schemas.client.content import PPVEventCreate, PPVEventOut, PPVEventUpdate
+from .tags import resolve_tag_names
 
 router = APIRouter()
 
@@ -60,6 +61,7 @@ async def create_ppv_event(
     admin=Depends(get_current_client_admin_with_active_plan),
 ):
     data = payload.model_dump()
+    data["tags"] = await resolve_tag_names(db, admin._client_id, payload.tags)
     await _validate_ppv_plan(db, admin._client_id, payload.pricing_plan_id)
     if payload.source == "rtmp":
         data.update(_build_rtmp_credentials(payload.slug))
@@ -104,6 +106,8 @@ async def update_ppv_event(
         raise HTTPException(status_code=404, detail="PPV event not found")
 
     updates = payload.model_dump(exclude_unset=True)
+    if "tags" in updates:
+        updates["tags"] = await resolve_tag_names(db, admin._client_id, updates["tags"])
     try:
         merged = PPVEventCreate.model_validate({
             **{field: getattr(event, field) for field in PPVEventCreate.model_fields},

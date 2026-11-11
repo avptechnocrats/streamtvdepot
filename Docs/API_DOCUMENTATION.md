@@ -129,6 +129,20 @@ Authorization: Bearer <token>
 
 ### Content Management Endpoints
 
+#### Tenant Content Tags
+
+The admin API provides a shared tag catalog for Videos, Audio, Series, Live TV,
+and PPV events. All operations require client-admin authentication and use the
+authenticated tenant; tag names are never shared between tenants.
+
+- `GET /api/v1/admin/content/tags?search=news&limit=100` returns `[{"id": "uuid", "name": "News"}]`. Search is case-insensitive; limit defaults to 50 and cannot exceed 100.
+- `POST /api/v1/admin/content/tags` with `{"name": "News"}` creates a tag or returns the existing tag for that tenant. Creating tags requires an active tenant plan.
+- Content create, update, and response schemas include `tags: string[]`. Names are whitespace-normalized, limited to 80 characters, and deduplicated case-insensitively. A content item supports up to 100 tags.
+- Saving content also registers new names in the tenant catalog. Sending `"tags": []` clears an item's tags without deleting catalog entries. Omitting `tags` from a PATCH preserves existing tags.
+
+Apply Alembic revision `o0p1q2r3s4t5` before running the updated backend. Existing
+content receives an empty tag list.
+
 #### List All Content
 ```http
 GET /api/v1/content

@@ -13,6 +13,7 @@ import { createAudio, updateAudio, type AudioOut, type AudioCreate, listCategori
 import MediaLibraryModal from "../../videos/_components/MediaLibraryModal";
 import { AiWriteButton } from "@/components/AiWriteButton";
 import { CategoryPicker } from "@/components/CategoryPicker";
+import ContentTagPicker from "@/components/content/ContentTagPicker";
 import { uploadAssetToS3, type UploadProgress } from "@/lib/upload/s3-upload";
 import { resolveMediaUrl } from "@/lib/media";
 import { getApiErrorMessage } from "@/lib/api/error-utils";
@@ -26,6 +27,7 @@ const schema = z.object({
     album: z.string().optional(),
     genre: z.string().optional(),
     categories: z.array(z.string()),
+    tags: z.array(z.string()),
     duration_seconds: z.string().optional(),
     file_url: z.string().optional(),
     thumbnail_url: z.string().optional(),
@@ -77,6 +79,7 @@ export function audioToFormValues(audio: AudioOut): FormValues {
         album: audio.album ?? "",
         genre: audio.genre ?? "",
         categories: audio.categories ?? [],
+        tags: audio.tags ?? [],
         duration_seconds: audio.duration_seconds != null ? String(audio.duration_seconds) : "",
         file_url: audio.file_url ?? "",
         thumbnail_url: audio.thumbnail_url ?? "",
@@ -102,6 +105,7 @@ const DEFAULT_VALUES: FormValues = {
     album: "",
     genre: "",
     categories: [],
+    tags: [],
     duration_seconds: "",
     file_url: "",
     thumbnail_url: "",
@@ -184,6 +188,7 @@ export function AudioForm({ mode, audioId, defaultValues }: AudioFormProps) {
             album: data.album || null,
             genre: data.genre || null,
             categories: data.categories,
+            tags: data.tags,
             duration_seconds: data.duration_seconds ? Number(data.duration_seconds) : null,
             file_url: data.file_url || null,
             thumbnail_url: data.thumbnail_url || null,
@@ -326,9 +331,10 @@ export function AudioForm({ mode, audioId, defaultValues }: AudioFormProps) {
                             options={availableCategories.map(category => ({ value: category.slug, label: category.name }))}
                             selected={selectedCategories ?? []}
                             onChange={categories => setValue("categories", categories, { shouldDirty: true })}
-                            placeholder="Search categories..."
-                            searchable
                         />
+                        <Controller name="tags" control={control} render={({ field }) => (
+                            <ContentTagPicker selected={field.value ?? []} onChange={field.onChange} />
+                        )} />
                     </section>
                 </div>
 
