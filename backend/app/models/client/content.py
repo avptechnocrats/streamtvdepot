@@ -320,9 +320,9 @@ class TranscodeJob(Base, UUIDMixin, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"),
         nullable=False, index=True,
     )
-    video_id: Mapped[uuid.UUID] = mapped_column(
+    video_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("content_videos.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        nullable=True, index=True,
     )
     media_asset_rendition_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("media_asset_renditions.id", ondelete="SET NULL"),
@@ -452,6 +452,28 @@ class Episode(Base, UUIDMixin, TimestampMixin):
     episode_number: Mapped[int] = mapped_column(Integer, nullable=False)
     duration_seconds: Mapped[int | None] = mapped_column(Integer)
     video_url: Mapped[str | None] = mapped_column(Text)
+    media_asset_rendition_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("media_asset_renditions.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+    rendition: Mapped["MediaAssetRendition | None"] = relationship(lazy="selectin")
+
+    @property
+    def transcode_status(self) -> str | None:
+        return self.rendition.status if self.rendition else None
+
+    @property
+    def transcode_progress(self) -> int | None:
+        return self.rendition.progress if self.rendition else None
+
+    @property
+    def transcode_error(self) -> str | None:
+        return self.rendition.error_message if self.rendition else None
+
+    @property
+    def stream_ready(self) -> bool:
+        return bool(self.rendition and self.rendition.status == "complete" and self.rendition.hls_manifest_key)
+
     thumbnail_url: Mapped[str | None] = mapped_column(Text)
     status: Mapped[ContentStatus] = mapped_column(
         Enum(ContentStatus), default=ContentStatus.DRAFT, nullable=False

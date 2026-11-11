@@ -112,7 +112,7 @@ def _drm_key_url(video_id: str) -> str:
     return f"{base}/{video_id}"
 
 
-def _check_mediaconvert_config() -> None:
+def _check_mediaconvert_config(enable_drm: bool = True) -> None:
     """
     Raise HTTPException 503 if the minimum required AWS credentials are absent.
     MEDIACONVERT_ENDPOINT is optional (auto-discovered via describe_endpoints).
@@ -125,7 +125,7 @@ def _check_mediaconvert_config() -> None:
         missing.append("AWS_SECRET_ACCESS_KEY")
     if not settings.MEDIACONVERT_ROLE_ARN:
         missing.append("MEDIACONVERT_ROLE_ARN")
-    if not settings.DRM_FERNET_KEY:
+    if enable_drm and not settings.DRM_FERNET_KEY:
         missing.append("DRM_FERNET_KEY")
     if missing:
         raise HTTPException(
@@ -135,7 +135,7 @@ def _check_mediaconvert_config() -> None:
 
 
 async def _submit_mediaconvert_job(
-    video_id: str,
+    video_id: str | None,
     client_id: str,
     job_row_id: str,
     s3_key: str,
@@ -152,6 +152,9 @@ async def _submit_mediaconvert_job(
     Preview (trailer) jobs only touch the rendition and job rows, never the video's own transcode fields.
     """
     preview = is_preview_profile(profile)
+    subject_id = video_id or asset_rendition_id
+    if not subject_id:
+        raise ValueError("A video or asset rendition is required")
     loop = asyncio.get_event_loop()
     async with AsyncSessionLocal() as db:
         try:
@@ -160,10 +163,21 @@ async def _submit_mediaconvert_job(
             encrypted_key: str | None = None
 
             if drm_enabled:
-                raw_key = generate_aes128_key()
+                asset_rendition = await db.scalar(select(MediaAssetRendition).where(
+                    MediaAssetRendition.id == uuid.UUID(asset_rendition_id),
+                    MediaAssetRendition.client_id == uuid.UUID(client_id),
+                ).with_for_update()) if video_id is None and asset_rendition_id else None
+                if asset_rendition and asset_rendition.drm_key_encrypted:
+                    encrypted_key = asset_rendition.drm_key_encrypted
+                    raw_key = decrypt_key(encrypted_key)
+                else:
+                    raw_key = generate_aes128_key()
+                    encrypted_key = encrypt_key(raw_key)
+                    if asset_rendition:
+                        asset_rendition.drm_key_encrypted = encrypted_key
+                        await db.commit()
                 drm_key_hex = key_as_hex(raw_key)
                 drm_key_url = _drm_key_url(asset_rendition_id or video_id)
-                encrypted_key = encrypt_key(raw_key)
 
             # boto3 is synchronous – run in thread pool to avoid blocking the event loop
             job_id = await loop.run_in_executor(
@@ -171,19 +185,19 @@ async def _submit_mediaconvert_job(
                 lambda: create_hls_job(
                     input_s3_key=s3_key,
                     client_slug=client_slug,
-                    video_id=video_id,
+                    video_id=subject_id,
                     asset_rendition_id=asset_rendition_id,
                     drm_key_hex=drm_key_hex,
                     drm_key_url=drm_key_url,
                     profile=profile,
+                    client_request_token=job_row_id if video_id is None else None,
                 ),
             )
 
             now = datetime.now(timezone.utc)
 
             # Update Video row
-            result = await db.execute(select(Video).where(Video.id == uuid.UUID(video_id)))
-            video = result.scalar_one_or_none()
+            video = await db.scalar(select(Video).where(Video.id == uuid.UUID(video_id))) if video_id else None
             if video and not preview:
                 video.transcode_job_id = job_id
                 video.transcode_status = "processing"
@@ -202,6 +216,14 @@ async def _submit_mediaconvert_job(
                     rendition.status = "processing"
                     rendition.progress = 0
                     rendition.drm_key_encrypted = encrypted_key
+                    if not preview:
+                        await db.execute(update(Video).where(
+                            Video.client_id == uuid.UUID(client_id),
+                            Video.media_asset_rendition_id == rendition.id,
+                        ).values(
+                            transcode_status="processing", transcode_progress=0,
+                            transcode_job_id=job_id, drm_key_encrypted=encrypted_key,
+                        ))
 
             # Update TranscodeJob row
             result = await db.execute(
@@ -219,12 +241,17 @@ async def _submit_mediaconvert_job(
 
         except Exception as exc:
             error_detail = str(exc)
+            cause = exc.__cause__ or exc
+            error_code = getattr(cause, "response", {}).get("Error", {}).get("Code", "")
+            recoverable = video_id is None and (
+                type(cause).__name__ in {"EndpointConnectionError", "ConnectionClosedError", "ConnectTimeoutError", "ReadTimeoutError"}
+                or error_code in {"ThrottlingException", "TooManyRequestsException", "InternalServerErrorException", "ServiceUnavailableException"}
+            )
             logger.error("MediaConvert job submission failed for video %s: %s", video_id, exc)
             try:
                 now = datetime.now(timezone.utc)
 
-                result = await db.execute(select(Video).where(Video.id == uuid.UUID(video_id)))
-                video = result.scalar_one_or_none()
+                video = await db.scalar(select(Video).where(Video.id == uuid.UUID(video_id))) if video_id else None
                 if video and not preview:
                     video.transcode_status = "failed"
                     video.transcode_job_id = f"error:{error_detail[:240]}"
@@ -237,7 +264,7 @@ async def _submit_mediaconvert_job(
                     )
                     rendition = result.scalar_one_or_none()
                     if rendition:
-                        rendition.status = "failed"
+                        rendition.status = "pending" if recoverable else "failed"
                         rendition.error_message = error_detail
                         await db.execute(
                             update(Video)
@@ -250,9 +277,9 @@ async def _submit_mediaconvert_job(
                 )
                 job_row = result.scalar_one_or_none()
                 if job_row:
-                    job_row.status = "failed"
+                    job_row.status = "submitting" if recoverable else "failed"
                     job_row.error_message = error_detail
-                    job_row.completed_at = now
+                    job_row.completed_at = None if recoverable else now
 
                 await db.commit()
             except Exception as inner_exc:
@@ -784,6 +811,18 @@ async def mediaconvert_webhook(
         job_filters.append(TranscodeJob.video_id == video_uuid)
     job_result = await db.execute(select(TranscodeJob).where(*job_filters))
     job_row = job_result.scalar_one_or_none()
+    if rendition and job_row and job_row.video_id is None:
+        video = None
+        try:
+            authoritative = await asyncio.to_thread(get_job_status, job_id)
+        except Exception as error:
+            raise HTTPException(status_code=503, detail="Episode job state could not be verified") from error
+        mc_status = authoritative["status"]
+        progress = authoritative.get("progress", 0)
+        if authoritative.get("error_message"):
+            detail["errorMessage"] = authoritative["error_message"]
+    if rendition and rendition.status in {"complete", "failed"} and mc_status not in {"COMPLETE", "ERROR", "CANCELED"}:
+        return {"ignored": True}
     now = datetime.now(timezone.utc)
     output_id = str(rendition.id) if rendition else video_id_str
     client_id = rendition.client_id if rendition else video.client_id

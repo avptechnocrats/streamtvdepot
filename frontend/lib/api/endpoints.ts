@@ -181,6 +181,8 @@ export const ENDPOINTS = {
             multipartAbort: "/admin/upload/multipart/abort",
             mediaLibrary: "/admin/upload/media-library",
             deleteAsset: (id: string) => `/admin/upload/media-assets/${id}`,
+            transcodeAsset: (id: string) => `/admin/upload/media-assets/${id}/transcode`,
+            videoRendition: "/admin/upload/video-rendition",
         },
         transcoding: {
             trigger: (videoId: string) => `/admin/transcoding/videos/${videoId}/trigger`,

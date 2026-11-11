@@ -288,6 +288,7 @@ def create_hls_job(
     drm_key_hex: str | None = None,
     drm_key_url: str | None = None,
     profile: str | None = None,
+    client_request_token: str | None = None,
 ) -> str:
     """
     Submit an AWS MediaConvert job to transcode a raw video into ABR HLS.
@@ -310,6 +311,7 @@ def create_hls_job(
     try:
         client = _get_client()
         response = client.create_job(
+            **({"ClientRequestToken": client_request_token} if client_request_token else {}),
             Role=settings.MEDIACONVERT_ROLE_ARN,
             Queue=settings.MEDIACONVERT_QUEUE_ARN,
             Settings=job_settings,

@@ -20,7 +20,7 @@ export type VideoCategory = (typeof VIDEO_CATEGORIES)[number];
 export const AGE_RATINGS = ["UA 13+", "UA 16+", "U", "A"] as const;
 export type AgeRating = (typeof AGE_RATINGS)[number];
 
-export const CONTENT_CLASSIFICATIONS = ["Movie", "Music Video", "Short Film", "Documentary", "Podcast", "Episode"] as const;
+export const CONTENT_CLASSIFICATIONS = ["Movies", "Series", "Music Video", "Short Film", "Documentary", "Podcast"] as const;
 export type ContentClassification = (typeof CONTENT_CLASSIFICATIONS)[number];
 
 export const VIDEO_LANGUAGES = [

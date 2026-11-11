@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ImageIcon, Film, Music, Trash2, Eye, Copy, Check, RotateCcw, AlertTriangle } from "lucide-react";
+import { ImageIcon, Film, Music, Trash2, Eye, Copy, Check, RotateCcw, AlertTriangle, Loader2, Play } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export interface MediaAsset {
     id: string;
@@ -21,6 +23,8 @@ export interface MediaAsset {
     failed_at?: string;
     retrying?: boolean;
     retry_source_file_key?: string;
+    transcode_status?: "pending" | "processing" | "complete" | "failed" | null;
+    transcode_progress?: number | null;
 }
 
 export function formatBytes(bytes: number | null): string {
@@ -94,6 +98,41 @@ export function AssetRow({ asset, view = "grid", onRetry, onPreview, onDelete }:
     const [copied, setCopied] = useState(false);
 
     const displaySrc = asset.display_url ?? asset.url;
+    const isVideo = asset.content_type?.startsWith("video/") && asset.upload_status !== "failed";
+    const isTranscoding = asset.transcode_status === "pending" || asset.transcode_status === "processing";
+    const canGenerate = isVideo && asset.transcode_status !== "complete" && !isTranscoding;
+    const transcodeLabel = asset.transcode_status === "complete" ? "Transcoded"
+        : asset.transcode_status === "processing" ? `Transcoding ${asset.transcode_progress ?? 0}%`
+        : asset.transcode_status === "pending" ? "Queued"
+        : asset.transcode_status === "failed" ? "Transcoding failed" : null;
+    const transcodeState = isVideo && (
+        <div className="mt-1 flex min-h-6 flex-wrap items-center gap-2">
+            {transcodeLabel && (
+                <Badge variant="outline" role="status" className={`gap-1 px-2 py-0.5 text-[10px] font-medium ${
+                    asset.transcode_status === "complete"
+                        ? "border-green-600/20 bg-green-500/10 text-green-700 dark:text-green-400"
+                        : asset.transcode_status === "failed"
+                            ? "border-red-600/20 bg-red-500/10 text-red-700 dark:text-red-300"
+                            : "border-border bg-muted text-muted-foreground"
+                }`}>
+                    {asset.transcode_status === "complete" ? <Check size={11} aria-hidden="true" />
+                        : asset.transcode_status === "failed" ? <AlertTriangle size={11} aria-hidden="true" />
+                        : <Loader2 size={11} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}
+                    {transcodeLabel}
+                </Badge>
+            )}
+            {canGenerate && onRetry && (
+                <Button type="button" variant="outline" size="sm" onClick={onRetry} disabled={asset.retrying}
+                    aria-label={`${asset.transcode_status === "failed" ? "Retry" : "Generate"} transcoding for ${asset.original_filename}`}
+                    title={asset.transcode_status === "failed" ? "Retry transcoding" : "Generate streaming rendition"}
+                    className="h-6 gap-1 px-2 text-[10px] [&_svg]:size-3">
+                    {asset.retrying ? <Loader2 className="animate-spin motion-reduce:animate-none" />
+                        : asset.transcode_status === "failed" ? <RotateCcw /> : <Play />}
+                    {asset.transcode_status === "failed" ? "Retry" : "Generate"}
+                </Button>
+            )}
+        </div>
+    );
 
     function copyUrl() {
         navigator.clipboard.writeText(displaySrc).then(() => {
@@ -103,7 +142,7 @@ export function AssetRow({ asset, view = "grid", onRetry, onPreview, onDelete }:
     }
     const actions = <div className="w-24 shrink-0 flex items-center gap-1 justify-end">
         {asset.upload_status === "failed" && onRetry && (
-            <button type="button" onClick={onRetry} disabled={asset.retrying} title="Retry upload" className="w-7 h-7 rounded-md flex items-center justify-center text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 transition-colors disabled:opacity-50">
+            <button type="button" onClick={onRetry} disabled={asset.retrying} title={asset.transcode_status === "failed" ? "Retry transcoding" : "Retry upload"} aria-label={asset.transcode_status === "failed" ? "Retry transcoding" : "Retry upload"} className="w-7 h-7 rounded-md flex items-center justify-center text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 transition-colors disabled:opacity-50">
                 <RotateCcw size={14} className={asset.retrying ? "animate-spin" : ""} />
             </button>
         )}
@@ -124,6 +163,7 @@ export function AssetRow({ asset, view = "grid", onRetry, onPreview, onDelete }:
                 {asset.width && asset.height ? <span>{asset.width}×{asset.height}</span> : <span>{asset.content_type ?? "Unknown type"}</span>}
             </div>
             <p className="text-xs text-muted-foreground">{formatDate(asset.created_at)}</p>
+            {transcodeState}
             {asset.upload_status === "failed" && <p className="text-xs text-red-300">Uploaded {formatBytes(asset.uploaded_bytes ?? 0)} · Remaining {formatBytes(asset.remaining_bytes ?? 0)}</p>}
             <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
                 <span className={`text-[10px] font-semibold ${asset.upload_status === "failed" ? "text-red-300" : "text-primary"}`}>{asset.upload_status === "failed" ? "Failed" : asset.in_use ? "In Use" : ""}</span>
@@ -149,6 +189,7 @@ export function AssetRow({ asset, view = "grid", onRetry, onPreview, onDelete }:
                 ) : (
                     <p className="text-xs text-muted-foreground truncate">{asset.content_type ?? "—"}</p>
                 )}
+                {transcodeState}
             </div>
 
             {/* File type pill */}

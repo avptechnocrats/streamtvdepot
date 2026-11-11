@@ -208,6 +208,60 @@ Verify on the live deployment before considering the rollout complete:
 - Compare startup time, segment download time versus segment duration, buffering
   events, and CloudWatch CloudFront cache-hit/error metrics before and after.
 
+## Media Library Auto-Transcoding
+
+Successful video upload confirmation (including recovered uploads through
+`POST /admin/upload/reconcile`) queues a durable, asset-owned DRM HLS job in the
+same database transaction as asset registration. Images and audio are not queued.
+Repeated confirmation is serialized per tenant/source and returns the same asset.
+
+Upload confirmation commits the asset and job, then wakes the asset worker
+immediately, without requiring an episode or draft save. The existing
+`episode_transcoding` scheduler also checks pending asset jobs every minute as a
+recovery path. Workers claim jobs using row locks with `SKIP LOCKED` and retry
+recoverable submission failures. MediaConvert requests use the job row ID as an idempotency
+token; DRM keys are persisted before submission and retained across recovery.
+The Media Library polls active renditions every five seconds while it is open.
+
+Selecting the same source for another video or episode reuses its completed or active
+`abr_hls_v1_drm` rendition without another MediaConvert submission. Rendition
+identity includes tenant, source S3 key, and encoding profile. Episode saves link
+to the shared rendition. Existing completed or active clear episode streams
+(`abr_hls_v1_clear`) remain usable without forced re-encoding; new episode
+attachments prefer the shared DRM profile and can reuse a completed legacy
+rendition when no DRM rendition exists. Newly required output always uses DRM.
+Trailer previews remain separate outputs.
+
+The series editor reads selected-asset readiness through the tenant-scoped
+`GET /admin/upload/video-rendition?source_url=...` endpoint. A completed asset can
+be previewed and its episode marked Published before any draft save. Series
+publication requires at least one Published episode and completed streams for
+all Published episodes; draft episodes do not block it. The backend revalidates
+readiness when saving the publication.
+
+A valid new-series form automatically creates its initial database record as
+Draft once an episode video or series banner has been uploaded or selected.
+Creation is debounced until tracked uploads finish; the initial episodes are
+saved as Draft too. This happens once, keeps the form open, and reuses the saved
+series and episode IDs for later explicit Save Draft or Publish actions. Later
+edits still require an explicit save. Invalid forms wait for correction, and
+save failures are shown in the form without an automatic retry loop.
+
+Admin asset previews use rendition- and tenant-bound playback tokens. Episode
+playlists and DRM keys use episode- and rendition-bound tokens, so reusing one
+rendition across content does not bypass each episode's access controls. Key and
+playlist responses remain uncached; segment URLs expire with playback authorization.
+
+Failed library jobs can be explicitly retried through
+`POST /admin/upload/media-assets/{asset_id}/transcode`. This endpoint also reuses
+completed or active renditions; it does not force re-encoding. Missing AWS/DRM
+configuration marks the rendition failed without losing the successful upload.
+
+Deploy the upload/transcoding handlers and asset worker together, with the
+asset-rendition and nullable-video transcode-job migrations applied. Verify the
+live scheduler is enabled and observe one job per tenant/source/profile before
+considering rollout complete.
+
 This change does not provision AWS resources, alter live-channel pipelines, or
 automatically enable CloudFront. Keep the existing S3 fallback available during
 rollout. Review CloudFront requests/data transfer and S3 origin requests together;

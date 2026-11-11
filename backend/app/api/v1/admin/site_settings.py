@@ -13,7 +13,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_client_admin
 from app.core.smtp import send_email_via_smtp
 from app.core.email_templates import generate_professional_email_html
-from app.core.storage import get_s3_client, presign_get_url
+from app.core.storage import cache_logo_locally, get_s3_client, presign_get_url
 from app.core.system_mail import get_client_logo_url, get_platform_logo_url
 from app.models.superadmin.client import Client
 from app.models.superadmin.settings import SuperadminSettings
@@ -239,6 +239,13 @@ async def save_site_settings(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Invalid logo_s3_key for this client",
                 )
+            try:
+                await cache_logo_locally(admin._client_id, g.logo_s3_key)
+            except (BotoCoreError, ClientError, OSError, ValueError) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="Could not save the local logo copy. Please retry the upload.",
+                ) from exc
             cfg["logo_s3_key"] = g.logo_s3_key
         if g.clear_favicon:
             cfg.pop("favicon_s3_key", None)

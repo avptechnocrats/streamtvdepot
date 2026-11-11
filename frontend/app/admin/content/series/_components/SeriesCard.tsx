@@ -23,13 +23,14 @@ export interface SeriesCardProps {
 }
 
 export function SeriesCard({ series, onDelete }: SeriesCardProps) {
+    const artwork = series.thumbnails?.video_banner || series.thumbnails?.video_w_thumbnail || series.thumbnails?.video_h_thumbnail || series.thumbnail_url;
     return (
         <div className="rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/30 transition-colors">
             {/* Thumbnail */}
             <div className="relative h-36 bg-muted/40 overflow-hidden">
-                {series.thumbnail_url ? (
+                {artwork ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={series.thumbnail_url} alt={series.title} className="w-full h-full object-cover" />
+                    <img src={artwork} alt={series.title} className="w-full h-full object-cover" />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center">
                         <Clapperboard size={36} className="text-muted-foreground/20" />

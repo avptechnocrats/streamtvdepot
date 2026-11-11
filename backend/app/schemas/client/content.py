@@ -711,6 +711,11 @@ class EpisodeOut(BaseModel):
     thumbnail_url: str | None
     status: ContentStatus
     created_at: datetime
+    media_asset_rendition_id: uuid.UUID | None = None
+    transcode_status: str | None = None
+    transcode_progress: int | None = None
+    transcode_error: str | None = None
+    stream_ready: bool = False
 
     model_config = {"from_attributes": True}
 

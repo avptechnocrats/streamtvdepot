@@ -1,13 +1,14 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from pydantic import ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.episode_transcoding import episode_stream_url, prepare_episode_transcode, process_episode_transcodes, require_publishable_series
 from app.core.dependencies import get_current_client_admin, get_current_client_admin_with_active_plan
 from app.models.client.content import Category, ContentStatus, Episode, Series, series_categories as series_categories_table
 from app.models.client.subscription import ClientSubscriptionPlan, PlanType
@@ -48,10 +49,13 @@ async def _apply_series_episodes(db: AsyncSession, series: Series, payload: Seri
     for values in payload.episodes:
         data = values.model_dump(exclude={"id"})
         if values.id:
+            episode = existing[values.id]
             for field, value in data.items():
-                setattr(existing[values.id], field, value)
+                setattr(episode, field, value)
         else:
-            db.add(Episode(client_id=series.client_id, series_id=series.id, **data))
+            episode = Episode(client_id=series.client_id, series_id=series.id, **data)
+            db.add(episode)
+        await prepare_episode_transcode(db, episode)
 
 
 async def _validate_series_payload(
@@ -120,6 +124,7 @@ async def list_trash_series(
 @router.post("", response_model=SeriesOut, status_code=status.HTTP_201_CREATED)
 async def create_series(
     payload: SeriesCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     admin=Depends(get_current_client_admin_with_active_plan),
 ):
@@ -146,7 +151,11 @@ async def create_series(
                 ).on_conflict_do_nothing()
             )
     await _apply_series_episodes(db, series, payload)
+    if series.status == ContentStatus.PUBLISHED:
+        await require_publishable_series(db, series)
     await db.flush()
+    await db.commit()
+    background_tasks.add_task(process_episode_transcodes)
     await db.refresh(series)
     return series
 
@@ -175,6 +184,7 @@ async def get_series(
 async def update_series(
     series_id: uuid.UUID,
     payload: SeriesUpdate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     admin=Depends(get_current_client_admin_with_active_plan),
 ):
@@ -234,7 +244,11 @@ async def update_series(
                     ).on_conflict_do_nothing()
                 )
     await _apply_series_episodes(db, series, merged)
+    if series.status == ContentStatus.PUBLISHED:
+        await require_publishable_series(db, series)
     await db.flush()
+    await db.commit()
+    background_tasks.add_task(process_episode_transcodes)
     await db.refresh(series)
     return series
 
@@ -321,6 +335,7 @@ async def list_episodes(
 async def create_episode(
     series_id: uuid.UUID,
     payload: EpisodeCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     admin=Depends(get_current_client_admin),
 ):
@@ -350,7 +365,12 @@ async def create_episode(
         status=payload.status,
     )
     db.add(episode)
+    await prepare_episode_transcode(db, episode)
+    if series.status == ContentStatus.PUBLISHED:
+        await require_publishable_series(db, series)
     await db.flush()
+    await db.commit()
+    background_tasks.add_task(process_episode_transcodes)
     await db.refresh(episode)
     return episode
 
@@ -360,6 +380,7 @@ async def update_episode(
     series_id: uuid.UUID,
     episode_id: uuid.UUID,
     payload: EpisodeUpdate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     admin=Depends(get_current_client_admin),
 ):
@@ -374,12 +395,48 @@ async def update_episode(
     if not episode:
         raise HTTPException(status_code=404, detail="Episode not found")
 
-    for field, value in payload.model_dump(exclude_none=True).items():
+    for field, value in payload.model_dump(exclude_unset=True).items():
         if field != "series_id":
             setattr(episode, field, value)
+    await prepare_episode_transcode(db, episode)
+    series = await db.scalar(select(Series).where(Series.id == series_id, Series.client_id == admin._client_id))
+    if series.status == ContentStatus.PUBLISHED:
+        await require_publishable_series(db, series)
     await db.flush()
+    await db.commit()
+    background_tasks.add_task(process_episode_transcodes)
     await db.refresh(episode)
     return episode
+
+
+@router.post("/{series_id}/episodes/{episode_id}/transcode", response_model=EpisodeOut)
+async def retry_episode_transcode(
+    series_id: uuid.UUID, episode_id: uuid.UUID, background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db), admin=Depends(get_current_client_admin_with_active_plan),
+):
+    episode = await db.scalar(select(Episode).where(
+        Episode.id == episode_id, Episode.series_id == series_id, Episode.client_id == admin._client_id,
+    ))
+    if not episode or not episode.video_url:
+        raise HTTPException(status_code=404, detail="Episode source not found")
+    await prepare_episode_transcode(db, episode, retry=True)
+    await db.commit()
+    background_tasks.add_task(process_episode_transcodes)
+    await db.refresh(episode)
+    return episode
+
+
+@router.get("/{series_id}/episodes/{episode_id}/preview")
+async def preview_episode_stream(
+    series_id: uuid.UUID, episode_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db), admin=Depends(get_current_client_admin),
+):
+    episode = await db.scalar(select(Episode).where(
+        Episode.id == episode_id, Episode.series_id == series_id, Episode.client_id == admin._client_id,
+    ))
+    if not episode:
+        raise HTTPException(status_code=404, detail="Episode not found")
+    return {"stream_url": episode_stream_url(episode, str(admin.id), preview=True)}
 
 
 @router.delete("/{series_id}/episodes/{episode_id}", status_code=status.HTTP_204_NO_CONTENT)

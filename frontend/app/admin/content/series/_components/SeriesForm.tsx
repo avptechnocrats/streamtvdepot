@@ -3,7 +3,7 @@
 import S3ImageField from "@/components/content/ContentImageField";
 import { useEffect, useRef, useState } from "react";
 import { useForm, Controller, useFieldArray, type SubmitErrorHandler } from "react-hook-form";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
@@ -17,6 +17,8 @@ import { S3VideoField, COUNTRY_OPTIONS } from "../../videos/_components/VideoFor
 
 import { AiWriteButton } from "@/components/AiWriteButton";
 import { CategoryPicker } from "@/components/CategoryPicker";
+import EpisodeVideoField, { assetRenditionQueryOptions, episodeSourceMatches } from "@/components/content/EpisodeVideoField";
+import { useToast } from "@/hooks/use-toast";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -312,15 +314,26 @@ const LANGUAGE_OPTIONS = VIDEO_LANGUAGES.map((l) => ({ value: l, label: l }));
 
 export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
     const router = useRouter();
+    const queryClient = useQueryClient();
+    const { toast } = useToast();
+    const [savingAction, setSavingAction] = useState<"draft" | "publish" | null>(null);
     const [mediaTab, setMediaTab] = useState("banner");
     const [accessTab, setAccessTab] = useState("access");
     const [uploads, setUploads] = useState<Record<string, boolean>>({});
     const [episodeToRemove, setEpisodeToRemove] = useState<number | null>(null);
     const [activeSeason, setActiveSeason] = useState(1);
     const episodesInitialized = useRef(false);
+    const persistedSeriesId = useRef(seriesId);
+    const saveInFlight = useRef(false);
+    const lastAutoDraftAttempt = useRef("");
+    const pendingEpisodeLinks = useRef<{ formId: string; season: number; number: number }[]>([]);
     const { data: availableCategories = [] } = useQuery({ queryKey: ["series-editor-categories"], queryFn: async () => (await listCategories({ content_type: "series", page_size: 200 })).items });
     const { data: pricingPlans = [] } = useQuery({ queryKey: ["series-editor-plans"], queryFn: () => listClientPlans({ is_active: true }) });
-    const { data: savedEpisodes, isLoading: episodesLoading, isError: episodesError, refetch: refetchEpisodes } = useQuery({ queryKey: ["series-episodes", seriesId], queryFn: () => listSeriesEpisodes(seriesId!), enabled: mode === "edit" && !!seriesId });
+    const { data: savedEpisodes, isLoading: episodesLoading, isError: episodesError, isFetchedAfterMount: episodesFetchedAfterMount, refetch: refetchEpisodes } = useQuery({
+        queryKey: ["series-episodes", seriesId], queryFn: () => listSeriesEpisodes(seriesId!), enabled: mode === "edit" && !!seriesId,
+        refetchOnMount: "always",
+        refetchInterval: query => query.state.data?.some(episode => episode.transcode_status === "pending" || episode.transcode_status === "processing") ? 5000 : false,
+    });
 
     const {
         register,
@@ -338,7 +351,7 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
     const { fields: episodeFields, append: appendEpisode, remove: removeEpisode, replace: replaceEpisodes } = useFieldArray({ control, name: "episodes", keyName: "formId" });
 
     useEffect(() => {
-        if (!savedEpisodes || episodesInitialized.current) return;
+        if (!savedEpisodes || !episodesFetchedAfterMount || episodesError || episodesInitialized.current) return;
         replaceEpisodes(savedEpisodes.map(episode => ({
             id: episode.id, title: episode.title, description: episode.description ?? "", season_number: episode.season_number,
             episode_number: episode.episode_number, duration_seconds: episode.duration_seconds, video_url: episode.video_url ?? "",
@@ -346,7 +359,7 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
         })));
         setValue("total_seasons", Math.max(getValues("total_seasons"), ...savedEpisodes.map(episode => episode.season_number)));
         episodesInitialized.current = true;
-    }, [savedEpisodes, replaceEpisodes, setValue, getValues]);
+    }, [savedEpisodes, episodesFetchedAfterMount, episodesError, replaceEpisodes, setValue, getValues]);
 
     const titleValue = watch("title");
     const languages = watch("language") ?? [];
@@ -354,11 +367,29 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
     const selectedPlanIds = watch("subscription_plan_ids");
 
     const episodes = watch("episodes");
+    const savedById = new Map((savedEpisodes ?? []).map(episode => [episode.id, episode]));
+    const assetSources = [...new Set(episodes.filter(episode =>
+        episode.video_url && !(savedById.get(episode.id)?.media_asset_rendition_id && episodeSourceMatches(savedById.get(episode.id), episode.video_url))
+    ).map(episode => episode.video_url))];
+    const assetRenditions = useQueries({ queries: assetSources.map(assetRenditionQueryOptions) });
+    const assetsBySource = new Map(assetSources.map((source, index) => [source, assetRenditions[index]]));
+    const episodeMedia = (episode: FormValues["episodes"][number]) => savedById.get(episode.id)?.media_asset_rendition_id && episodeSourceMatches(savedById.get(episode.id), episode.video_url)
+        ? savedById.get(episode.id) : assetsBySource.get(episode.video_url)?.data;
+    const episodeReady = (episode: FormValues["episodes"][number]) => !!episodeMedia(episode)?.stream_ready;
+    const publishedEpisodes = episodes.filter(episode => episode.status === "published");
+    const publicationReady = publishedEpisodes.length > 0 && publishedEpisodes.every(episodeReady);
+    const episodeProcessingLabel = (index: number) => {
+        const episode = episodes[index];
+        if (!episode.video_url) return null;
+        const media = episodeMedia(episode);
+        if (media?.stream_ready) return "Transcoded";
+        return media?.transcode_status === "pending" ? "Queued" : media?.transcode_status === "processing" ? `Transcoding ${media.transcode_progress ?? 0}%` : media?.transcode_status === "failed" ? "Failed" : assetsBySource.get(episode.video_url)?.isFetching ? "Checking media" : "Not transcoded";
+    };
     const seasonCount = Math.min(1000, Math.max(1, Number(watch("total_seasons")) || 1));
     const trailerType = watch("trailer_type");
     const publishOption = watch("publish_option");
     const hasUploads = Object.values(uploads).some(Boolean);
-    const busy = isSubmitting || hasUploads || (mode === "edit" && (episodesLoading || episodesError));
+    const busy = isSubmitting || savingAction !== null || hasUploads || (mode === "edit" && (episodesLoading || !episodesFetchedAfterMount || episodesError));
     const uploadState = (name: string, uploading: boolean) => setUploads(previous => ({ ...previous, [name]: uploading }));
     const onInvalid: SubmitErrorHandler<FormValues> = (invalid) => {
         const episodeIndex = Object.keys(invalid.episodes ?? {}).find(index => /^\d+$/.test(index));
@@ -373,8 +404,13 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
         accessType === "ppv" ? plan.plan_type === "ppv" : plan.plan_type === "rent"
     );
 
-    const submitForm = async (data: FormValues, targetStatus: "draft" | "published" | "archived") => {
-        if (busy) return;
+    const submitForm = async (data: FormValues, targetStatus: "draft" | "published" | "archived", automatic = false) => {
+        if (busy || saveInFlight.current) return;
+        saveInFlight.current = true;
+        setSavingAction(targetStatus === "draft" ? "draft" : "publish");
+        if (automatic) pendingEpisodeLinks.current = episodeFields.map((episode, index) => ({
+            formId: episode.formId, season: data.episodes[index].season_number, number: data.episodes[index].episode_number,
+        }));
         const payload: SeriesCreate = {
             title: data.title,
             description: data.description || null,
@@ -402,19 +438,85 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
             status: targetStatus,
             is_featured: data.is_featured,
             total_seasons: data.total_seasons,
-            episodes: data.episodes.map(episode => ({ ...episode, title: episode.title, season_number: episode.season_number, episode_number: episode.episode_number, description: episode.description || null, video_url: episode.video_url || null, thumbnail_url: episode.thumbnail_url || null })),
+            episodes: data.episodes.map(episode => ({ ...episode, status: automatic ? "draft" : episode.status, title: episode.title, season_number: episode.season_number, episode_number: episode.episode_number, description: episode.description || null, video_url: episode.video_url || null, thumbnail_url: episode.thumbnail_url || null })),
             deleted_episode_ids: data.deleted_episode_ids,
         };
         try {
-            await saveSeriesEditor(payload, mode === "edit" ? seriesId : undefined);
+            if (mode === "create" && persistedSeriesId.current && pendingEpisodeLinks.current.length) {
+                const existing = await listSeriesEpisodes(persistedSeriesId.current);
+                payload.episodes = payload.episodes?.map((episode, index) => {
+                    const original = pendingEpisodeLinks.current.find(item => item.formId === episodeFields[index]?.formId);
+                    return { ...episode, id: episode.id ?? (original ? existing.find(item => item.season_number === original.season && item.episode_number === original.number)?.id : undefined) };
+                });
+                payload.deleted_episode_ids = [...new Set([
+                    ...data.deleted_episode_ids,
+                    ...existing.filter(episode => !payload.episodes?.some(item => item.id === episode.id)).map(episode => episode.id),
+                ])];
+            }
+            const saved = await saveSeriesEditor(payload, persistedSeriesId.current);
+            persistedSeriesId.current = saved.id;
+            await queryClient.invalidateQueries({ queryKey: ["series-episodes", saved.id], refetchType: "none" });
+            if (automatic) {
+                setValue("status", "draft");
+                const fresh = await listSeriesEpisodes(saved.id);
+                data.episodes.forEach((episode, index) => {
+                    const match = fresh.find(item => item.season_number === episode.season_number && item.episode_number === episode.episode_number);
+                    if (match) setValue(`episodes.${index}.id`, match.id);
+                });
+                pendingEpisodeLinks.current = [];
+                queryClient.setQueryData(["series-episodes", saved.id], fresh);
+                toast({ title: "Draft saved" });
+                return;
+            }
+            if (targetStatus === "draft") {
+                if (mode === "create") {
+                    router.replace(`/admin/content/series/${saved.id}/edit`);
+                } else {
+                    try {
+                        const fresh = await listSeriesEpisodes(saved.id);
+                        getValues("episodes").forEach((episode, index) => {
+                            const match = fresh.find(item => item.season_number === episode.season_number && item.episode_number === episode.episode_number);
+                            if (match) setValue(`episodes.${index}.id`, match.id);
+                        });
+                        setValue("deleted_episode_ids", []);
+                        setValue("status", "draft");
+                        queryClient.setQueryData(["series-episodes", saved.id], fresh);
+                        toast({ title: "Draft saved" });
+                    } catch {
+                        router.push("/admin/content/series");
+                    }
+                }
+                return;
+            }
             router.push("/admin/content/series");
         } catch (err: unknown) {
             const response = (err as { response?: { status?: number; data?: { detail?: unknown } } })?.response;
             setError("root", { message: response?.status === 404 && response.data?.detail === "Not Found"
                 ? "The series editor API is not deployed yet. Deploy the backend and run database migrations before saving."
                 : getApiErrorMessage(err, "Failed to save series") });
+        } finally {
+            saveInFlight.current = false;
+            setSavingAction(null);
         }
     };
+
+    const { mutate: createInitialDraft } = useMutation({
+        mutationFn: (data: FormValues) => submitForm(data, "draft", true),
+    });
+    const autoDraftSnapshot = JSON.stringify(watch());
+    useEffect(() => {
+        if (mode !== "create" || persistedSeriesId.current || busy || saveInFlight.current || lastAutoDraftAttempt.current === autoDraftSnapshot) return;
+        const timer = setTimeout(() => {
+            const values = getValues();
+            const hasMedia = !!values.thumbnails.video_banner || values.episodes.some(episode => !!episode.video_url);
+            if (!hasMedia || persistedSeriesId.current || saveInFlight.current) return;
+            const result = schema.safeParse(values);
+            if (!result.success) return;
+            lastAutoDraftAttempt.current = autoDraftSnapshot;
+            createInitialDraft(result.data);
+        }, 800);
+        return () => clearTimeout(timer);
+    }, [autoDraftSnapshot, busy, createInitialDraft, getValues, mode]);
 
     const onSubmit = async (data: FormValues) => {
         await submitForm(data, data.status);
@@ -425,7 +527,7 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
     };
 
     const handlePublish = async () => {
-        await handleSubmit((data) => submitForm(data, mode === "edit" ? data.status : "published"), onInvalid)();
+        await handleSubmit((data) => submitForm(data, data.status === "archived" ? "archived" : "published"), onInvalid)();
     };
 
     return (
@@ -531,12 +633,16 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
                                 </select>
                             </div>
                         </div>
-                        {episodesLoading && mode === "edit" && <p role="status" className="text-sm text-muted-foreground">Loading episodes...</p>}
+                        {(episodesLoading || !episodesFetchedAfterMount) && !episodesError && mode === "edit" && <p role="status" className="text-sm text-muted-foreground">Loading episodes...</p>}
                         {episodesError && <div role="alert" className="text-sm text-red-400">Episodes could not be loaded. <button type="button" onClick={() => void refetchEpisodes()} className="underline">Retry</button></div>}
-                        {episodeFields.map((episode, index) => episodes[index]?.season_number === Math.min(activeSeason, seasonCount) && <details key={episode.formId} open className="border-b border-border pb-4 last:border-b-0">
-                            <summary className="cursor-pointer py-2 text-sm font-semibold">Episode {episodes[index]?.episode_number}: {episodes[index]?.title || "Untitled episode"}{errors.episodes?.[index] && <span className="ml-2 text-xs font-normal text-red-400">Review episode</span>}</summary>
+                        {episodeFields.map((episode, index) => episodes[index]?.season_number === Math.min(activeSeason, seasonCount) && <details key={episode.formId} className="group/episode border-b border-border pb-4 last:border-b-0">
+                            <summary className="flex cursor-pointer list-none items-center gap-2 py-2 text-sm font-semibold">
+                                <ChevronDown size={16} className="shrink-0 -rotate-90 text-muted-foreground transition-transform group-open/episode:rotate-0" />
+                                <span className="min-w-0 flex-1 break-words">Episode {episodes[index]?.episode_number}: {episodes[index]?.title || "Untitled episode"}{errors.episodes?.[index] && <span className="ml-2 text-xs font-normal text-red-400">Review episode</span>}</span>
+                                {episodeProcessingLabel(index) && <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${episodeReady(episodes[index]) ? "bg-emerald-500/10 text-emerald-600" : "bg-secondary text-muted-foreground"}`}>{episodeProcessingLabel(index)}</span>}
+                                <button type="button" disabled={busy} title="Remove episode" aria-label={`Remove episode ${episodes[index]?.episode_number}`} onClick={event => { event.preventDefault(); event.stopPropagation(); setEpisodeToRemove(index); }} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-red-500 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"><Trash2 size={16} /></button>
+                            </summary>
                             <div className="space-y-4 pt-3">
-                                <div className="flex justify-end"><button type="button" disabled={busy} title="Remove episode" aria-label={`Remove episode ${episodes[index]?.episode_number}`} onClick={() => setEpisodeToRemove(index)} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"><Trash2 size={16} /></button></div>
                                 <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_120px] gap-3">
                                     <div className="space-y-1"><label htmlFor={`episode-title-${episode.formId}`} className="block text-xs font-semibold text-muted-foreground">Episode Title *</label><input id={`episode-title-${episode.formId}`} {...register(`episodes.${index}.title`)} className={inputCls(!!errors.episodes?.[index]?.title)} /><FieldError msg={errors.episodes?.[index]?.title?.message} /></div>
                                     <div className="space-y-1"><label htmlFor={`episode-number-${episode.formId}`} className="block text-xs font-semibold text-muted-foreground">Episode Number *</label><input id={`episode-number-${episode.formId}`} type="number" min={1} {...register(`episodes.${index}.episode_number`)} className={inputCls(!!errors.episodes?.[index]?.episode_number)} /><FieldError msg={errors.episodes?.[index]?.episode_number?.message} /></div>
@@ -545,11 +651,17 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div className="space-y-1"><label htmlFor={`episode-season-${episode.formId}`} className="block text-xs font-semibold text-muted-foreground">Episode Season</label><select id={`episode-season-${episode.formId}`} disabled={hasUploads} {...register(`episodes.${index}.season_number`, { valueAsNumber: true, onChange: event => setActiveSeason(Number(event.target.value)) })} className={selectCls()}>{Array.from({ length: seasonCount }, (_, season) => <option key={season + 1} value={season + 1}>Season {season + 1}</option>)}</select></div>
                                     <div className="space-y-1"><label htmlFor={`episode-duration-${episode.formId}`} className="block text-xs font-semibold text-muted-foreground">Duration (seconds)</label><Controller name={`episodes.${index}.duration_seconds`} control={control} render={({ field }) => <input id={`episode-duration-${episode.formId}`} type="number" min={1} step={1} value={field.value ?? ""} onChange={event => field.onChange(event.target.value === "" ? null : Number(event.target.value))} className={inputCls(!!errors.episodes?.[index]?.duration_seconds)} />} /><FieldError msg={errors.episodes?.[index]?.duration_seconds?.message} /></div>
-                                    <div className="space-y-1"><label htmlFor={`episode-status-${episode.formId}`} className="block text-xs font-semibold text-muted-foreground">Episode Status</label><select id={`episode-status-${episode.formId}`} {...register(`episodes.${index}.status`)} className={selectCls()}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></div>
+                                    <div className="space-y-1"><label htmlFor={`episode-status-${episode.formId}`} className="block text-xs font-semibold text-muted-foreground">Episode Status</label><select id={`episode-status-${episode.formId}`} {...register(`episodes.${index}.status`)} className={selectCls()}><option value="draft">Draft</option><option value="published" disabled={!episodeReady(episodes[index])}>Published</option><option value="archived">Archived</option></select></div>
                                 </div>
-                                <Controller name={`episodes.${index}.video_url`} control={control} render={({ field }) => <S3VideoField label="Episode Video" hint="Upload a video or select an existing file from Media Library" accept="video/*" value={field.value} previewSourceOnly onChange={field.onChange} onUploadStateChange={uploading => uploadState(episode.formId, uploading)} onDurationDetected={seconds => setValue(`episodes.${index}.duration_seconds`, Math.max(1, Math.round(seconds)), { shouldDirty: true })} />} />
-                                <FieldError msg={errors.episodes?.[index]?.video_url?.message} />
-                                <Controller name={`episodes.${index}.thumbnail_url`} control={control} render={({ field }) => <S3ImageField label="Episode Thumbnail (optional)" hint="16:9 episode artwork" aspect="16:9" value={field.value} onChange={field.onChange} />} />
+                                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" data-episode-media>
+                                    <div className="min-w-0">
+                                        <Controller name={`episodes.${index}.video_url`} control={control} render={({ field }) => <EpisodeVideoField episode={savedById.get(episodes[index]?.id)} seriesId={seriesId} value={field.value} onChange={field.onChange} onUploadStateChange={uploading => uploadState(episode.formId, uploading)} onDurationDetected={seconds => setValue(`episodes.${index}.duration_seconds`, Math.max(1, Math.round(seconds)), { shouldDirty: true })} />} />
+                                        <FieldError msg={errors.episodes?.[index]?.video_url?.message} />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <Controller name={`episodes.${index}.thumbnail_url`} control={control} render={({ field }) => <S3ImageField label="Episode Thumbnail (optional)" hint="16:9 episode artwork" aspect="16:9" value={field.value} onChange={field.onChange} />} />
+                                    </div>
+                                </div>
                             </div>
                         </details>)}
                         {!episodes.some(episode => episode.season_number === Math.min(activeSeason, seasonCount)) && !episodesLoading && <p className="text-sm text-muted-foreground">No episodes in this season.</p>}
@@ -632,17 +744,18 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
                     onClick={() => { void handleSaveDraft(); }}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-border bg-card text-foreground text-sm font-semibold hover:bg-secondary transition-colors disabled:opacity-50"
                 >
-                    {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+                    {isSubmitting && savingAction === "draft" && <Loader2 size={14} className="animate-spin" />}
                     Save Draft
                 </button>
                 <button
                     type="button"
-                    disabled={busy}
+                    disabled={busy || (watch("status") !== "archived" && !publicationReady)}
+                    title={publicationReady ? undefined : publishedEpisodes.length === 0 ? "Mark at least one transcoded episode as Published" : "Wait for all published episodes to finish transcoding"}
                     onClick={() => { void handlePublish(); }}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-50"
                 >
-                    {isSubmitting && <Loader2 size={14} className="animate-spin" />}
-                    {mode === "edit" ? "Save Changes" : "Publish Series"}
+                    {isSubmitting && savingAction === "publish" && <Loader2 size={14} className="animate-spin" />}
+                    {watch("status") === "published" || watch("status") === "archived" ? "Save Changes" : "Publish Series"}
                 </button>
                 <button
                     type="button"

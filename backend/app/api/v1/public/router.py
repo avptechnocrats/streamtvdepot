@@ -19,6 +19,7 @@ from typing import Literal
 from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
+from fastapi.responses import FileResponse
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import SQLAlchemyError
@@ -27,13 +28,14 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.episode_transcoding import episode_stream_url, series_readiness_filters
 from app.core.dependencies import get_current_end_user_optional
 from app.api.v1.auth.user_subscriptions import get_content_access
 from app.core.banner_management import read_managed_banners
 from app.core.site_content import read_site_content
 from app.core.payment_gateways import get_active_payment_gateway_config
 from app.core.subscription_guard import enforce_active_client_saas_subscription
-from app.core.storage import presign_get_url
+from app.core.storage import cache_logo_locally, local_logo_path, presign_get_url
 from app.core.playback_security import protected_playback_url, trusted_country
 from app.core.security import create_ad_playback_token, decode_token
 from app.models.superadmin.client import Client
@@ -618,6 +620,25 @@ async def get_public_theme_settings(
     )
 
 
+@router.get("/site-logo", summary="Get the tenant's server-local logo copy")
+async def get_public_site_logo(
+    slug: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    client = await _resolve_client(slug, db, enforce_plan=False)
+    s3_key = (client.site_config or {}).get("logo_s3_key")
+    if not s3_key:
+        raise HTTPException(status_code=404, detail="Logo not configured")
+    path = local_logo_path(client.id, s3_key)
+    if not await asyncio.to_thread(path.is_file):
+        try:
+            await cache_logo_locally(client.id, s3_key)
+        except Exception as exc:
+            logger.warning("Could not cache tenant logo for %s: %s", client.id, exc)
+            raise HTTPException(status_code=404, detail="Local logo unavailable") from exc
+    return FileResponse(path, media_type="application/octet-stream", headers={"Cache-Control": "no-store"})
+
+
 @router.get(
     "/site-settings",
     response_model=GeneralSettingsOut,
@@ -833,6 +854,7 @@ def _series_visibility_filters(country: str | None) -> list:
     no_blocked = or_(blocked.is_(None), blocked == [])
     no_allowed = or_(allowed.is_(None), allowed == [])
     return [
+        *series_readiness_filters(),
         Series.deleted_at.is_(None),
         Series.is_active.is_(True),
         or_(Series.publish_option == "now", Series.publish_at <= datetime.now(timezone.utc)),
@@ -904,7 +926,7 @@ async def list_public_series_episodes(series_id: uuid.UUID, request: Request, sl
         "id": episode.id, "title": episode.title, "description": episode.description,
         "season_number": episode.season_number, "episode_number": episode.episode_number,
         "duration_seconds": episode.duration_seconds,
-        "thumbnail_url": _refresh_s3_url(episode.thumbnail_url), "has_media": bool(episode.video_url),
+        "thumbnail_url": _refresh_s3_url(episode.thumbnail_url), "has_media": episode.stream_ready,
     } for episode in result.scalars().all()]
 
 
@@ -929,10 +951,10 @@ async def authorize_public_series_episode(
         Episode.id == episode_id, Episode.series_id == series.id, Episode.client_id == series.client_id,
         Episode.status == ContentStatus.PUBLISHED,
     ))
-    if not episode or not episode.video_url:
+    if not episode or not episode.stream_ready:
         raise HTTPException(status_code=404, detail="Episode playback is not available")
-    return {"stream_url": protected_playback_url(
-        episode.video_url,
+    return {"stream_url": episode_stream_url(
+        episode, str(current_user.id) if current_user else "anonymous",
         expires_at=access.expires_at if series.access_type != "free" else None,
     )}
 

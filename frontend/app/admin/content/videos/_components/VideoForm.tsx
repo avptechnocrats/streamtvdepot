@@ -470,20 +470,26 @@ interface S3VideoFieldProps {
 }
 
 // Reads the file's own metadata client-side (no upload/transcode wait) via a throwaway <video> element
-function detectVideoDuration(file: File): Promise<number | null> {
+function detectVideoDuration(source: File | string): Promise<number | null> {
     return new Promise((resolve) => {
-        const objectUrl = URL.createObjectURL(file);
+        const objectUrl = typeof source === "string" ? null : URL.createObjectURL(source);
         const probe = document.createElement("video");
         probe.preload = "metadata";
+        const finish = (duration: number | null) => {
+            clearTimeout(timeout);
+            probe.onloadedmetadata = null;
+            probe.onerror = null;
+            probe.removeAttribute("src");
+            probe.load();
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+            resolve(duration);
+        };
+        const timeout = setTimeout(() => finish(null), 15_000);
         probe.onloadedmetadata = () => {
-            URL.revokeObjectURL(objectUrl);
-            resolve(Number.isFinite(probe.duration) && probe.duration > 0 ? probe.duration : null);
+            finish(Number.isFinite(probe.duration) && probe.duration > 0 ? probe.duration : null);
         };
-        probe.onerror = () => {
-            URL.revokeObjectURL(objectUrl);
-            resolve(null);
-        };
-        probe.src = objectUrl;
+        probe.onerror = () => finish(null);
+        probe.src = objectUrl ?? source as string;
     });
 }
 
@@ -596,7 +602,7 @@ export function S3VideoField({ label, hint, accept, value, thumbnailUrl, preview
     }, [failedFile, handleFile]);
 
     const previewUrl = displayUrl || initialDisplayUrl || value;
-    const streamReady = Boolean(streamPreviewUrl && streamVideoId);
+    const streamReady = Boolean(streamPreviewUrl);
     const isProcessing = transcodeStatus === "pending" || transcodeStatus === "processing";
     const isFailed = transcodeStatus === "failed";
 
@@ -623,6 +629,7 @@ export function S3VideoField({ label, hint, accept, value, thumbnailUrl, preview
                                 drmKeyToken={streamDrmKeyToken}
                                 poster={thumbnailUrl ?? undefined}
                                 autoPlay={false}
+                                onDurationDetected={onDurationDetected}
                                 onError={(message) => setPreviewError(message || "The HLS preview could not be played.")}
                             />
                         ) : isFailed ? (
@@ -771,6 +778,11 @@ export function S3VideoField({ label, hint, accept, value, thumbnailUrl, preview
                     lastValueRef.current = stripQuery(url);
                     setDisplayUrl(url);
                     onChange(stripQuery(url));
+                    if (onDurationDetected) {
+                        void detectVideoDuration(url).then(seconds => {
+                            if (seconds && lastValueRef.current === stripQuery(url)) onDurationDetected(seconds);
+                        });
+                    }
                 }}
                 usedUrls={value ? [value] : []}
             />
