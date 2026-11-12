@@ -35,7 +35,7 @@ export default function SeriesHero({ series, actions, afterListAction, navigatio
     const trailer = series.trailer_url && /\.(mp4|webm|m3u8)(?:[?#]|$)/i.test(series.trailer_url) ? series.trailer_url : null;
     const year = new Date(series.created_at).getFullYear();
 
-    return <section ref={bannerRef} aria-label={`${series.title} featured series`} className="relative isolate h-[480px] overflow-hidden bg-black text-white sm:h-[540px] lg:h-[clamp(600px,65svh,720px)]">
+    return <section ref={bannerRef} aria-label={`${series.title} featured series`} className="group/banner relative z-10 isolate h-[480px] overflow-hidden bg-black text-white sm:h-[540px] lg:h-[clamp(600px,65svh,720px)]">
         <img key={series.id} src={seriesArtwork(series, true)} alt="" aria-hidden fetchPriority="high" width={1920} height={1080} className="absolute inset-0 h-full w-full object-cover object-[65%_35%]" onError={event => { if (!event.currentTarget.src.endsWith('/images/hero-banner.jpg')) event.currentTarget.src = '/images/hero-banner.jpg'; }} />
         {trailer && previewEnabled && <BannerTrailer key={`trailer-${series.id}`} src={/\.m3u8(?:[?#]|$)/i.test(trailer) ? null : trailer} hlsSrc={/\.m3u8(?:[?#]|$)/i.test(trailer) ? trailer : null} hovered={active} delayMs={1800} showSoundControl soundControlTopInset={88} soundControlAlignToNav />}
         <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/90 via-black/45 to-transparent" />
@@ -70,9 +70,9 @@ export default function SeriesHero({ series, actions, afterListAction, navigatio
                     </button>
                     {afterListAction}
                 </div>
-                {navigation}
             </div>
                     </div>
         </div>
+        {navigation}
     </section>;
 }
