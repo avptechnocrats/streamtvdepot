@@ -33,6 +33,7 @@ export interface SeriesEpisode {
     season_number: number;
     episode_number: number;
     duration_seconds: number | null;
+    created_at?: string;
     thumbnail_url: string | null;
     has_media: boolean;
 }

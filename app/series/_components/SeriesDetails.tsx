@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowRight, ChevronLeft, Clapperboard, Film, Loader2, Play, RotateCcw, Share2 } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronLeft, Clapperboard, Film, Loader2, Play, RotateCcw, Share2 } from "lucide-react";
 import { getSeries, getSeriesEpisodes, authorizeSeriesEpisode, fetchSeriesPage, seriesArtwork, type SeriesEpisode } from "@/lib/services/series";
 import { usePlayGate } from "@/hooks/use-play-gate";
 import { useAuth } from "@/hooks/use-auth";
@@ -43,6 +43,82 @@ function trailerSource(value: string | null): { source: string; embed: boolean }
         }
         return /\.(mp4|webm|m3u8)(?:[?#]|$)/i.test(value) ? { source: value, embed: false } : null;
     } catch { return null; }
+}
+
+function formatEpisodeDate(value?: string): string | null {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
+}
+
+function SeasonSelector({ seasons, value, onChange }: { seasons: number[]; value: number; onChange: (season: number) => void }) {
+    const rowRef = useRef<HTMLDivElement>(null);
+    const measureRef = useRef<HTMLDivElement>(null);
+    const [visibleCount, setVisibleCount] = useState(seasons.length);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const seasonKey = seasons.join(",");
+
+    useEffect(() => {
+        const row = rowRef.current;
+        const measure = measureRef.current;
+        if (!row || !measure) return;
+        const updateVisibleCount = () => {
+            const availableWidth = row.clientWidth;
+            const widths = Array.from(measure.querySelectorAll<HTMLElement>("[data-season-measure]"))
+                .slice(0, seasons.length)
+                .map(button => button.getBoundingClientRect().width);
+            const moreWidth = measure.querySelector<HTMLElement>("[data-season-more-measure]")?.getBoundingClientRect().width ?? 40;
+            const gap = 28;
+            let usedWidth = 0;
+            let count = 0;
+            for (let index = 0; index <= widths.length; index += 1) {
+                const hasMore = index < widths.length;
+                const candidateWidth = usedWidth
+                    + (hasMore ? (index > 0 ? gap : 0) + moreWidth : 0);
+                if (candidateWidth > availableWidth + 1) break;
+                count = index;
+                if (hasMore) usedWidth += (index > 0 ? gap : 0) + widths[index];
+            }
+            setVisibleCount(count);
+        };
+        updateVisibleCount();
+        const observer = new ResizeObserver(updateVisibleCount);
+        observer.observe(row);
+        window.addEventListener("resize", updateVisibleCount);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener("resize", updateVisibleCount);
+        };
+    }, [seasonKey]);
+
+    if (!seasons.length) return null;
+    const visibleSeasons = seasons.slice(0, visibleCount);
+    const overflowSeasons = seasons.slice(visibleCount);
+
+    return <div ref={rowRef} className="relative w-full border-t border-border">
+        <div className="flex h-[68px] w-full items-center gap-7 px-1">
+            {visibleSeasons.map(season => <SeasonButton key={season} season={season} selected={value === season} onClick={() => { onChange(season); setMenuOpen(false); }} />)}
+            {overflowSeasons.length > 0 && <div className="relative shrink-0">
+                <button type="button" aria-label="More seasons" aria-expanded={menuOpen} title={value > visibleSeasons.at(-1)! ? `Season ${value}` : "More seasons"} onClick={() => setMenuOpen(open => !open)} className={`inline-flex h-10 items-center justify-center gap-1 px-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${value > visibleSeasons.at(-1)! ? "font-semibold text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                    {value > visibleSeasons.at(-1)! && <span>Season {value}</span>}<ChevronDown size={16} />
+                </button>
+                {menuOpen && <div role="menu" aria-label="Additional seasons" className="absolute right-0 top-full z-30 mt-1 max-h-64 min-w-40 overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-xl">
+                    {overflowSeasons.map(season => <button key={season} type="button" role="menuitemradio" aria-checked={value === season} onClick={() => { onChange(season); setMenuOpen(false); }} className={`block w-full rounded-sm px-3 py-2 text-left text-sm ${value === season ? "bg-primary/10 font-semibold text-primary" : "text-foreground hover:bg-secondary"}`}>Season {season}</button>)}
+                </div>}
+            </div>}
+        </div>
+        <div ref={measureRef} aria-hidden className="pointer-events-none invisible absolute -left-[9999px] top-0 flex w-max items-center gap-7">
+            {seasons.map(season => <SeasonButton key={season} season={season} selected={false} onClick={() => undefined} measure />)}
+            {seasons.length > 0 && <span data-season-more-measure className="inline-flex h-10 items-center px-2"><ChevronDown size={16} /></span>}
+        </div>
+    </div>;
+}
+
+function SeasonButton({ season, selected, onClick, measure = false }: { season: number; selected: boolean; onClick: () => void; measure?: boolean }) {
+    return <button type="button" data-season-measure={measure ? "" : undefined} aria-pressed={measure ? undefined : selected} onClick={onClick} className={`h-10 shrink-0 px-1 text-base transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${selected ? "font-semibold text-foreground" : "font-normal text-muted-foreground hover:text-foreground"}`}>
+        Season {season}
+    </button>;
 }
 
 export default function SeriesDetails({ id }: { id: string }) {
@@ -158,14 +234,32 @@ export default function SeriesDetails({ id }: { id: string }) {
         <div className="storefront-row py-8 pb-16"><Link href="/series" className="mb-5 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"><ChevronLeft size={17} />All Series</Link><Tabs value={tab} onValueChange={setTab}>
             <TabsList className="mb-6 grid w-full grid-cols-3 sm:w-auto sm:inline-flex"><TabsTrigger value="episodes" className="px-2 text-xs sm:px-5 sm:text-sm">Episodes</TabsTrigger><TabsTrigger value="related" className="px-2 text-xs sm:px-5 sm:text-sm">More Like This</TabsTrigger><TabsTrigger value="details" className="px-2 text-xs sm:px-5 sm:text-sm">Details</TabsTrigger></TabsList>
             <TabsContent value="episodes">
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-bold">Episodes</h2>{seasons.length > 0 && <select aria-label="Select season" value={activeSeason} onChange={event => setSeason(Number(event.target.value))} className="h-10 max-w-full rounded-md border border-border bg-background px-3 text-sm">{seasons.map(value => <option key={value} value={value}>Season {value}</option>)}</select>}</div>
+                <div className="mb-4"><SeasonSelector seasons={seasons} value={activeSeason} onChange={setSeason} /></div>
                 {playbackError && <p role="alert" className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{playbackError}</p>}
-                {episodesLoading ? <div role="status" aria-label="Loading episodes" className="space-y-4">{[1, 2, 3].map(value => <Skeleton key={value} className="h-28 w-full" />)}</div> : episodesError ? <div role="alert" className="flex flex-wrap items-center gap-4 py-8 text-sm text-muted-foreground"><span>Episodes are temporarily unavailable.</span><Button variant="outline" onClick={() => void refetchEpisodes()} className="gap-2"><RotateCcw size={14} />Try Again</Button></div> : !episodes.length ? <p className="py-10 text-sm text-muted-foreground">Episodes are coming soon.</p> : visibleEpisodes.map(episode => <button key={episode.id} type="button" aria-label={`Play episode ${episode.episode_number}: ${episode.title}`} disabled={!episode.has_media || authorization.isPending || accessLoading} onClick={() => chooseEpisode(episode)} className="group/episode grid w-full grid-cols-[100px_minmax(0,1fr)] items-start gap-3 border-b border-border/50 py-5 text-left transition-colors hover:bg-secondary/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50 sm:gap-5 md:grid-cols-[36px_200px_minmax(0,1fr)_auto] md:items-center">
-                    <span aria-hidden className="hidden text-center text-lg font-semibold text-muted-foreground md:block">{String(episode.episode_number).padStart(2, "0")}</span>
-                    <div className="relative aspect-video overflow-hidden rounded-md bg-secondary"><img src={episode.thumbnail_url || seriesArtwork(series, true)} alt="" width={400} height={225} loading="lazy" className="h-full w-full object-cover" onError={event => { if (!event.currentTarget.src.endsWith('/images/hero-banner.jpg')) event.currentTarget.src = '/images/hero-banner.jpg'; }} /><span className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-100 transition-opacity sm:opacity-0 sm:group-hover/episode:opacity-100 sm:group-focus-visible/episode:opacity-100"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-black"><Play size={14} fill="currentColor" /></span></span></div>
-                    <div className="min-w-0"><h3 className="break-words text-sm font-semibold sm:text-base"><span className="mr-1 md:hidden">{episode.episode_number}.</span>{episode.title}</h3>{episode.description && <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">{episode.description}</p>}{!episode.has_media && <p className="mt-2 text-xs text-muted-foreground">Not available</p>}{episode.duration_seconds != null && <span className="mt-2 block text-xs text-muted-foreground md:hidden">{Math.max(1, Math.round(episode.duration_seconds / 60))} min</span>}</div>
-                    {episode.duration_seconds != null && <span className="hidden text-xs text-muted-foreground md:block">{Math.max(1, Math.round(episode.duration_seconds / 60))} min</span>}
-                </button>)}
+                {episodesLoading ? <div role="status" aria-label="Loading episodes" className="space-y-4">{[1, 2, 3].map(value => <Skeleton key={value} className="h-28 w-full" />)}</div> : episodesError ? <div role="alert" className="flex flex-wrap items-center gap-4 py-8 text-sm text-muted-foreground"><span>Episodes are temporarily unavailable.</span><Button variant="outline" onClick={() => void refetchEpisodes()} className="gap-2"><RotateCcw size={14} />Try Again</Button></div> : !episodes.length ? <p className="py-10 text-sm text-muted-foreground">Episodes are coming soon.</p> : visibleEpisodes.map(episode => {
+                    const progressItem = savedItems.find(item => item.id === episode.id);
+                    const progress = progressItem && progressItem.duration > 0 ? Math.min(100, Math.max(0, progressItem.position / progressItem.duration * 100)) : 0;
+                    const runtimeMinutes = episode.duration_seconds != null ? Math.max(1, Math.round(episode.duration_seconds / 60)) : null;
+                    const releaseDate = formatEpisodeDate(episode.created_at);
+                    return <button key={episode.id} type="button" aria-label={`Play episode ${episode.episode_number}: ${episode.title}`} disabled={!episode.has_media || authorization.isPending || accessLoading} onClick={() => chooseEpisode(episode)} className="group/episode grid w-full grid-cols-[120px_minmax(0,1fr)] items-start gap-4 border-b border-border/50 py-5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-60 sm:grid-cols-[196px_minmax(0,520px)] sm:gap-7">
+                        <div className="relative aspect-video overflow-hidden rounded-sm bg-secondary">
+                            <img src={episode.thumbnail_url || seriesArtwork(series, true)} alt="" width={400} height={225} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 motion-reduce:transition-none group-hover/episode:scale-[1.03] group-focus-visible/episode:scale-[1.03]" onError={event => { if (!event.currentTarget.src.endsWith('/images/hero-banner.jpg')) event.currentTarget.src = '/images/hero-banner.jpg'; }} />
+                            {episode.has_media && <span aria-hidden className="absolute bottom-2 left-2 flex h-6 w-6 items-center justify-center text-white drop-shadow-md"><Play size={17} fill="currentColor" /></span>}
+                            {progress > 0 && <span role="progressbar" aria-label={`${episode.title} watch progress`} aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100} className="absolute inset-x-0 bottom-0 h-[3px] bg-white/35"><span className="block h-full bg-sky-500" style={{ width: `${progress}%` }} /></span>}
+                        </div>
+                        <div className="min-w-0 pt-0.5">
+                            <h3 className="break-words text-sm font-semibold leading-snug text-foreground sm:text-base">{episode.title}</h3>
+                            <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-foreground/90 sm:text-sm">
+                                <span>S{episode.season_number} E{episode.episode_number}</span>
+                                {releaseDate && <><span aria-hidden>·</span><span>{releaseDate}</span></>}
+                                {runtimeMinutes != null && <><span aria-hidden>·</span><span>{runtimeMinutes}m</span></>}
+                                {progressItem && <><span aria-hidden>·</span><span>Continue watching</span></>}
+                            </p>
+                            {episode.description && <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-muted-foreground sm:text-sm">{episode.description}</p>}
+                            {!episode.has_media && <p className="mt-2 text-xs text-muted-foreground">Not available</p>}
+                        </div>
+                    </button>;
+                })}
             </TabsContent>
             <TabsContent value="related"><h2 className="mb-5 text-xl font-bold">More Like This</h2>{relatedError ? <Button variant="outline" onClick={() => void refetchRelated()} className="gap-2"><RotateCcw size={15} />Try Again</Button> : related?.items.some(item => item.id !== id) ? <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">{related.items.filter(item => item.id !== id).slice(0, 12).map(item => <div key={item.id} className="min-w-0 [&>a]:block [&>a]:w-full"><SeriesPoster series={item} /></div>)}</div> : <p className="py-8 text-sm text-muted-foreground">{related ? "More series are coming soon." : "Finding more series..."}</p>}</TabsContent>
             <TabsContent value="details"><h2 className="mb-4 text-xl font-bold">About {series.title}</h2><p className="max-w-3xl whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{series.description}</p><dl className="mt-6 grid max-w-3xl grid-cols-1 gap-5 text-sm sm:grid-cols-2">{[["Genre", series.genre], ["Languages", (series.languages?.length ? series.languages : series.language ? [series.language] : []).join(", ")], ["Age Rating", series.age_rating], ["Seasons", String(series.total_seasons)]].filter(([, value]) => value).map(([label, value]) => <div key={label}><dt className="mb-1 text-xs text-muted-foreground">{label}</dt><dd className="font-medium">{value}</dd></div>)}</dl></TabsContent>
