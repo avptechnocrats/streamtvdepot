@@ -996,3 +996,8 @@ html[data-radius="rounded"] button:not(.rounded-full):not(.storefront-row-arrow)
 html[data-radius="rounded"] :is(.rounded, .rounded-sm, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl):not(.rounded-full) {
     border-radius: var(--radius) !important;
 }
+
+html[data-theme="ember"] button.storefront-slider-arrow,
+html[data-theme="ember"] button.storefront-row-arrow {
+    border-radius: 50% !important;
+}

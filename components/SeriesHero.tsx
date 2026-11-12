@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Check, Plus, Star } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -10,7 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { seriesArtwork, type SeriesItem } from "@/lib/services/series";
 import { addToWatchlist, getWatchlist, removeFromWatchlist } from "@/lib/services/watchlist";
 
-export default function SeriesHero({ series, actions, afterListAction, navigation, previewEnabled = true }: { series: SeriesItem; actions: ReactNode; afterListAction?: ReactNode; navigation?: ReactNode; previewEnabled?: boolean }) {
+export default function SeriesHero({ series, actions, afterListAction, navigation, previewEnabled = true, slideCount = 1, onAdvance }: { series: SeriesItem; actions: ReactNode; afterListAction?: ReactNode; navigation?: ReactNode; previewEnabled?: boolean; slideCount?: number; onAdvance?: () => void }) {
     const { active, bannerRef } = useBannerAutoplay();
     const { user, isLoading: authLoading } = useAuth();
     const router = useRouter();
@@ -34,6 +34,12 @@ export default function SeriesHero({ series, actions, afterListAction, navigatio
     });
     const trailer = series.trailer_url && /\.(mp4|webm|m3u8)(?:[?#]|$)/i.test(series.trailer_url) ? series.trailer_url : null;
     const year = new Date(series.created_at).getFullYear();
+
+    useEffect(() => {
+        if (slideCount < 2 || !onAdvance || (active && trailer && previewEnabled)) return;
+        const timer = setTimeout(onAdvance, 6000);
+        return () => clearTimeout(timer);
+    }, [active, trailer, previewEnabled, slideCount, series.id, onAdvance]);
 
     return <section ref={bannerRef} aria-label={`${series.title} featured series`} className="group/banner relative z-10 isolate h-[480px] overflow-hidden bg-black text-white sm:h-[540px] lg:h-[clamp(600px,65svh,720px)]">
         <img key={series.id} src={seriesArtwork(series, true)} alt="" aria-hidden fetchPriority="high" width={1920} height={1080} className="absolute inset-0 h-full w-full object-cover object-[65%_35%]" onError={event => { if (!event.currentTarget.src.endsWith('/images/hero-banner.jpg')) event.currentTarget.src = '/images/hero-banner.jpg'; }} />
