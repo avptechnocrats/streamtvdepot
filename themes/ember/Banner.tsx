@@ -196,7 +196,7 @@ export default function Banner() {
                         <button
                             onClick={prev}
                             onPointerDown={handleArrowPointerDown}
-                            className="absolute left-2 sm:left-5 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover/banner:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white [@media(hover:none)]:opacity-100"
+                            className="storefront-slider-arrow absolute left-2 sm:left-5 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover/banner:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white [@media(hover:none)]:opacity-100"
                             aria-label="Previous slide"
                         >
                             <ChevronLeft size={32} />
@@ -204,7 +204,7 @@ export default function Banner() {
                         <button
                             onClick={next}
                             onPointerDown={handleArrowPointerDown}
-                            className="absolute right-2 sm:right-5 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover/banner:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white [@media(hover:none)]:opacity-100"
+                            className="storefront-slider-arrow absolute right-2 sm:right-5 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover/banner:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white [@media(hover:none)]:opacity-100"
                             aria-label="Next slide"
                         >
                             <ChevronRight size={32} />

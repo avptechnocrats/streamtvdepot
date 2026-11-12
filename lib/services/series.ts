@@ -42,6 +42,7 @@ export interface SeriesFilters {
     search?: string;
     category?: string;
     language?: string;
+    series_slider?: boolean;
     sort?: "featured" | "latest" | "rating";
 }
 
@@ -55,13 +56,29 @@ export async function fetchSeriesPage(page = 1, filters: SeriesFilters = {}, sig
         if (!axios.isAxiosError(error) || error.response?.status !== 404) throw error;
         const response = await fetchSeriesRows(page);
         const items = Array.from(new Map(response.rows.flatMap(row => row.items).map(series => [series.id, series])).values());
-        const filtered = items.filter(series => (!filters.search || `${series.title} ${series.description || ""} ${series.genre || ""}`.toLowerCase().includes(filters.search.toLowerCase()))
+        const filtered = items.filter(series => (!filters.series_slider || series.is_series_slider)
+            && (!filters.search || `${series.title} ${series.description || ""} ${series.genre || ""}`.toLowerCase().includes(filters.search.toLowerCase()))
             && (!filters.category || series.categories.includes(filters.category))
             && (!filters.language || (series.languages || [series.language]).includes(filters.language)));
         if (filters.sort === "rating") filtered.sort((first, second) => (second.rating ?? 0) - (first.rating ?? 0));
         else if (filters.sort === "latest") filtered.sort((first, second) => new Date(second.created_at).getTime() - new Date(first.created_at).getTime());
         return { items: filtered, has_more: response.has_more };
     }
+}
+
+export async function fetchSeriesSlider(signal?: AbortSignal): Promise<SeriesItem[]> {
+    const items = new Map<string, SeriesItem>();
+    let page = 1;
+    let hasMore = true;
+    while (hasMore) {
+        const result = await fetchSeriesPage(page, { series_slider: true }, signal);
+        for (const series of result.items) {
+            if (series.is_series_slider) items.set(series.id, series);
+        }
+        hasMore = result.has_more;
+        page += 1;
+    }
+    return [...items.values()];
 }
 
 export async function getSeries(id: string): Promise<SeriesItem> {
