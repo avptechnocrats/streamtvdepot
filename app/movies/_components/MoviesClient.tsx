@@ -62,7 +62,7 @@ function mapRowToMovies(row: HomeCategoryRow): Movie[] {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function MoviesClient() {
+export default function MoviesClient({ contentClassification = "Movie", pageTitle = "Movies" }: { contentClassification?: string; pageTitle?: string }) {
     const { activeTheme } = useTheme();
     const { Banner, ContentRow } = activeTheme.components;
 
@@ -75,10 +75,10 @@ export default function MoviesClient() {
         async function loadPage() {
             setLoading(true);
             try {
-                const data = await fetchHomeVideoRows({ page, contentType: "video", contentClassification: "Movie" });
+                const data = await fetchHomeVideoRows({ page, contentType: "video", contentClassification });
                 if (!cancelled) {
                     const movieRows = data.rows.filter(row => row.content_type === "video").map(row => {
-                        const items = row.items.filter(item => item.content_classification === "Movie");
+                        const items = row.items.filter(item => item.content_classification === contentClassification);
                         for (let index = items.length - 1; index > 0; index--) {
                             const randomIndex = Math.floor(Math.random() * (index + 1));
                             [items[index], items[randomIndex]] = [items[randomIndex], items[index]];
@@ -94,7 +94,7 @@ export default function MoviesClient() {
         }
         loadPage();
         return () => { cancelled = true; };
-    }, [page]);
+    }, [page, contentClassification]);
 
     // Infinite scroll sentinel
     const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -116,10 +116,10 @@ export default function MoviesClient() {
         <>
             {/* Hero Banner */}
             <Banner />
-            <TopTenRow contentClassification="Movie" />
-            <NewReleasesRow contentClassification="Movie" />
-            <FeaturedRow contentClassification="Movie" />
-            <ManagedBannerSlot page="/movies" position="top" />
+            <TopTenRow contentClassification={contentClassification} title={pageTitle === "Sports" ? "Top Rated Sports" : "Top 10 Movies of the Month"} />
+            <NewReleasesRow contentClassification={contentClassification} />
+            <FeaturedRow contentClassification={contentClassification} />
+            {pageTitle === "Movies" && <ManagedBannerSlot page="/movies" position="top" />}
 
             {/* Content rows */}
             <div className={`space-y-10 py-10 ${activeTheme.id === "ember" ? "" : "lg:px-8"}`}>
@@ -133,11 +133,11 @@ export default function MoviesClient() {
                     <>
                     <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-4 px-6">
                         <Film size={56} className="opacity-30" />
-                        <p className="text-lg font-medium">No movies available yet</p>
+                        <p className="text-lg font-medium">No {pageTitle.toLowerCase()} available yet</p>
                         <p className="text-sm opacity-70">Check back soon for new content.</p>
                     </div>
-                    <ManagedBannerSlot page="/movies" position="middle_1" />
-                    <ManagedBannerSlot page="/movies" position="middle_2" />
+                    {pageTitle === "Movies" && <ManagedBannerSlot page="/movies" position="middle_1" />}
+                    {pageTitle === "Movies" && <ManagedBannerSlot page="/movies" position="middle_2" />}
                     </>
                 ) : (
                     <>
@@ -149,9 +149,9 @@ export default function MoviesClient() {
                                 variant={getRowVariant(row.thumbnail_view)}
                             />
                         ))}
-                        <ManagedBannerSlot page="/movies" position="middle_1" />
+                        {pageTitle === "Movies" && <ManagedBannerSlot page="/movies" position="middle_1" />}
                         {rows.slice(1, 3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant={getRowVariant(row.thumbnail_view)} />)}
-                        <ManagedBannerSlot page="/movies" position="middle_2" />
+                        {pageTitle === "Movies" && <ManagedBannerSlot page="/movies" position="middle_2" />}
                         {rows.slice(3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant={getRowVariant(row.thumbnail_view)} />)}
                         {loading && (
                             <>
@@ -163,7 +163,7 @@ export default function MoviesClient() {
                 )}
             </div>
             {hasMore && !isInitialLoad && <div ref={sentinelRef} style={{ height: 1 }} />}
-            <ManagedBannerSlot page="/movies" position="bottom" />
+            {pageTitle === "Movies" && <ManagedBannerSlot page="/movies" position="bottom" />}
         </>
     );
 }

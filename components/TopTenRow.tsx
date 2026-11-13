@@ -6,13 +6,13 @@ import { listVideos } from "@/lib/services/videos";
 import { PosterCard } from "@/themes/ember/ContentRow";
 import { useRowScroll } from "@/hooks/use-row-scroll";
 
-export default function TopTenRow({ contentClassification }: { contentClassification?: string }) {
+export default function TopTenRow({ contentClassification, title = "Top 10 Movies of the Month" }: { contentClassification?: string; title?: string }) {
     const { data = [], isError } = useQuery({ queryKey: ["home-top-ten", contentClassification], queryFn: () => listVideos({ sort_by: "rating", page_size: 10, content_classification: contentClassification }), staleTime: 60_000, retry: 1 });
     const videos = Array.from(new Map(data.filter(video => !contentClassification || video.content_classification === contentClassification).map(video => [video.id, video])).values()).slice(0, 10);
     const { scrollRef: rail, canScrollLeft, canScrollRight } = useRowScroll(videos.length);
     if (isError || !videos.length) return null;
     return <section aria-label="Top 10 content" className="storefront-row pt-8 pb-2">
-        <h2 className="mb-3 text-lg font-semibold md:text-xl">Top 10 Movies of the Month</h2>
+        <h2 className="mb-3 text-lg font-semibold md:text-xl">{title}</h2>
         <div className="relative group [--rank-poster-width:9rem] sm:[--rank-poster-width:9.5rem] lg:[--rank-poster-width:10rem] [--row-artwork-height:13.5rem] sm:[--row-artwork-height:14.25rem] lg:[--row-artwork-height:15rem]">
             <button type="button" aria-label="Previous top 10 titles" title="Previous top 10 titles" disabled={!canScrollLeft} onClick={() => rail.current?.scrollBy({ left: -480, behavior: "smooth" })} className="storefront-row-arrow -left-3"><ChevronLeft size={18} /></button>
             <div ref={rail} className="pointer-events-none flex gap-5 overflow-x-auto scrollbar-hide pt-32 pb-64 sm:gap-6" style={{ marginTop: -124, marginBottom: -248 }}>
