@@ -884,6 +884,7 @@ async def list_public_series(
     search: str | None = None,
     category: str | None = None,
     language: str | None = None,
+    series_slider: bool = False,
     sort: Literal["featured", "latest", "rating"] = "featured",
     db: AsyncSession = Depends(get_db),
 ):
@@ -894,9 +895,11 @@ async def list_public_series(
     )
     if search:
         query = query.where(or_(Series.title.ilike(f"%{search}%"), Series.genre.ilike(f"%{search}%")))
+    if series_slider:
+        query = query.where(Series.is_series_slider.is_(True))
     if category:
         query = query.where(Series.categories.any(Category.slug == category))
-    else:
+    elif not series_slider:
         query = query.where(Series.is_category_only.is_(False))
     if language:
         query = query.where(or_(Series.languages.contains([language]), Series.language == language))
@@ -925,7 +928,7 @@ async def list_public_series_episodes(series_id: uuid.UUID, request: Request, sl
     return [{
         "id": episode.id, "title": episode.title, "description": episode.description,
         "season_number": episode.season_number, "episode_number": episode.episode_number,
-        "duration_seconds": episode.duration_seconds,
+        "duration_seconds": episode.duration_seconds, "created_at": episode.created_at,
         "thumbnail_url": _refresh_s3_url(episode.thumbnail_url), "has_media": episode.stream_ready,
     } for episode in result.scalars().all()]
 
