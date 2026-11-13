@@ -9,7 +9,7 @@ import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Loader2, AlertTriangle, X, Clapperboard, Plus, Trash2, Image, Play, Globe, Eye, ShieldCheck, Settings2, SlidersHorizontal } from "lucide-react";
 import { LabeledSwitch } from "@/components/ui/labeled-switch";
-import { saveSeriesEditor, listSeriesEpisodes, type SeriesOut, type SeriesCreate, listCategories, listClientPlans, VIDEO_LANGUAGES, AGE_RATINGS, CONTENT_CLASSIFICATIONS } from "@/lib/api";
+import { saveSeriesEditor, listSeriesEpisodes, type SeriesOut, type SeriesCreate, listCategories, listClientPlans, VIDEO_LANGUAGES, AGE_RATINGS } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api/error-utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
@@ -243,7 +243,9 @@ export function seriesToFormValues(series: SeriesOut): FormValues {
         categories: series.categories ?? [],
         tags: series.tags ?? [],
         language: series.languages?.length ? series.languages : series.language ? [series.language] : [],
-        content_classification: series.content_classification ?? "",
+        content_classification: SERIES_CLASSIFICATIONS.includes(series.content_classification as typeof SERIES_CLASSIFICATIONS[number])
+            ? series.content_classification!
+            : "Series",
         age_rating: series.age_rating ?? "",
         rating: series.rating ?? null,
         thumbnails: {
@@ -314,6 +316,7 @@ const DEFAULT_VALUES: FormValues = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const LANGUAGE_OPTIONS = VIDEO_LANGUAGES.map((l) => ({ value: l, label: l }));
+const SERIES_CLASSIFICATIONS = ["Series", "TV Shows"] as const;
 
 export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
     const router = useRouter();
@@ -587,7 +590,7 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
                                 <label htmlFor="series-classification" className="block text-xs font-semibold text-muted-foreground">Content Classification</label>
                                 <select id="series-classification" {...register("content_classification")} className={selectCls()}>
                                     <option value="">Select classification</option>
-                                    {CONTENT_CLASSIFICATIONS.map(value => <option key={value} value={value}>{value}</option>)}
+                                    {SERIES_CLASSIFICATIONS.map(value => <option key={value} value={value}>{value}</option>)}
                                 </select>
                             </div>
                             <div className="min-w-0 sm:col-span-2">
@@ -714,18 +717,53 @@ export function SeriesForm({ mode, seriesId, defaultValues }: SeriesFormProps) {
 
                     <Tabs value={mediaTab} onValueChange={setMediaTab} className="w-full">
                         <TabsList className="mb-4 grid w-full grid-cols-3">
-                            <TabsTrigger disabled={hasUploads} value="banner" className="gap-1.5 px-2 text-xs"><Image size={14} />Banner</TabsTrigger>
-                            <TabsTrigger disabled={hasUploads} value="thumbnail" className="gap-1.5 px-2 text-xs"><Image size={14} />Thumbnail</TabsTrigger>
-                            <TabsTrigger disabled={hasUploads} value="trailer" className="gap-1.5 px-2 text-xs"><Play size={14} />Trailer</TabsTrigger>
+                            <TabsTrigger disabled={hasUploads} value="banner" className="gap-1.5 px-2"><Image size={14} />Banner</TabsTrigger>
+                            <TabsTrigger disabled={hasUploads} value="thumbnail" className="gap-1.5 px-2"><Image size={14} />Thumbnail</TabsTrigger>
+                            <TabsTrigger disabled={hasUploads} value="trailer" className="gap-1.5 px-2"><Play size={14} />Trailer</TabsTrigger>
                         </TabsList>
                         <TabsContent value="banner"><section className="rounded-2xl border border-border bg-card p-6 space-y-4"><SectionHeading>Banner</SectionHeading><Controller name="thumbnails.video_banner" control={control} render={({ field }) => <S3ImageField label="Series Banner (1920 x 1080 px)" hint="16:9 artwork for hero and detail pages" aspect="16:9" value={field.value} onChange={field.onChange} />} /></section></TabsContent>
                         <TabsContent value="thumbnail"><section className="rounded-2xl border border-border bg-card p-6 space-y-6"><SectionHeading>Thumbnails</SectionHeading><Controller name="thumbnails.video_h_thumbnail" control={control} render={({ field }) => <S3ImageField label="Portrait Thumbnail (600 x 900 px)" hint="2:3 series poster" aspect="2:3" value={field.value} onChange={field.onChange} />} /><Controller name="thumbnails.video_w_thumbnail" control={control} render={({ field }) => <S3ImageField label="Wide Thumbnail (1200 x 800 px)" hint="3:2 wide card" aspect="3:2" value={field.value} onChange={field.onChange} />} /></section></TabsContent>
                         <TabsContent value="trailer"><section className="rounded-2xl border border-border bg-card p-6 space-y-4"><SectionHeading>Trailer</SectionHeading><Controller name="trailer_type" control={control} render={({ field }) => <select aria-label="Trailer source" disabled={hasUploads} value={field.value ?? "none"} onChange={event => field.onChange(event.target.value === "none" ? null : event.target.value)} className={selectCls()}><option value="none">None</option><option value="upload">Upload / Media Library</option><option value="url">URL</option></select>} />{trailerType === "url" && <input aria-label="Trailer URL" {...register("trailer_url")} placeholder="https://youtube.com/watch?v=..." className={inputCls(!!errors.trailer_url)} />}{trailerType === "upload" && <Controller name="trailer_url" control={control} render={({ field }) => <S3VideoField label="Trailer File" hint="Upload a trailer or select one from Media Library" accept="video/*" value={field.value ?? ""} previewSourceOnly onChange={field.onChange} onUploadStateChange={uploading => uploadState("trailer", uploading)} />} />}<FieldError msg={errors.trailer_url?.message} /></section></TabsContent>
                     </Tabs>
                     <Tabs defaultValue="series-settings" className="w-full">
-                        <TabsList className="mb-4 grid w-full grid-cols-2"><TabsTrigger value="series-settings" className="gap-1.5 px-2 text-xs"><Settings2 size={14} />Series Settings</TabsTrigger><TabsTrigger value="slider-settings" className="gap-1.5 px-2 text-xs"><SlidersHorizontal size={14} />Slider Settings</TabsTrigger></TabsList>
-                        <TabsContent value="series-settings"><section className="rounded-2xl border border-border bg-card p-6 space-y-4"><label htmlFor="series-status" className="block text-xs font-semibold text-muted-foreground">Status</label><select id="series-status" {...register("status")} className={selectCls()}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select>{([['is_active', 'Active'], ['is_featured', 'Featured'], ['is_category_only', 'Category Only View'], ['is_thumbnail', 'Thumbnail View']] as const).map(([name, label]) => <Controller key={name} name={name} control={control} render={({ field }) => <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label={label} />} />)}</section></TabsContent>
-                        <TabsContent value="slider-settings"><section className="rounded-2xl border border-border bg-card p-6 space-y-4"><Controller name="is_slider" control={control} render={({ field }) => <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Homepage Slider" />} /><Controller name="is_series_slider" control={control} render={({ field }) => <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Series Slider" />} /></section></TabsContent>
+                        <TabsList className="mb-4 grid w-full grid-cols-2">
+                            <TabsTrigger value="series-settings" className="gap-1.5 px-2"><Settings2 size={14} />Series Settings</TabsTrigger>
+                            <TabsTrigger value="slider-settings" className="gap-1.5 px-2"><SlidersHorizontal size={14} />Slider Settings</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="series-settings">
+                            <section className="rounded-2xl border border-border bg-card p-6 space-y-4">
+                                <label htmlFor="series-status" className="block text-xs font-semibold text-muted-foreground">Status</label>
+                                <select id="series-status" {...register("status")} className={selectCls()}>
+                                    <option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option>
+                                </select>
+                                <div className="space-y-2">
+                                    {([
+                                        ["is_active", "Active", "Inactive series are hidden from users"],
+                                        ["is_featured", "Featured", "Show in featured / hero sections"],
+                                        ["is_category_only", "Category Only View", "List only in category row"],
+                                        ["is_thumbnail", "Thumbnail View", "Prefer thumbnail-first layout"],
+                                    ] as const).map(([name, label, description], index) => (
+                                        <div key={name}>
+                                            {index > 0 && <div className="border-t border-border" />}
+                                            <Controller name={name} control={control} render={({ field }) => (
+                                                <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label={label} description={description} />
+                                            )} />
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </TabsContent>
+                        <TabsContent value="slider-settings">
+                            <section className="rounded-2xl border border-border bg-card p-6 space-y-2">
+                                <Controller name="is_slider" control={control} render={({ field }) => (
+                                    <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Homepage Slider" description="Include in homepage slider" />
+                                )} />
+                                <div className="border-t border-border" />
+                                <Controller name="is_series_slider" control={control} render={({ field }) => (
+                                    <LabeledSwitch checked={field.value} onCheckedChange={field.onChange} label="Series Slider" description="Include in Series page slider" />
+                                )} />
+                            </section>
+                        </TabsContent>
                     </Tabs>
                 </div>
             </div>

@@ -13,19 +13,25 @@ CONTENT_TABLES = ("content_videos", "content_audio", "content_series", "content_
 
 
 def upgrade() -> None:
-    op.create_table(
-        "content_tags",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("client_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("clients.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("name", sa.String(80), nullable=False),
-        sa.Column("normalized_name", sa.String(240), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.UniqueConstraint("client_id", "normalized_name", name="uq_content_tags_client_name"),
-    )
-    op.create_index("ix_content_tags_client_id", "content_tags", ["client_id"])
+    inspector = sa.inspect(op.get_bind())
+    if not inspector.has_table("content_tags"):
+        op.create_table(
+            "content_tags",
+            sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+            sa.Column("client_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("clients.id", ondelete="CASCADE"), nullable=False),
+            sa.Column("name", sa.String(80), nullable=False),
+            sa.Column("normalized_name", sa.String(240), nullable=False),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+            sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+            sa.UniqueConstraint("client_id", "normalized_name", name="uq_content_tags_client_name"),
+        )
+    indexes = {index["name"] for index in inspector.get_indexes("content_tags")}
+    if "ix_content_tags_client_id" not in indexes:
+        op.create_index("ix_content_tags_client_id", "content_tags", ["client_id"])
     for table in CONTENT_TABLES:
-        op.add_column(table, sa.Column("tags", postgresql.JSONB(), nullable=False, server_default=sa.text("'[]'::jsonb")))
+        columns = {column["name"] for column in inspector.get_columns(table)}
+        if "tags" not in columns:
+            op.add_column(table, sa.Column("tags", postgresql.JSONB(), nullable=False, server_default=sa.text("'[]'::jsonb")))
 
 
 def downgrade() -> None:

@@ -1797,7 +1797,7 @@ export function VideoForm({ mode, videoId, defaultValues, previewVideo }: VideoF
                                             <div className="relative">
                                                 <select {...register("content_classification")} className={selectCls()}>
                                                     <option value="">— Select —</option>
-                                                    {CONTENT_CLASSIFICATIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                                                    {CONTENT_CLASSIFICATIONS.map((label) => <option key={label} value={label}>{label}</option>)}
                                                 </select>
                                                 <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                                             </div>

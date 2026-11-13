@@ -143,6 +143,13 @@ authenticated tenant; tag names are never shared between tenants.
 Apply Alembic revision `o0p1q2r3s4t5` before running the updated backend. Existing
 content receives an empty tag list.
 
+#### Series Slider
+
+`GET /api/v1/public/series?slug=<tenant>&series_slider=true&page=1&page_size=30`
+returns only Series Slider selections. Published, active, ready, scheduled, and
+geo-fencing visibility rules still apply. Category-only series are included when
+selected for the slider. Results are paginated.
+
 #### List All Content
 ```http
 GET /api/v1/content
