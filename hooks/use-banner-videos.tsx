@@ -83,19 +83,26 @@ function toSlide(v: VideoOut): BannerSlide {
 }
 
 export function useBannerVideos() {
-    const isMoviesPage = usePathname() === "/movies";
+    const pathname = usePathname();
+    const isMoviesPage = pathname === "/movies";
+    const isSportsPage = pathname === "/sports";
+    const pageClassification = isSportsPage ? "Sports" : "Movie";
+    const isClassificationLanding = isMoviesPage || isSportsPage;
     const { data, isLoading, isError } = useQuery({
-        queryKey: isMoviesPage ? ["movie-banner-videos", "selected-or-random", "Movie"] : ["banner-videos"],
-        queryFn: isMoviesPage ? async () => {
-            const videos = await listVideos({ is_movie_slider: true, page_size: 100, content_classification: "Movie" });
+        queryKey: isClassificationLanding ? ["classification-banner-videos", pathname, "selected-or-random", pageClassification] : ["banner-videos"],
+        queryFn: isClassificationLanding ? async () => {
+            const assignedRequest = isMoviesPage
+                ? listVideos({ is_movie_slider: true, page_size: 100, content_classification: pageClassification })
+                : listVideos({ is_featured: true, page_size: 100, content_classification: pageClassification });
+            const videos = await assignedRequest;
             const assigned = Array.from(new Map(videos
-                .filter(video => video.content_classification === "Movie" && video.is_active && video.is_movie_slider && video.thumbnails.video_banner)
+                .filter(video => video.content_classification === pageClassification && video.is_active && (isMoviesPage ? video.is_movie_slider : video.is_featured) && (video.thumbnails.video_banner || video.thumbnails.video_h_thumbnail || video.thumbnails.video_w_thumbnail))
                 .map(video => [video.id, video])).values());
             if (assigned.length > 0) return assigned;
 
-            const fallback = await listVideos({ is_active: true, page_size: 100, content_classification: "Movie" });
+            const fallback = await listVideos({ is_active: true, page_size: 100, content_classification: pageClassification });
             const candidates = Array.from(new Map(fallback
-                .filter(video => video.content_classification === "Movie" && video.is_active && video.thumbnails.video_banner)
+                .filter(video => video.content_classification === pageClassification && video.is_active && (video.thumbnails.video_banner || video.thumbnails.video_h_thumbnail || video.thumbnails.video_w_thumbnail))
                 .map(video => [video.id, video])).values());
             for (let index = candidates.length - 1; index > 0; index--) {
                 const randomIndex = Math.floor(Math.random() * (index + 1));
@@ -103,9 +110,9 @@ export function useBannerVideos() {
             }
             return candidates.slice(0, 5);
         } : listSliderVideos,
-        staleTime: isMoviesPage ? 0 : 5 * 60 * 1000,
-        refetchOnWindowFocus: isMoviesPage ? false : undefined,
-        refetchOnReconnect: isMoviesPage ? false : undefined,
+        staleTime: isClassificationLanding ? 0 : 5 * 60 * 1000,
+        refetchOnWindowFocus: isClassificationLanding ? false : undefined,
+        refetchOnReconnect: isClassificationLanding ? false : undefined,
         retry: 1,
     });
 
