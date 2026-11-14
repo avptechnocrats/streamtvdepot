@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-config/android/src/main/java/com/lugg/RNCConfig/MapConverter.java b/node_modules/react-native-config/android/src/main/java/com/lugg/RNCConfig/MapConverter.java
+index d52c66a..98c5ba1 100644
+--- a/node_modules/react-native-config/android/src/main/java/com/lugg/RNCConfig/MapConverter.java
++++ b/node_modules/react-native-config/android/src/main/java/com/lugg/RNCConfig/MapConverter.java
+@@ -29,7 +29,7 @@ class MapConverter {
+     } else if (value instanceof Integer) {
+       map.putInt(key, (Integer) value);
+     } else if (value instanceof Long) {
+-      map.putLong(key, (Long) value);
++      map.putDouble(key, ((Long) value).doubleValue());
+     } else if (value instanceof Double) {
+       map.putDouble(key, (Double) value);
+     } else if (value instanceof Float) {

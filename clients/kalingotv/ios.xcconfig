@@ -1,0 +1,10 @@
+// KalingoTV client — iOS build settings
+// Usage:
+//   xcodebuild -xcconfig clients/kalingotv/ios.xcconfig ...
+//   OR: set in Xcode project → Info → Configurations → Release/Debug
+
+PRODUCT_BUNDLE_IDENTIFIER = com.kalingotv.mobile
+APP_DISPLAY_NAME = KalingoTV
+
+// react-native-config will read clients/kalingotv/.env at build time
+// via ENVFILE env var set in scripts/build.sh

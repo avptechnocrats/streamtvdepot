@@ -1,0 +1,3 @@
+// _template client — iOS build settings
+PRODUCT_BUNDLE_IDENTIFIER = com.newclient.mobile
+APP_DISPLAY_NAME = NewClient

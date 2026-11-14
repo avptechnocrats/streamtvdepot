@@ -1,0 +1,52 @@
+# dependencies
+node_modules/
+
+# environment files (keep tenant envs in clients/)
+/.env
+/.env.local
+/.env.*.local
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# caches and temporary files
+.expo/
+.expo-shared/
+dist/
+.cache/
+.tmp/
+tmp/
+coverage/
+
+# React Native / Metro / bundler
+.bundle/
+.metro-health-check*
+
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/captures/
+android/.idea/
+
+# iOS
+ios/build/
+ios/DerivedData/
+ios/Pods/
+ios/.symlinks/
+ios/xcuserdata/
+ios/*.xcworkspace/xcuserdata/
+
+# Ruby/Bundler (iOS toolchain)
+vendor/bundle/
+
+# editor and OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
