@@ -10,8 +10,8 @@
  */
 import * as Keychain from "react-native-keychain";
 
-const SVC_ACCESS = "com.signalview.token.access";
-const SVC_REFRESH = "com.signalview.token.refresh";
+const SVC_ACCESS = "com.streamtvdepot.token.access";
+const SVC_REFRESH = "com.streamtvdepot.token.refresh";
 const USERNAME_PLACEHOLDER = "session";
 
 const KEYCHAIN_OPTIONS: Keychain.Options = {

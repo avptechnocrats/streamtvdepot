@@ -24,7 +24,7 @@
  *  Priority: server progress > local AsyncStorage cache > startPositionSeconds
  * ─────────────────────────────────────────────────────────────────────────────
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Video, { DRMType } from "react-native-video";
@@ -56,6 +56,7 @@ interface OttVideoPlayerProps {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PROGRESS_SYNC_INTERVAL_MS = 10_000;
+const PLAYER_PROGRESS_UPDATE_INTERVAL_MS = 5_000;
 const RESUME_THRESHOLD_SECONDS = 5;
 const LOCAL_KEY = (id: string) => `sv:progress:${id}`;
 
@@ -66,6 +67,7 @@ export function OttVideoPlayer({ contentId, source, startPositionSeconds = 0 }: 
   const analyticsRef = useRef<PlaybackAnalytics | null>(null);
   const hasSoughtRef = useRef(false);
   const lastSyncAtRef = useRef(0);
+  const lastProgressUpdateAtRef = useRef(0);
   const lastPosSec = useRef(0);
   const lastDurSec = useRef(0);
 
@@ -161,13 +163,16 @@ export function OttVideoPlayer({ contentId, source, startPositionSeconds = 0 }: 
 
     lastPosSec.current = data.currentTime;
     lastDurSec.current = data.seekableDuration;
-    setLastPositionSeconds(contentId, Math.floor(data.currentTime));
 
-    // Local write — non-blocking, survives app force-kills
-    AsyncStorage.setItem(LOCAL_KEY(contentId), String(Math.floor(data.currentTime))).catch(() => undefined);
+    const now = Date.now();
+    if (now - lastProgressUpdateAtRef.current > PLAYER_PROGRESS_UPDATE_INTERVAL_MS) {
+      lastProgressUpdateAtRef.current = now;
+      const positionSeconds = Math.floor(data.currentTime);
+      setLastPositionSeconds(contentId, positionSeconds);
+      AsyncStorage.setItem(LOCAL_KEY(contentId), String(positionSeconds)).catch(() => undefined);
+    }
 
     // Throttled server sync
-    const now = Date.now();
     if (now - lastSyncAtRef.current > PROGRESS_SYNC_INTERVAL_MS && data.seekableDuration > 0) {
       lastSyncAtRef.current = now;
       syncMutation
@@ -218,7 +223,7 @@ export function OttVideoPlayer({ contentId, source, startPositionSeconds = 0 }: 
   }
 
   // ── DRM config object for react-native-video ───────────────────────────────
-  const drmConfig =
+  const drmConfig = useMemo(() =>
     source.drmEnabled && drmToken
       ? {
           type: Platform.OS === "ios" ? DRMType.FAIRPLAY : DRMType.WIDEVINE,
@@ -231,12 +236,13 @@ export function OttVideoPlayer({ contentId, source, startPositionSeconds = 0 }: 
             ? { certificateUrl: drmFairplayCertUrl }
             : {}),
         }
-      : undefined;
+      : undefined,
+  [source.drmEnabled, drmToken, drmLicenseUrl, drmFairplayCertUrl]);
 
-  const videoSource = {
+  const videoSource = useMemo(() => ({
     uri: source.uri,
     ...(drmConfig ? { drm: drmConfig } : {}),
-  };
+  }), [source.uri, drmConfig]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -297,7 +303,7 @@ export function OttVideoPlayer({ contentId, source, startPositionSeconds = 0 }: 
         style={styles.video}
         resizeMode="contain"
         controls
-        progressUpdateInterval={1000}
+        progressUpdateInterval={2000}
         onLoad={onLoad}
         onProgress={onProgress}
         onBuffer={onBuffer}

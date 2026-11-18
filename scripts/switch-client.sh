@@ -2,7 +2,7 @@
 # ─── switch-client.sh ──────────────────────────────────────────────────────────
 # Activates a client config for local development and building.
 # Usage:
-#   ./scripts/switch-client.sh signalview
+#   ./scripts/switch-client.sh streamtvdepot
 #   ./scripts/switch-client.sh kalingotv
 #
 # What this does:
@@ -51,6 +51,18 @@ fi
 if [[ -f "$CLIENT_DIR/logo.png" ]]; then
   cp "$CLIENT_DIR/logo.png" "$ROOT/assets/logo.png"
   echo "  ✓ Copied logo.png"
+
+  ICON_SET_DIR="$ROOT/ios/StreamTVDepot/Images.xcassets/AppIcon.appiconset"
+  TEMP_LOGO="${TMPDIR:-/tmp}/streamtv-icon-${CLIENT}-$$.png"
+  if command -v sips >/dev/null 2>&1 && [[ -d "$ICON_SET_DIR" ]]; then
+    sips -Z 880 "$CLIENT_DIR/logo.png" --out "$TEMP_LOGO" >/dev/null
+    sips -p 1024 1024 --padColor 090b12 "$TEMP_LOGO" --out "$ICON_SET_DIR/AppIcon.png" >/dev/null
+    rm -f "$TEMP_LOGO"
+    echo "  ✓ Generated iOS app icon"
+  else
+    rm -f "$TEMP_LOGO"
+    echo "  ⚠  Could not generate iOS app icon (requires macOS sips)"
+  fi
 else
   echo "  ⚠  clients/$CLIENT/logo.png not found — keeping existing assets/logo.png"
 fi

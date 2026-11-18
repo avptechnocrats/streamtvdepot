@@ -18,7 +18,7 @@ ACTIVE_FILE="$ROOT/active-client"
 # ── Read active client slug ───────────────────────────────────────────────────
 if [[ ! -f "$ACTIVE_FILE" ]]; then
   echo "Error: 'active-client' file not found."
-  echo "Fix:   echo 'signalview' > active-client"
+  echo "Fix:   echo 'streamtvdepot' > active-client"
   exit 1
 fi
 
@@ -56,4 +56,4 @@ npx react-native run-android \
   --mode "${FLAVOR}Debug" \
   --active-arch-only \
   --appId "$APP_ID" \
-  --main-activity com.signalview.mobile.MainActivity
+  --main-activity com.streamtvdepot.mobile.MainActivity

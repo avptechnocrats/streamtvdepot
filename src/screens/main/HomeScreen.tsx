@@ -39,10 +39,16 @@ function getLiveChannelImage(channel: LiveTvChannelOut) {
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const isFocused = useIsFocused();
-  const { width } = useWindowDimensions();
+  const { width, height: screenHeight } = useWindowDimensions();
   const [activeFilter, setActiveFilter] = useState<HomeFilter | null>(null);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [heroVisible, setHeroVisible] = useState(true);
+  const [isScrolling, setIsScrolling] = useState(false);
   const heroListRef = useRef<FlatList<ContentItem> | null>(null);
+  const heroContainerY = useRef(0);
+  const heroListLayout = useRef({ y: 0, height: 0 });
+  const heroPosition = useRef({ y: 0, height: 0 });
+  const screenScrollY = useRef(0);
   const lastPlayedContentId = usePlayerStore((state) => state.lastPlayedContentId);
   const lastPositionSecondsByContentId = usePlayerStore((state) => state.lastPositionSecondsByContentId);
   const { data: homeRows = [], isLoading: homeLoading } = useHomeRows({ contentType: "video" });
@@ -114,7 +120,7 @@ export function HomeScreen() {
   }, [activeFilter, featuredVideos, seriesHighlights, visibleRows]);
 
   useEffect(() => {
-    prefetchContentImages(featuredItems, 8);
+    prefetchContentImages(featuredItems, 2);
   }, [featuredItems]);
 
   useEffect(() => {
@@ -129,8 +135,16 @@ export function HomeScreen() {
     heroListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
   };
 
+  const updateHeroVisibility = (scrollY: number) => {
+    screenScrollY.current = scrollY;
+    const { y, height } = heroPosition.current;
+    const visibleHeight = Math.max(0, Math.min(y + height, scrollY + screenHeight) - Math.max(y, scrollY));
+    const visible = height > 0 && visibleHeight >= Math.min(height * 0.5, 96);
+    setHeroVisible((current) => current === visible ? current : visible);
+  };
+
   return (
-    <Screen>
+    <Screen onScrollYChange={updateHeroVisibility} onScrollingChange={setIsScrolling}>
       <View style={styles.headerRow}>
         <BrandLogo showTitle={false} size="small" />
         <Pressable style={styles.bellButton} onPress={() => Alert.alert("Notifications", "Notifications will be available soon.")} accessibilityRole="button" accessibilityLabel="Notifications">
@@ -170,7 +184,12 @@ export function HomeScreen() {
       ) : null}
 
       {!isLoading && featuredItems.length ? (
-        <>
+        <View onLayout={(event) => {
+          heroContainerY.current = event.nativeEvent.layout.y;
+          const { y, height } = heroListLayout.current;
+          heroPosition.current = { y: heroContainerY.current + y, height };
+          updateHeroVisibility(screenScrollY.current);
+        }}>
           <FlatList
             ref={(ref) => {
               heroListRef.current = ref;
@@ -180,6 +199,9 @@ export function HomeScreen() {
             pagingEnabled
             decelerationRate="fast"
             keyExtractor={(item) => `featured-${item.id}`}
+            initialNumToRender={1}
+            maxToRenderPerBatch={1}
+            windowSize={3}
             showsHorizontalScrollIndicator={false}
             getItemLayout={(_, index) => ({ length: width - 32, offset: (width - 32) * index, index })}
             onMomentumScrollEnd={(event) => {
@@ -187,11 +209,17 @@ export function HomeScreen() {
               const nextIndex = Math.round(offsetX / (width - 32));
               setActiveSlide(nextIndex);
             }}
+            onLayout={(event) => {
+              heroListLayout.current = event.nativeEvent.layout;
+              const { y, height } = heroListLayout.current;
+              heroPosition.current = { y: heroContainerY.current + y, height };
+              updateHeroVisibility(screenScrollY.current);
+            }}
             renderItem={({ item, index }) => (
               <View style={{ width: width - 32 }}>
                 <HeroBanner
                   item={item}
-                  isActive={isFocused && index === activeSlide}
+                  isActive={isFocused && heroVisible && !isScrolling && index === activeSlide}
                   onTrailerEnd={advanceHero}
                   onOpen={() => activeFilter === "series"
                     ? navigation.navigate("SeriesDetails", { seriesId: item.id })
@@ -206,7 +234,7 @@ export function HomeScreen() {
               <View key={`dot-${item.id}`} style={[styles.dot, index === activeSlide && styles.dotActive]} />
             ))}
           </View>
-        </>
+        </View>
       ) : null}
 
       {activeFilter === null && liveChannelsLoading ? <ContentRailSkeleton title="Live TV Channels" /> : null}
@@ -270,7 +298,6 @@ export function HomeScreen() {
             />
             <View style={styles.continueOverlay}>
               <MaterialCommunityIcons name="play-circle" size={32} color={colors.textPrimary} />
-              <Text numberOfLines={1} style={styles.continueTitle}>{continueWatchingItem.title}</Text>
             </View>
             {continueWatchingItem.duration ? (
               <View style={styles.progressTrack}>
@@ -295,8 +322,6 @@ export function HomeScreen() {
           title="Featured Movies"
           items={featuredMovies}
           variant="wider-landscape"
-          previewOnFocus
-          previewActive={isFocused}
           onOpen={(item) => navigation.navigate("ContentDetails", { contentId: item.id })}
         />
       ) : null}
@@ -434,12 +459,6 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 12,
     backgroundColor: "rgba(5, 6, 9, 0.48)",
-  },
-  continueTitle: {
-    flex: 1,
-    color: colors.textPrimary,
-    fontSize: 13,
-    fontWeight: "700",
   },
   progressTrack: {
     position: "absolute",

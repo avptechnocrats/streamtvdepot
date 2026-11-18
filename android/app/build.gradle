@@ -5,8 +5,8 @@ apply plugin: "com.facebook.react"
 // ─── react-native-config: map each flavor to its .env file ────────────────────
 // Add a new entry for every client added to clients/ directory.
 project.ext.envConfigFiles = [
-    signalviewdebug  : "../clients/signalview/.env",
-    signalviewrelease: "../clients/signalview/.env",
+    streamtvdepotdebug  : "../clients/streamtvdepot/.env",
+    streamtvdepotrelease: "../clients/streamtvdepot/.env",
     kalingotvdebug   : "../clients/kalingotv/.env",
     kalingotvrelease : "../clients/kalingotv/.env",
 ]
@@ -18,7 +18,7 @@ apply from: project(':react-native-config').projectDir.getPath() + "/dotenv.grad
  */
 react {
     // List all debuggable flavor+buildType combinations.
-    debuggableVariants = ["signalviewDebug", "kalingotvDebug"]
+    debuggableVariants = ["streamtvdepotDebug", "kalingotvDebug"]
     // root = file("../")
     //   The folder where the react-native NPM package is. Default is ../node_modules/react-native
     // reactNativeDir = file("../node_modules/react-native")
@@ -84,16 +84,16 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.signalview.mobile"
+    namespace "com.streamtvdepot.mobile"
     defaultConfig {
-        applicationId "com.signalview.mobile"
+        applicationId "com.streamtvdepot.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
         // react-native-config needs the Java package where BuildConfig is generated.
         // This must stay constant even when product flavors override applicationId.
-        resValue "string", "build_config_package", "com.signalview.mobile"
+        resValue "string", "build_config_package", "com.streamtvdepot.mobile"
     }
 
     // ─── Client flavors ────────────────────────────────────────────────────────
@@ -106,10 +106,10 @@ android {
     flavorDimensions "client"
 
     productFlavors {
-        signalview {
+        streamtvdepot {
             dimension "client"
-            applicationId "com.signalview.mobile"
-            resValue "string", "app_name", "SignalView"
+            applicationId "com.streamtvdepot.mobile"
+            resValue "string", "app_name", "StreamTvDepot"
         }
         kalingotv {
             dimension "client"

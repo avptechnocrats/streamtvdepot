@@ -12,9 +12,11 @@ export const ScreenScrollContext = createContext<SubscribeToScreenScroll>(() => 
 interface ScreenProps extends PropsWithChildren {
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
+  onScrollYChange?: (scrollY: number) => void;
+  onScrollingChange?: (isScrolling: boolean) => void;
 }
 
-export function Screen({ children, scroll = true, contentStyle }: ScreenProps) {
+export function Screen({ children, scroll = true, contentStyle, onScrollYChange, onScrollingChange }: ScreenProps) {
   const scrollListeners = useRef(new Set<ScreenScrollListener>());
   const subscribeToScroll = useCallback<SubscribeToScreenScroll>((listener) => {
     scrollListeners.current.add(listener);
@@ -23,10 +25,23 @@ export function Screen({ children, scroll = true, contentStyle }: ScreenProps) {
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const scrollY = event.nativeEvent.contentOffset.y;
     scrollListeners.current.forEach((listener) => listener(scrollY));
-  }, []);
+    onScrollYChange?.(scrollY);
+  }, [onScrollYChange]);
 
   const content = scroll ? (
-    <ScrollView contentContainerStyle={[styles.content, contentStyle]} onScroll={handleScroll} scrollEventThrottle={32}>{children}</ScrollView>
+    <ScrollView
+      contentContainerStyle={[styles.content, contentStyle]}
+      onScroll={handleScroll}
+      onScrollBeginDrag={() => onScrollingChange?.(true)}
+      onScrollEndDrag={(event) => {
+        if (Math.abs(event.nativeEvent.velocity?.y ?? 0) < 0.1) onScrollingChange?.(false);
+      }}
+      onMomentumScrollBegin={() => onScrollingChange?.(true)}
+      onMomentumScrollEnd={() => onScrollingChange?.(false)}
+      scrollEventThrottle={32}
+    >
+      {children}
+    </ScrollView>
   ) : (
     <View style={[styles.content, contentStyle]}>{children}</View>
   );

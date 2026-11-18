@@ -86,7 +86,6 @@ export function HeroBanner({ item, onOpen, isActive = true, onTrailerEnd }: Hero
         <TrailerPreview
           source={trailer}
           active={isActive}
-          videoScale={1.35}
           startDelayMs={1200}
           onEnd={() => {
             if (isActive) onTrailerEnd?.();

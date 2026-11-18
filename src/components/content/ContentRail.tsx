@@ -133,12 +133,13 @@ export function ContentRail({ title, items, onOpen, ranked = false, variant = "p
               variant={variant}
               previewOnFocus={previewOnFocus}
               previewActive={previewActive && railCentered && centeredPreviewId === item.id}
+              showTitle={false}
             />
           </View>
         )}
-        initialNumToRender={4}
-        maxToRenderPerBatch={4}
-        windowSize={3}
+        initialNumToRender={3}
+        maxToRenderPerBatch={2}
+        windowSize={2}
         removeClippedSubviews
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={ranked ? styles.rankedScrollContent : undefined}

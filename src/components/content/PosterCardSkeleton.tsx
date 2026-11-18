@@ -2,14 +2,20 @@ import { StyleSheet, View } from "react-native";
 import { SkeletonBlock } from "@/components/common/SkeletonBlock";
 import { colors } from "@/theme/colors";
 
-export function PosterCardSkeleton() {
+interface PosterCardSkeletonProps {
+  showMeta?: boolean;
+}
+
+export function PosterCardSkeleton({ showMeta = true }: PosterCardSkeletonProps) {
   return (
     <View style={styles.card}>
       <SkeletonBlock style={styles.poster} />
-      <View style={styles.meta}>
-        <SkeletonBlock style={styles.title} />
-        <SkeletonBlock style={styles.caption} />
-      </View>
+      {showMeta ? (
+        <View style={styles.meta}>
+          <SkeletonBlock style={styles.title} />
+          <SkeletonBlock style={styles.caption} />
+        </View>
+      ) : null}
     </View>
   );
 }

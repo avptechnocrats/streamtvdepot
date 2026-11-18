@@ -12,7 +12,7 @@ export function ContentRailSkeleton({ title }: ContentRailSkeletonProps) {
       <Text style={styles.title}>{title}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {Array.from({ length: 5 }).map((_, index) => (
-          <PosterCardSkeleton key={`${title}-${index}`} />
+          <PosterCardSkeleton key={`${title}-${index}`} showMeta={false} />
         ))}
       </ScrollView>
     </View>

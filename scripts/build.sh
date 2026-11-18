@@ -2,9 +2,9 @@
 # ─── build.sh ──────────────────────────────────────────────────────────────────
 # Builds a release APK / AAB / IPA for a specific client.
 # Usage:
-#   ./scripts/build.sh signalview android         → debug APK
-#   ./scripts/build.sh signalview android release  → release APK
-#   ./scripts/build.sh signalview android aab      → release AAB (Play Store)
+#   ./scripts/build.sh streamtvdepot android         → debug APK
+#   ./scripts/build.sh streamtvdepot android release  → release APK
+#   ./scripts/build.sh streamtvdepot android aab      → release AAB (Play Store)
 #   ./scripts/build.sh kalingotv ios               → debug IPA (sim)
 #   ./scripts/build.sh kalingotv ios release       → release IPA (device)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ fi
 # ── Activate client config ─────────────────────────────────────────────────────
 "$SCRIPT_DIR/switch-client.sh" "$CLIENT"
 
-# ── Capitalise slug for Gradle flavor name (signalview → Signalview) ──────────
+# ── Capitalise slug for Gradle flavor name (streamtvdepot → StreamTVDepot) ──────────
 FLAVOR_CAP="$(tr '[:lower:]' '[:upper:]' <<< "${CLIENT:0:1}")${CLIENT:1}"
 # Strip hyphens/dots for valid Gradle identifiers
 FLAVOR="${CLIENT//[-.]}"
@@ -67,31 +67,40 @@ elif [[ "$PLATFORM" == "ios" ]]; then
   echo ""
   echo "=== Building iOS: $CLIENT ($BUILD_TYPE) ==="
 
+  BUNDLE_ID=$(node -e "process.stdout.write(require('$CLIENT_DIR/config.json').bundleId)")
+  APP_NAME=$(grep '^APP_NAME=' "$CLIENT_DIR/.env" | cut -d'=' -f2-)
+
   # react-native-config uses ENVFILE env var on iOS
   export ENVFILE="$CLIENT_DIR/.env"
 
   if [[ "$BUILD_TYPE" == "release" ]]; then
     xcodebuild \
-      -workspace "$ROOT/ios/SignalView.xcworkspace" \
-      -scheme "SignalView" \
+      -workspace "$ROOT/ios/StreamTVDepot.xcworkspace" \
+      -scheme "StreamTVDepot" \
       -configuration "Release" \
       -xcconfig "$CLIENT_DIR/ios.xcconfig" \
       -destination "generic/platform=iOS" \
-      -archivePath "/tmp/SignalView-${CLIENT}.xcarchive" \
+      -archivePath "/tmp/StreamTVDepot-${CLIENT}.xcarchive" \
       archive \
-      ENVFILE="$CLIENT_DIR/.env"
+      ENVFILE="$CLIENT_DIR/.env" \
+      TENANT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+      PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+      APP_DISPLAY_NAME="$APP_NAME"
     echo ""
-    echo "✓ Archive: /tmp/SignalView-${CLIENT}.xcarchive"
+    echo "✓ Archive: /tmp/StreamTVDepot-${CLIENT}.xcarchive"
     echo "  Next: xcodebuild -exportArchive -archivePath ... -exportOptionsPlist ExportOptions.plist"
   else
     xcodebuild \
-      -workspace "$ROOT/ios/SignalView.xcworkspace" \
-      -scheme "SignalView" \
+      -workspace "$ROOT/ios/StreamTVDepot.xcworkspace" \
+      -scheme "StreamTVDepot" \
       -configuration "Debug" \
       -xcconfig "$CLIENT_DIR/ios.xcconfig" \
       -destination "platform=iOS Simulator,name=iPhone 15" \
       build \
-      ENVFILE="$CLIENT_DIR/.env"
+      ENVFILE="$CLIENT_DIR/.env" \
+      TENANT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+      PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
+      APP_DISPLAY_NAME="$APP_NAME"
     echo ""
     echo "✓ iOS Debug build complete for $CLIENT"
   fi

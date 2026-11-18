@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, GestureResponderEvent, Pressable, StyleSheet, View } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import Video from "react-native-video";
@@ -22,6 +22,14 @@ export function TrailerPreview({ source, active, onEnd, controlPosition = "top-r
   const [delayElapsed, setDelayElapsed] = useState(false);
   const [ended, setEnded] = useState(false);
   const videoRef = useRef<VideoRef | null>(null);
+  const videoSource = useMemo(() => ({ uri: source as string }), [source]);
+  const bufferConfig = useMemo(() => ({
+    minBufferMs: 1_000,
+    maxBufferMs: 5_000,
+    bufferForPlaybackMs: 750,
+    bufferForPlaybackAfterRebufferMs: 1_500,
+    backBufferDurationMs: 0,
+  }), []);
 
   useEffect(() => {
     setMuted(true);
@@ -41,8 +49,8 @@ export function TrailerPreview({ source, active, onEnd, controlPosition = "top-r
     return () => clearTimeout(timer);
   }, [active, source, startDelayMs]);
 
-  if (!source || failed || ended) return null;
-  const shouldPlay = active && delayElapsed;
+  const shouldPlay = Boolean(source) && active && delayElapsed;
+  if (!source || failed || ended || !shouldPlay) return null;
 
   const toggleAudio = (event: GestureResponderEvent) => {
     event.stopPropagation();
@@ -53,16 +61,18 @@ export function TrailerPreview({ source, active, onEnd, controlPosition = "top-r
     <View pointerEvents="box-none" style={styles.container}>
       <Video
         ref={videoRef}
-        source={{ uri: source }}
+        source={videoSource}
         style={[
           StyleSheet.absoluteFillObject,
           videoScale !== 1 && { transform: [{ scale: videoScale }] },
           { opacity: shouldPlay && ready && !buffering ? 1 : 0 },
         ]}
         resizeMode="cover"
-        paused={!shouldPlay}
+        paused={false}
         muted={muted}
         repeat={false}
+        maxBitRate={1_800_000}
+        bufferConfig={bufferConfig}
         playInBackground={false}
         playWhenInactive={false}
         onBuffer={({ isBuffering }) => setBuffering(shouldPlay && isBuffering)}

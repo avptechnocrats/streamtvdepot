@@ -1,5 +1,5 @@
 /**
- * SignalView Playback Analytics
+ * StreamTVDepot Playback Analytics
  *
  * Architecture modelled after Conviva / Mux Data / Nielsen's session-scoped model.
  *

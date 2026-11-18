@@ -7,12 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		00E356F31AD99517003FC87E /* SignalViewTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 00E356F21AD99517003FC87E /* SignalViewTests.m */; };
+		00E356F31AD99517003FC87E /* StreamTVDepotTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 00E356F21AD99517003FC87E /* StreamTVDepotTests.m */; };
 		13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB01A68108700A75B9A /* AppDelegate.mm */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
-		3E9E29F3E3653933F8D344ED /* libPods-SignalView.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FDDFF3116645A16C2758423D /* libPods-SignalView.a */; };
-		62DA09053D4846A1863BCC6A /* libPods-SignalView-SignalViewTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 24B9A2AD3B0FA771F638C754 /* libPods-SignalView-SignalViewTests.a */; };
+		1EE319F3F01C8157706B3B34 /* libPods-StreamTVDepot.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5EF6943D4A1446D9AB859B1B /* libPods-StreamTVDepot.a */; };
+		6EA2A38739DEB23FFB4C52F5 /* libPods-StreamTVDepot-StreamTVDepotTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = DD1DAD0A838D5A774634A8CC /* libPods-StreamTVDepot-StreamTVDepotTests.a */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		DD70D16CEB4F055BE48D8609 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 65919945CF3D9904918B409E /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
@@ -23,30 +23,30 @@
 			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 13B07F861A680F5B00A75B9A;
-			remoteInfo = SignalView;
+			remoteInfo = StreamTVDepot;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		00E356EE1AD99517003FC87E /* SignalViewTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SignalViewTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		00E356EE1AD99517003FC87E /* StreamTVDepotTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StreamTVDepotTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		00E356F11AD99517003FC87E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		00E356F21AD99517003FC87E /* SignalViewTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SignalViewTests.m; sourceTree = "<group>"; };
-		13B07F961A680F5B00A75B9A /* SignalView.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SignalView.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		13B07FAF1A68108700A75B9A /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = SignalView/AppDelegate.h; sourceTree = "<group>"; };
-		13B07FB01A68108700A75B9A /* AppDelegate.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = AppDelegate.mm; path = SignalView/AppDelegate.mm; sourceTree = "<group>"; };
-		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = SignalView/Images.xcassets; sourceTree = "<group>"; };
-		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = SignalView/Info.plist; sourceTree = "<group>"; };
-		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = SignalView/main.m; sourceTree = "<group>"; };
-		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = SignalView/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		1CD749083330C057E2B10CC1 /* Pods-SignalView.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SignalView.debug.xcconfig"; path = "Target Support Files/Pods-SignalView/Pods-SignalView.debug.xcconfig"; sourceTree = "<group>"; };
-		1DC809F30E31ABBA081DD85F /* Pods-SignalView-SignalViewTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SignalView-SignalViewTests.release.xcconfig"; path = "Target Support Files/Pods-SignalView-SignalViewTests/Pods-SignalView-SignalViewTests.release.xcconfig"; sourceTree = "<group>"; };
-		24B9A2AD3B0FA771F638C754 /* libPods-SignalView-SignalViewTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-SignalView-SignalViewTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		2B5CAADB636827F0932BB93E /* Pods-SignalView-SignalViewTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SignalView-SignalViewTests.debug.xcconfig"; path = "Target Support Files/Pods-SignalView-SignalViewTests/Pods-SignalView-SignalViewTests.debug.xcconfig"; sourceTree = "<group>"; };
-		65919945CF3D9904918B409E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = SignalView/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = SignalView/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		00E356F21AD99517003FC87E /* StreamTVDepotTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = StreamTVDepotTests.m; sourceTree = "<group>"; };
+		13B07F961A680F5B00A75B9A /* StreamTVDepot.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StreamTVDepot.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		13B07FAF1A68108700A75B9A /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = StreamTVDepot/AppDelegate.h; sourceTree = "<group>"; };
+		13B07FB01A68108700A75B9A /* AppDelegate.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = AppDelegate.mm; path = StreamTVDepot/AppDelegate.mm; sourceTree = "<group>"; };
+		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = StreamTVDepot/Images.xcassets; sourceTree = "<group>"; };
+		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = StreamTVDepot/Info.plist; sourceTree = "<group>"; };
+		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = StreamTVDepot/main.m; sourceTree = "<group>"; };
+		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = StreamTVDepot/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		5EF6943D4A1446D9AB859B1B /* libPods-StreamTVDepot.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-StreamTVDepot.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		65919945CF3D9904918B409E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = StreamTVDepot/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = StreamTVDepot/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		9DD8D33C6ADC3FA8BFB18085 /* Pods-StreamTVDepot-StreamTVDepotTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-StreamTVDepot-StreamTVDepotTests.release.xcconfig"; path = "Target Support Files/Pods-StreamTVDepot-StreamTVDepotTests/Pods-StreamTVDepot-StreamTVDepotTests.release.xcconfig"; sourceTree = "<group>"; };
+		B0F162435C6D603B93292341 /* Pods-StreamTVDepot-StreamTVDepotTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-StreamTVDepot-StreamTVDepotTests.debug.xcconfig"; path = "Target Support Files/Pods-StreamTVDepot-StreamTVDepotTests/Pods-StreamTVDepot-StreamTVDepotTests.debug.xcconfig"; sourceTree = "<group>"; };
+		DD1DAD0A838D5A774634A8CC /* libPods-StreamTVDepot-StreamTVDepotTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-StreamTVDepot-StreamTVDepotTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E8642BA852B3E131CA9215C7 /* Pods-StreamTVDepot.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-StreamTVDepot.release.xcconfig"; path = "Target Support Files/Pods-StreamTVDepot/Pods-StreamTVDepot.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
-		EF65C35356EF293FCB2565FE /* Pods-SignalView.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SignalView.release.xcconfig"; path = "Target Support Files/Pods-SignalView/Pods-SignalView.release.xcconfig"; sourceTree = "<group>"; };
-		FDDFF3116645A16C2758423D /* libPods-SignalView.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-SignalView.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC23070CC1906F3B1DA980D8 /* Pods-StreamTVDepot.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-StreamTVDepot.debug.xcconfig"; path = "Target Support Files/Pods-StreamTVDepot/Pods-StreamTVDepot.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,7 +54,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				62DA09053D4846A1863BCC6A /* libPods-SignalView-SignalViewTests.a in Frameworks */,
+				6EA2A38739DEB23FFB4C52F5 /* libPods-StreamTVDepot-StreamTVDepotTests.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -62,20 +62,20 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3E9E29F3E3653933F8D344ED /* libPods-SignalView.a in Frameworks */,
+				1EE319F3F01C8157706B3B34 /* libPods-StreamTVDepot.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		00E356EF1AD99517003FC87E /* SignalViewTests */ = {
+		00E356EF1AD99517003FC87E /* StreamTVDepotTests */ = {
 			isa = PBXGroup;
 			children = (
-				00E356F21AD99517003FC87E /* SignalViewTests.m */,
+				00E356F21AD99517003FC87E /* StreamTVDepotTests.m */,
 				00E356F01AD99517003FC87E /* Supporting Files */,
 			);
-			path = SignalViewTests;
+			path = StreamTVDepotTests;
 			sourceTree = "<group>";
 		};
 		00E356F01AD99517003FC87E /* Supporting Files */ = {
@@ -86,7 +86,7 @@
 			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
-		13B07FAE1A68108700A75B9A /* SignalView */ = {
+		13B07FAE1A68108700A75B9A /* StreamTVDepot */ = {
 			isa = PBXGroup;
 			children = (
 				13B07FAF1A68108700A75B9A /* AppDelegate.h */,
@@ -98,15 +98,15 @@
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 				65919945CF3D9904918B409E /* PrivacyInfo.xcprivacy */,
 			);
-			name = SignalView;
+			name = StreamTVDepot;
 			sourceTree = "<group>";
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				FDDFF3116645A16C2758423D /* libPods-SignalView.a */,
-				24B9A2AD3B0FA771F638C754 /* libPods-SignalView-SignalViewTests.a */,
+				5EF6943D4A1446D9AB859B1B /* libPods-StreamTVDepot.a */,
+				DD1DAD0A838D5A774634A8CC /* libPods-StreamTVDepot-StreamTVDepotTests.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -121,9 +121,9 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
-				13B07FAE1A68108700A75B9A /* SignalView */,
+				13B07FAE1A68108700A75B9A /* StreamTVDepot */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
-				00E356EF1AD99517003FC87E /* SignalViewTests */,
+				00E356EF1AD99517003FC87E /* StreamTVDepotTests */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
@@ -136,8 +136,8 @@
 		83CBBA001A601CBA00E9B192 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				13B07F961A680F5B00A75B9A /* SignalView.app */,
-				00E356EE1AD99517003FC87E /* SignalViewTests.xctest */,
+				13B07F961A680F5B00A75B9A /* StreamTVDepot.app */,
+				00E356EE1AD99517003FC87E /* StreamTVDepotTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -145,10 +145,10 @@
 		BBD78D7AC51CEA395F1C20DB /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				1CD749083330C057E2B10CC1 /* Pods-SignalView.debug.xcconfig */,
-				EF65C35356EF293FCB2565FE /* Pods-SignalView.release.xcconfig */,
-				2B5CAADB636827F0932BB93E /* Pods-SignalView-SignalViewTests.debug.xcconfig */,
-				1DC809F30E31ABBA081DD85F /* Pods-SignalView-SignalViewTests.release.xcconfig */,
+				FC23070CC1906F3B1DA980D8 /* Pods-StreamTVDepot.debug.xcconfig */,
+				E8642BA852B3E131CA9215C7 /* Pods-StreamTVDepot.release.xcconfig */,
+				B0F162435C6D603B93292341 /* Pods-StreamTVDepot-StreamTVDepotTests.debug.xcconfig */,
+				9DD8D33C6ADC3FA8BFB18085 /* Pods-StreamTVDepot-StreamTVDepotTests.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -156,46 +156,46 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		00E356ED1AD99517003FC87E /* SignalViewTests */ = {
+		00E356ED1AD99517003FC87E /* StreamTVDepotTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 00E357021AD99517003FC87E /* Build configuration list for PBXNativeTarget "SignalViewTests" */;
+			buildConfigurationList = 00E357021AD99517003FC87E /* Build configuration list for PBXNativeTarget "StreamTVDepotTests" */;
 			buildPhases = (
-				5843879D928C08F229255A53 /* [CP] Check Pods Manifest.lock */,
+				35A754BD4C38837679088FE5 /* [CP] Check Pods Manifest.lock */,
 				00E356EA1AD99517003FC87E /* Sources */,
 				00E356EB1AD99517003FC87E /* Frameworks */,
 				00E356EC1AD99517003FC87E /* Resources */,
-				9F949A87EEA4F2F5819BB54F /* [CP] Embed Pods Frameworks */,
-				238239563AEB3E8CC0D7BC7A /* [CP] Copy Pods Resources */,
+				F8FBE83560C9106FF87963F2 /* [CP] Embed Pods Frameworks */,
+				AD408E329524A144D80158BA /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				00E356F51AD99517003FC87E /* PBXTargetDependency */,
 			);
-			name = SignalViewTests;
-			productName = SignalViewTests;
-			productReference = 00E356EE1AD99517003FC87E /* SignalViewTests.xctest */;
+			name = StreamTVDepotTests;
+			productName = StreamTVDepotTests;
+			productReference = 00E356EE1AD99517003FC87E /* StreamTVDepotTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		13B07F861A680F5B00A75B9A /* SignalView */ = {
+		13B07F861A680F5B00A75B9A /* StreamTVDepot */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "SignalView" */;
+			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "StreamTVDepot" */;
 			buildPhases = (
-				B9B6179558A835E23E7F80FD /* [CP] Check Pods Manifest.lock */,
+				C71BA1A01170D8F3EF5A3A7F /* [CP] Check Pods Manifest.lock */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
-				F337F46C880F71F588A71232 /* [CP] Embed Pods Frameworks */,
-				604D4BAC9A11DC774CE73972 /* [CP] Copy Pods Resources */,
+				334776DDCCB1EEEE70CE3613 /* [CP] Embed Pods Frameworks */,
+				BED1AD5DCC5190A8F325910C /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = SignalView;
-			productName = SignalView;
-			productReference = 13B07F961A680F5B00A75B9A /* SignalView.app */;
+			name = StreamTVDepot;
+			productName = StreamTVDepot;
+			productReference = 13B07F961A680F5B00A75B9A /* StreamTVDepot.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -204,7 +204,8 @@
 		83CBB9F71A601CBA00E9B192 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1210;
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					00E356ED1AD99517003FC87E = {
 						CreatedOnToolsVersion = 6.2;
@@ -215,7 +216,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "SignalView" */;
+			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "StreamTVDepot" */;
 			compatibilityVersion = "Xcode 12.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -228,8 +229,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				13B07F861A680F5B00A75B9A /* SignalView */,
-				00E356ED1AD99517003FC87E /* SignalViewTests */,
+				13B07F861A680F5B00A75B9A /* StreamTVDepot */,
+				00E356ED1AD99517003FC87E /* StreamTVDepotTests */,
 			);
 		};
 /* End PBXProject section */
@@ -271,24 +272,28 @@
 			shellPath = /bin/sh;
 			shellScript = "set -e\n\nWITH_ENVIRONMENT=\"$REACT_NATIVE_PATH/scripts/xcode/with-environment.sh\"\nREACT_NATIVE_XCODE=\"$REACT_NATIVE_PATH/scripts/react-native-xcode.sh\"\n\n/bin/sh -c \"$WITH_ENVIRONMENT $REACT_NATIVE_XCODE\"\n";
 		};
-		238239563AEB3E8CC0D7BC7A /* [CP] Copy Pods Resources */ = {
+		334776DDCCB1EEEE70CE3613 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-SignalView-SignalViewTests/Pods-SignalView-SignalViewTests-resources-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-StreamTVDepot/Pods-StreamTVDepot-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			name = "[CP] Copy Pods Resources";
+			inputPaths = (
+			);
+			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-SignalView-SignalViewTests/Pods-SignalView-SignalViewTests-resources-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-StreamTVDepot/Pods-StreamTVDepot-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SignalView-SignalViewTests/Pods-SignalView-SignalViewTests-resources.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-StreamTVDepot/Pods-StreamTVDepot-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		5843879D928C08F229255A53 /* [CP] Check Pods Manifest.lock */ = {
+		35A754BD4C38837679088FE5 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -303,48 +308,56 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-SignalView-SignalViewTests-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-StreamTVDepot-StreamTVDepotTests-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		604D4BAC9A11DC774CE73972 /* [CP] Copy Pods Resources */ = {
+		AD408E329524A144D80158BA /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-SignalView/Pods-SignalView-resources-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-StreamTVDepot-StreamTVDepotTests/Pods-StreamTVDepot-StreamTVDepotTests-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			inputPaths = (
 			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-SignalView/Pods-SignalView-resources-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-StreamTVDepot-StreamTVDepotTests/Pods-StreamTVDepot-StreamTVDepotTests-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SignalView/Pods-SignalView-resources.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-StreamTVDepot-StreamTVDepotTests/Pods-StreamTVDepot-StreamTVDepotTests-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		9F949A87EEA4F2F5819BB54F /* [CP] Embed Pods Frameworks */ = {
+		BED1AD5DCC5190A8F325910C /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-SignalView-SignalViewTests/Pods-SignalView-SignalViewTests-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-StreamTVDepot/Pods-StreamTVDepot-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			name = "[CP] Embed Pods Frameworks";
+			inputPaths = (
+			);
+			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-SignalView-SignalViewTests/Pods-SignalView-SignalViewTests-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-StreamTVDepot/Pods-StreamTVDepot-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SignalView-SignalViewTests/Pods-SignalView-SignalViewTests-frameworks.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-StreamTVDepot/Pods-StreamTVDepot-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		B9B6179558A835E23E7F80FD /* [CP] Check Pods Manifest.lock */ = {
+		C71BA1A01170D8F3EF5A3A7F /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -359,28 +372,32 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-SignalView-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-StreamTVDepot-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		F337F46C880F71F588A71232 /* [CP] Embed Pods Frameworks */ = {
+		F8FBE83560C9106FF87963F2 /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-SignalView/Pods-SignalView-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-StreamTVDepot-StreamTVDepotTests/Pods-StreamTVDepot-StreamTVDepotTests-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			inputPaths = (
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-SignalView/Pods-SignalView-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-StreamTVDepot-StreamTVDepotTests/Pods-StreamTVDepot-StreamTVDepotTests-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SignalView/Pods-SignalView-frameworks.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-StreamTVDepot-StreamTVDepotTests/Pods-StreamTVDepot-StreamTVDepotTests-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -390,7 +407,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				00E356F31AD99517003FC87E /* SignalViewTests.m in Sources */,
+				00E356F31AD99517003FC87E /* StreamTVDepotTests.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -408,7 +425,7 @@
 /* Begin PBXTargetDependency section */
 		00E356F51AD99517003FC87E /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 13B07F861A680F5B00A75B9A /* SignalView */;
+			target = 13B07F861A680F5B00A75B9A /* StreamTVDepot */;
 			targetProxy = 00E356F41AD99517003FC87E /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -416,15 +433,15 @@
 /* Begin XCBuildConfiguration section */
 		00E356F61AD99517003FC87E /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 2B5CAADB636827F0932BB93E /* Pods-SignalView-SignalViewTests.debug.xcconfig */;
+			baseConfigurationReference = B0F162435C6D603B93292341 /* Pods-StreamTVDepot-StreamTVDepotTests.debug.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					"$(inherited)",
 				);
-				INFOPLIST_FILE = SignalViewTests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.4;
+				INFOPLIST_FILE = StreamTVDepotTests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -435,20 +452,20 @@
 					"-lc++",
 					"$(inherited)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.signalview.mobile;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TENANT_BUNDLE_IDENTIFIER).tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SignalView.app/SignalView";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/StreamTVDepot.app/StreamTVDepot";
 			};
 			name = Debug;
 		};
 		00E356F71AD99517003FC87E /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 1DC809F30E31ABBA081DD85F /* Pods-SignalView-SignalViewTests.release.xcconfig */;
+			baseConfigurationReference = 9DD8D33C6ADC3FA8BFB18085 /* Pods-StreamTVDepot-StreamTVDepotTests.release.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COPY_PHASE_STRIP = NO;
-				INFOPLIST_FILE = SignalViewTests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.4;
+				INFOPLIST_FILE = StreamTVDepotTests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -459,22 +476,24 @@
 					"-lc++",
 					"$(inherited)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.signalview.mobile;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TENANT_BUNDLE_IDENTIFIER).tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SignalView.app/SignalView";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/StreamTVDepot.app/StreamTVDepot";
 			};
 			name = Release;
 		};
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 1CD749083330C057E2B10CC1 /* Pods-SignalView.debug.xcconfig */;
+			baseConfigurationReference = FC23070CC1906F3B1DA980D8 /* Pods-StreamTVDepot.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9J4ABJ2JNP;
 				ENABLE_BITCODE = NO;
-				INFOPLIST_FILE = SignalView/Info.plist;
+				INFOPLIST_FILE = StreamTVDepot/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -485,8 +504,9 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.signalview.mobile;
-				PRODUCT_NAME = SignalView;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TENANT_BUNDLE_IDENTIFIER)";
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.kalingotv.mobile;
+				PRODUCT_NAME = StreamTVDepot;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -495,13 +515,15 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = EF65C35356EF293FCB2565FE /* Pods-SignalView.release.xcconfig */;
+			baseConfigurationReference = E8642BA852B3E131CA9215C7 /* Pods-StreamTVDepot.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9J4ABJ2JNP;
-				INFOPLIST_FILE = SignalView/Info.plist;
+				INFOPLIST_FILE = StreamTVDepot/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -512,8 +534,9 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.signalview.mobile;
-				PRODUCT_NAME = SignalView;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(TENANT_BUNDLE_IDENTIFIER)";
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.kalingotv.mobile;
+				PRODUCT_NAME = StreamTVDepot;
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
@@ -523,6 +546,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				APP_DISPLAY_NAME = StreamTVDepot;
 				CC = "";
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
@@ -554,6 +578,7 @@
 				CXX = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
@@ -570,7 +595,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD = "";
 				LDPLUSPLUS = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -592,12 +617,11 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				TENANT_BUNDLE_IDENTIFIER = com.streamtvdepot.mobile;
 				USE_HERMES = true;
 			};
 			name = Debug;
@@ -606,6 +630,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				APP_DISPLAY_NAME = StreamTVDepot;
 				CC = "";
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "c++20";
@@ -637,6 +662,7 @@
 				CXX = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -646,7 +672,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD = "";
 				LDPLUSPLUS = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -667,12 +693,11 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				TENANT_BUNDLE_IDENTIFIER = com.streamtvdepot.mobile;
 				USE_HERMES = true;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -681,7 +706,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		00E357021AD99517003FC87E /* Build configuration list for PBXNativeTarget "SignalViewTests" */ = {
+		00E357021AD99517003FC87E /* Build configuration list for PBXNativeTarget "StreamTVDepotTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				00E356F61AD99517003FC87E /* Debug */,
@@ -690,7 +715,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "SignalView" */ = {
+		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "StreamTVDepot" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				13B07F941A680F5B00A75B9A /* Debug */,
@@ -699,7 +724,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "SignalView" */ = {
+		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "StreamTVDepot" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,

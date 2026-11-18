@@ -1,5 +1,5 @@
 {
-  "name": "signalview-mobile",
+  "name": "streamtvdepot-mobile",
   "version": "1.0.0",
   "private": true,
   "main": "index.js",
@@ -9,7 +9,7 @@
     "apk:debug": "grep -vE '^[[:space:]]*#|^[[:space:]]*$' active-client | head -n1 | xargs -I{} bash scripts/build.sh {} android debug",
     "apk:release": "grep -vE '^[[:space:]]*#|^[[:space:]]*$' active-client | head -n1 | xargs -I{} bash scripts/build.sh {} android release",
     "aab:release": "grep -vE '^[[:space:]]*#|^[[:space:]]*$' active-client | head -n1 | xargs -I{} bash scripts/build.sh {} android aab",
-    "ios": "react-native run-ios",
+    "ios": "bash scripts/run-ios.sh",
     "postinstall": "patch-package",
     "typecheck": "tsc --noEmit"
   },
