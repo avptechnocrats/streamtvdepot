@@ -384,6 +384,13 @@ def schedule_jobs() -> AsyncIOScheduler:
     global scheduler
     scheduler = AsyncIOScheduler(timezone="UTC")
     from app.core.episode_transcoding import process_episode_transcodes
+    from app.core.partner_ingest import process_partner_deliveries
+
+    JOB_NAMES["partner_deliveries"] = "Provision partner delivery buckets and ingest metadata packages"
+    JOB_SCHEDULES["partner_deliveries"] = "Every minute"
+    JOB_EXECUTORS["partner_deliveries"] = _job_wrapper("partner_deliveries", process_partner_deliveries)
+    scheduler.add_job(func=JOB_EXECUTORS["partner_deliveries"], trigger="interval", seconds=60,
+        id="partner_deliveries", name=JOB_NAMES["partner_deliveries"], coalesce=True, max_instances=1, replace_existing=True)
 
     JOB_NAMES["episode_transcoding"] = "Recover and reconcile media asset transcoding"
     JOB_SCHEDULES["episode_transcoding"] = "Every minute"

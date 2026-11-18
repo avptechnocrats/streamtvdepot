@@ -234,13 +234,20 @@ async def _get_active_video(video_id: str, token: str | None, db: AsyncSession) 
         vid_uuid = _uuid_module.UUID(video_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Video not found.")
+    preview = False
+    if token:
+        try:
+            preview_claims = verify_key_access_token(token)
+            preview = preview_claims.get("admin_preview") is True and preview_claims.get("vid") == video_id
+        except ValueError:
+            pass
 
     result = await db.execute(
         select(Video).where(
             Video.id == vid_uuid,
             Video.is_active.is_(True),
             Video.deleted_at.is_(None),
-        )
+        ).execution_options(partner_admin_preview=preview)
     )
     video = result.scalar_one_or_none()
     if not video:
@@ -268,10 +275,67 @@ async def _get_active_video(video_id: str, token: str | None, db: AsyncSession) 
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
         if claims.get("vid") != video_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token is not valid for this video.")
+    from app.core.content_rights import license_expiry
+    db.info["partner_playback_expiry"] = await license_expiry(db, video, video.access_type) if not preview else None
     return video, manifest_key
 
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
+
+async def _caption_master(db, kind: str, content_id, raw: str, token: str | None) -> str:
+    from app.models.client.partner_delivery import ContentCaption, PartnerContent
+
+    tracks = (await db.execute(select(ContentCaption).join(PartnerContent,
+        (PartnerContent.id == ContentCaption.partner_content_id) & (PartnerContent.client_id == ContentCaption.client_id),
+    ).where(PartnerContent.content_id == content_id, PartnerContent.kind == kind))).scalars().all()
+    if not tracks:
+        return raw
+    entries = []
+    for track in tracks:
+        language = track.language.replace('"', "").replace("\n", "").replace("\r", "")
+        label = f"{language} ({track.kind})"
+        uri = f"{settings.API_V1_PREFIX}/media/stream/captions/{kind}/{content_id}/{track.id}.m3u8"
+        if token:
+            uri += "?" + urlencode({"token": token})
+        accessibility = ',CHARACTERISTICS="public.accessibility.transcribes-spoken-dialog,public.accessibility.describes-music-and-sound"' if track.kind == "sdh" else ""
+        entries.append(f'#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="partner-subs",NAME="{label}",LANGUAGE="{language}",AUTOSELECT=YES,DEFAULT=NO,FORCED=NO,URI="{uri}"{accessibility}')
+    lines = raw.splitlines()
+    lines[1:1] = entries
+    return "\n".join(line + ',SUBTITLES="partner-subs"' if line.startswith("#EXT-X-STREAM-INF:") and "SUBTITLES=" not in line else line for line in lines) + "\n"
+
+
+@router.get("/captions/{kind}/{content_id}/{filename}", response_class=Response)
+async def proxy_content_caption(kind: str, content_id: str, filename: str, token: str | None = Query(None), db: AsyncSession = Depends(get_db)):
+    from app.core.storage import read_partner_caption
+    from app.models.client.partner_delivery import ContentCaption, PartnerContent
+
+    try:
+        caption_id = _uuid_module.UUID(filename.rsplit(".", 1)[0])
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Caption not found")
+    if kind == "movie":
+        content, _ = await _get_active_video(content_id, token, db)
+        duration = content.duration or 86400
+    elif kind == "episode":
+        content, _ = await _get_ready_episode(content_id, token, db)
+        duration = content.duration_seconds or 86400
+    else:
+        raise HTTPException(status_code=404)
+    track = await db.scalar(select(ContentCaption).join(PartnerContent,
+        (PartnerContent.id == ContentCaption.partner_content_id) & (PartnerContent.client_id == ContentCaption.client_id),
+    ).where(ContentCaption.id == caption_id, ContentCaption.client_id == content.client_id,
+        PartnerContent.content_id == content.id, PartnerContent.kind == kind))
+    if not track:
+        raise HTTPException(status_code=404, detail="Caption not found")
+    headers = {"Cache-Control": "no-store, private"}
+    if filename.endswith(".m3u8"):
+        uri = f"{track.id}.vtt" + ("?" + urlencode({"token": token}) if token else "")
+        manifest = f"#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:{duration}\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:{duration}.0,\n{uri}\n#EXT-X-ENDLIST\n"
+        return Response(content=manifest, media_type=_HLS_CONTENT_TYPE, headers=headers)
+    if not filename.endswith(".vtt"):
+        raise HTTPException(status_code=404)
+    raw = await run_in_threadpool(read_partner_caption, track.s3_key)
+    return Response(content=raw, media_type="text/vtt", headers=headers)
 
 async def _get_asset_preview(rendition_id: str, token: str | None, db: AsyncSession):
     if not token:
@@ -346,6 +410,8 @@ async def _get_ready_episode(episode_id: str, token: str | None, db: AsyncSessio
             Series.is_active.is_(True), or_(Series.publish_option == "now", Series.publish_at <= datetime.now(timezone.utc)),
             *series_readiness_filters(),
         )
+    else:
+        query = query.execution_options(partner_admin_preview=True)
     episode = await db.scalar(query)
     if not episode or not episode.stream_ready or episode.rendition.profile not in EPISODE_PLAYBACK_PROFILES or episode.rendition.client_id != episode.client_id:
         raise HTTPException(status_code=404, detail="Episode stream is not ready")
@@ -355,7 +421,10 @@ async def _get_ready_episode(episode_id: str, token: str | None, db: AsyncSessio
     remaining = int(claims["exp"] - datetime.now(timezone.utc).timestamp())
     if remaining <= 0:
         raise HTTPException(status_code=401, detail="Episode playback authorization expired")
-    return episode, min(remaining, _SEGMENT_PRESIGN_TTL)
+    from app.core.content_rights import license_expiry, playback_ttl
+    series = await db.scalar(select(Series).where(Series.id == episode.series_id, Series.client_id == episode.client_id).execution_options(partner_admin_preview=preview))
+    expiry = await license_expiry(db, episode, series.access_type) if not preview else None
+    return episode, playback_ttl(expiry, min(remaining, _SEGMENT_PRESIGN_TTL))
 
 
 @router.get("/episode/{episode_id}/manifest.m3u8", response_class=Response)
@@ -368,7 +437,8 @@ async def proxy_episode_manifest(episode_id: str, token: str | None = Query(None
         raise HTTPException(status_code=404, detail="Episode manifest not found")
     except (BotoCoreError, ClientError):
         raise HTTPException(status_code=502, detail="Episode storage is unavailable")
-    return Response(content=_rewrite_master(raw, f"episode/{episode_id}", token), media_type=_HLS_CONTENT_TYPE, headers={"Cache-Control": "no-store, private"})
+    rewritten = await _caption_master(db, "episode", episode.id, _rewrite_master(raw, f"episode/{episode_id}", token), token)
+    return Response(content=rewritten, media_type=_HLS_CONTENT_TYPE, headers={"Cache-Control": "no-store, private"})
 
 
 @router.get("/episode/{episode_id}/key", response_class=Response)
@@ -401,6 +471,28 @@ async def proxy_episode_sub_playlist(episode_id: str, filename: str, token: str 
     except (BotoCoreError, ClientError):
         raise HTTPException(status_code=502, detail="Episode storage is unavailable")
     rewritten = await run_in_threadpool(_rewrite_sub_playlist, raw, directory, _hls_bucket(), f"episode/{episode_id}", token, ttl)
+    return Response(content=rewritten, media_type=_HLS_CONTENT_TYPE, headers={"Cache-Control": "no-store, private"})
+
+
+@router.get("/series-trailer/{series_id}/{filename}", response_class=Response)
+async def proxy_series_trailer(series_id: _uuid_module.UUID, filename: str, db: AsyncSession = Depends(get_db)):
+    from app.models.client.partner_delivery import PartnerContent
+
+    series = await db.scalar(select(Series).where(Series.id == series_id))
+    if not series:
+        raise HTTPException(status_code=404, detail="Series trailer unavailable")
+    identity = await db.scalar(select(PartnerContent).where(PartnerContent.client_id == series.client_id,
+        PartnerContent.content_id == series.id, PartnerContent.kind == "series"))
+    rendition_id = (identity.metadata_json or {}).get("trailer_rendition_id") if identity else None
+    rendition = await db.scalar(select(MediaAssetRendition).where(MediaAssetRendition.client_id == series.client_id,
+        MediaAssetRendition.id == _uuid_module.UUID(rendition_id), MediaAssetRendition.status == "complete")) if rendition_id else None
+    if not rendition or not rendition.hls_manifest_key or not filename.endswith(".m3u8") or ".." in filename:
+        raise HTTPException(status_code=404, detail="Series trailer unavailable")
+    directory = _dir_prefix(rendition.hls_manifest_key)
+    key = rendition.hls_manifest_key if filename == "manifest.m3u8" else directory + filename
+    raw = await run_in_threadpool(_fetch_s3_text, _hls_bucket(), key)
+    rewritten = _rewrite_master(raw, f"series-trailer/{series_id}") if filename == "manifest.m3u8" else await run_in_threadpool(
+        _rewrite_sub_playlist, raw, directory, _hls_bucket(), f"series-trailer/{series_id}", None)
     return Response(content=rewritten, media_type=_HLS_CONTENT_TYPE, headers={"Cache-Control": "no-store, private"})
 
 
@@ -507,7 +599,7 @@ async def proxy_master_manifest(
     if not settings.AWS_S3_BUCKET:
         raise HTTPException(status_code=503, detail="S3 storage not configured.")
 
-    _, key = await _get_active_video(video_id, token, db)
+    video, key = await _get_active_video(video_id, token, db)
     bucket = _hls_bucket()
 
     try:
@@ -518,7 +610,7 @@ async def proxy_master_manifest(
         logger.error("S3 error fetching master manifest %s: %s", key, exc)
         raise HTTPException(status_code=502, detail="Storage error.")
 
-    content = _rewrite_master(raw, video_id, token)
+    content = await _caption_master(db, "movie", video.id, _rewrite_master(raw, video_id, token), token)
     return Response(
         content=content,
         media_type=_HLS_CONTENT_TYPE,
@@ -564,7 +656,9 @@ async def proxy_sub_playlist(
         logger.error("S3 error fetching sub-playlist %s: %s", sub_key, exc)
         raise HTTPException(status_code=502, detail="Storage error.")
 
-    content = await run_in_threadpool(_rewrite_sub_playlist, raw, dir_prefix, bucket, video_id, token)
+    from app.core.content_rights import playback_ttl
+    ttl = playback_ttl(db.info.get("partner_playback_expiry"), _SEGMENT_PRESIGN_TTL)
+    content = await run_in_threadpool(_rewrite_sub_playlist, raw, dir_prefix, bucket, video_id, token, ttl)
     return Response(
         content=content,
         media_type=_HLS_CONTENT_TYPE,

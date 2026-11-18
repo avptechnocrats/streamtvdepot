@@ -315,6 +315,18 @@ async def get_content_access(
         return ContentAccessOut(has_access=True, access_type="free")
 
     if content_access_type == "subscription":
+        configured_plan_ids = None
+        for stmt in (
+            select(Video.subscription_plan_ids).where(Video.client_id == client_id, Video.id == content_id),
+            select(Series.subscription_plan_ids).where(Series.client_id == client_id, Series.id == content_id),
+            select(Series.subscription_plan_ids).join(Episode, Episode.series_id == Series.id).where(
+                Episode.client_id == client_id, Series.client_id == client_id, Episode.id == content_id,
+            ),
+        ):
+            result = (await db.execute(stmt.limit(1))).first()
+            if result is not None:
+                configured_plan_ids = {str(plan_id) for plan_id in (result[0] or [])}
+                break
         sub_q = (
             select(UserSubscription, ClientSubscriptionPlan)
             .join(ClientSubscriptionPlan, UserSubscription.plan_id == ClientSubscriptionPlan.id)
@@ -331,7 +343,7 @@ async def get_content_access(
             )
         )
         for sub, plan in (await db.execute(sub_q)).all():
-            if _is_active(sub) and await _plan_applies_to_content(db, client_id, content_id, plan):
+            if (not configured_plan_ids or str(plan.id) in configured_plan_ids) and _is_active(sub) and await _plan_applies_to_content(db, client_id, content_id, plan):
                 return ContentAccessOut(
                     has_access=True,
                     access_type="subscription",

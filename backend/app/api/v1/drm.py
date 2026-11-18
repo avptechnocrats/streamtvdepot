@@ -79,8 +79,16 @@ async def deliver_drm_key(
     except ValueError:
         raise HTTPException(status_code=404, detail="Invalid video ID.")
 
+    preview = False
+    preview_token = request.headers.get("Authorization", "").removeprefix("Bearer ") or token
+    if preview_token:
+        try:
+            preview_claims = verify_key_access_token(preview_token)
+            preview = preview_claims.get("admin_preview") is True and preview_claims.get("vid") == video_id
+        except ValueError:
+            pass
     result = await db.execute(
-        select(Video).where(Video.id == vid_uuid, Video.deleted_at.is_(None))
+        select(Video).where(Video.id == vid_uuid, Video.deleted_at.is_(None)).execution_options(partner_admin_preview=preview)
     )
     video = result.scalar_one_or_none()
     if not video or not video.drm_key_encrypted:

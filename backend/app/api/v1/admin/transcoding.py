@@ -708,6 +708,7 @@ async def get_drm_key_token(
     token = create_key_access_token(
         video_id=video_id,
         user_id=str(admin.id),
+        admin_preview=True,
     )
     return KeyTokenResponse(token=token, video_id=video_id)
 
