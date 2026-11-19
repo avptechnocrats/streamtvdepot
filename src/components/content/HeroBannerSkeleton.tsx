@@ -1,5 +1,6 @@
 import { StyleSheet, View } from "react-native";
 import { SkeletonBlock } from "@/components/common/SkeletonBlock";
+import { colors } from "@/theme/colors";
 
 export function HeroBannerSkeleton() {
   return (
@@ -15,10 +16,10 @@ export function HeroBannerSkeleton() {
 const styles = StyleSheet.create({
   banner: {
     width: "100%",
-    height: 300,
-    borderRadius: 18,
+    aspectRatio: 16 / 9,
     overflow: "hidden",
-    marginTop: 12,
+    marginTop: 14,
+    backgroundColor: colors.surface,
     padding: 18,
     justifyContent: "flex-end",
     gap: 10,

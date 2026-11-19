@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
@@ -41,7 +41,7 @@ export function SearchScreen() {
     return categories.slice(0, 6);
   }, [categories, showAllGenres]);
 
-  const featuredCollections = useMemo(() => categories.slice(0, 5), [categories]);
+  const featuredCollections = useMemo(() => categories.filter((category) => category.content_types?.includes("video")).slice(0, 5), [categories]);
 
   useEffect(() => {
     if (!showDiscovery) {
@@ -50,58 +50,80 @@ export function SearchScreen() {
   }, [filtered, showDiscovery]);
 
   return (
-    <Screen contentStyle={styles.wrap}>
+    <Screen scroll={false} contentStyle={styles.wrap}>
       <PageTitleHeader title="Search" />
       <View style={styles.inputWrap}>
-        <MaterialCommunityIcons name="magnify" size={24} color={colors.textSecondary} />
+        <MaterialCommunityIcons name="magnify" size={22} color={colors.textSecondary} />
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search by actor, title..."
+          placeholder="Search movies and live TV"
           placeholderTextColor={colors.textSecondary}
           style={styles.input}
+          returnKeyType="search"
+          autoCapitalize="none"
+          autoCorrect={false}
+          accessibilityLabel="Search movies and live TV"
         />
-        <MaterialCommunityIcons name="microphone-outline" size={22} color={colors.textSecondary} />
+        {query.length > 0 ? (
+          <Pressable onPress={() => setQuery("")} style={styles.clearButton} accessibilityRole="button" accessibilityLabel="Clear search">
+            <MaterialCommunityIcons name="close-circle" size={20} color={colors.textSecondary} />
+          </Pressable>
+        ) : null}
       </View>
 
       {showDiscovery ? (
-        <>
-          <Text style={styles.sectionHeading}>Genres</Text>
+        <ScrollView contentContainerStyle={styles.discovery} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionHeading}>Browse genres</Text>
+            {categories.length ? <Text style={styles.sectionMeta}>{categories.length}</Text> : null}
+          </View>
           <View style={styles.genreGrid}>
             {visibleGenres.map((category) => (
               <Pressable
                 key={category.id}
-                style={styles.genrePill}
+                style={styles.genreItem}
                 onPress={() => navigation.navigate("CategoryDetails", { categoryId: category.id, categoryName: category.name, categorySlug: category.slug })}
+                accessibilityRole="button"
               >
-                <Text style={styles.genreText}>{category.name}</Text>
+                <View style={styles.genreIcon}>
+                  <MaterialCommunityIcons name="movie-filter-outline" size={18} color={colors.primaryStrong} />
+                </View>
+                <Text style={styles.genreText} numberOfLines={1}>{category.name}</Text>
               </Pressable>
             ))}
           </View>
           {categories.length > 6 ? (
-            <Pressable style={styles.seeMoreBtn} onPress={() => setShowAllGenres((prev) => !prev)}>
-              <Text style={styles.seeMoreText}>{showAllGenres ? "See less" : "See more"}</Text>
+            <Pressable style={styles.seeMoreBtn} onPress={() => setShowAllGenres((prev) => !prev)} accessibilityRole="button">
+              <Text style={styles.seeMoreText}>{showAllGenres ? "Show less" : "Show all genres"}</Text>
+              <MaterialCommunityIcons name={showAllGenres ? "chevron-up" : "chevron-down"} size={18} color={colors.textSecondary} />
             </Pressable>
           ) : null}
 
-          <Text style={styles.sectionHeading}>Featured collections</Text>
+          <View style={[styles.sectionHeader, styles.collectionsHeader]}>
+            <Text style={styles.sectionHeading}>Featured collections</Text>
+          </View>
           <View style={styles.collectionsWrap}>
             {featuredCollections.map((category) => (
               <Pressable
                 key={`collection-${category.id}`}
                 style={styles.collectionRow}
                 onPress={() => navigation.navigate("CategoryDetails", { categoryId: category.id, categoryName: category.name, categorySlug: category.slug })}
+                accessibilityRole="button"
               >
-                <Text style={styles.collectionText}>{category.name}</Text>
-                <MaterialCommunityIcons name="chevron-right" size={22} color={colors.textSecondary} />
+                <View style={styles.collectionIcon}>
+                  <MaterialCommunityIcons name="play-box-multiple-outline" size={18} color={colors.textSecondary} />
+                </View>
+                <Text style={styles.collectionText} numberOfLines={1}>{category.name}</Text>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textSecondary} />
               </Pressable>
             ))}
           </View>
-        </>
+        </ScrollView>
       ) : null}
 
       {!showDiscovery && isLoading ? (
-        <View style={styles.grid}>
+        <View style={styles.loadingGrid}>
           {Array.from({ length: 6 }).map((_, index) => (
             <View key={`search-skeleton-${index}`} style={styles.cardWrap}>
               <PosterCardSkeleton />
@@ -119,6 +141,8 @@ export function SearchScreen() {
           maxToRenderPerBatch={6}
           windowSize={5}
           removeClippedSubviews
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={<Text style={styles.resultsCount}>{filtered.length} {filtered.length === 1 ? "result" : "results"}</Text>}
           contentContainerStyle={styles.list}
           columnWrapperStyle={styles.row}
           renderItem={({ item }) => (
@@ -126,7 +150,7 @@ export function SearchScreen() {
               <PosterCard item={item} onPress={() => navigation.navigate("ContentDetails", { contentId: item.id })} />
             </View>
           )}
-          ListEmptyComponent={<Text style={styles.empty}>No results found.</Text>}
+          ListEmptyComponent={<View style={styles.empty}><MaterialCommunityIcons name="movie-search-outline" size={34} color={colors.textSecondary} /><Text style={styles.emptyTitle}>No titles found</Text><Text style={styles.emptyMessage}>Try another title or search term.</Text></View>}
         />
       ) : null}
     </Screen>
@@ -134,14 +158,15 @@ export function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  wrap: {},
+  wrap: { flex: 1 },
   inputWrap: {
-    marginTop: 12,
-    borderRadius: 12,
+    marginTop: 10,
+    marginBottom: 8,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
-    minHeight: 54,
+    backgroundColor: colors.surfaceMuted,
+    minHeight: 50,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
@@ -152,78 +177,84 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 15,
   },
+  clearButton: { width: 32, height: 36, alignItems: "center", justifyContent: "center" },
+  discovery: { paddingBottom: 28 },
+  sectionHeader: { marginTop: 18, marginBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   sectionHeading: {
-    marginTop: 22,
-    marginBottom: 10,
-    color: colors.textPrimary,
-    fontSize: 18,
-    fontWeight: "800",
-  },
-  genreGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    rowGap: 8,
-  },
-  genrePill: {
-    width: "48.5%",
-    minHeight: 72,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 10,
-  },
-  genreText: {
-    color: colors.textPrimary,
-    fontSize: 20,
-    fontWeight: "500",
-    textAlign: "center",
-  },
-  seeMoreBtn: {
-    marginTop: 12,
-    alignSelf: "center",
-    minHeight: 44,
-    borderRadius: 999,
-    paddingHorizontal: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  seeMoreText: {
     color: colors.textPrimary,
     fontSize: 16,
     fontWeight: "700",
   },
-  collectionsWrap: {
-    marginTop: 2,
+  sectionMeta: { color: colors.textSecondary, fontSize: 12, fontWeight: "600" },
+  genreGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 9,
   },
+  genreItem: {
+    width: "49%",
+    minHeight: 52,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 10,
+  },
+  genreIcon: { width: 30, height: 30, borderRadius: 5, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceMuted },
+  genreText: {
+    color: colors.textPrimary,
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  seeMoreBtn: {
+    alignSelf: "flex-start",
+    minHeight: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 2,
+  },
+  seeMoreText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  collectionsHeader: { marginTop: 12 },
+  collectionsWrap: { borderTopWidth: 1, borderTopColor: colors.border },
   collectionRow: {
-    minHeight: 56,
+    minHeight: 54,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 10,
+    paddingHorizontal: 2,
   },
+  collectionIcon: { width: 32, height: 32, borderRadius: 5, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceMuted },
   collectionText: {
     color: colors.textPrimary,
-    fontSize: 18,
-    fontWeight: "500",
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
   },
-  list: { paddingTop: 14, paddingBottom: 20 },
+  list: { paddingTop: 8, paddingBottom: 24 },
+  resultsCount: { color: colors.textSecondary, fontSize: 13, fontWeight: "600", marginBottom: 12 },
   row: { justifyContent: "space-between", marginBottom: 12 },
-  grid: {
-    marginTop: 14,
+  loadingGrid: {
+    flex: 1,
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
     rowGap: 12,
+    paddingTop: 12,
   },
   cardWrap: { width: "48%", alignItems: "center" },
-  empty: { color: colors.textSecondary, marginTop: 20 },
+  empty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24, paddingBottom: 48 },
+  emptyTitle: { marginTop: 12, color: colors.textPrimary, fontSize: 16, fontWeight: "700" },
+  emptyMessage: { marginTop: 5, color: colors.textSecondary, fontSize: 13, textAlign: "center" },
 });

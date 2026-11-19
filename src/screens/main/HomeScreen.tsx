@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import { useIsFocused, useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation, useScrollToTop } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { BrandLogo } from "@/components/common/BrandLogo";
 import { Screen } from "@/components/common/Screen";
@@ -19,7 +19,12 @@ import { colors } from "@/theme/colors";
 import { ContentItem } from "@/types/models";
 import { dedupeContentItems, prefetchContentImages } from "@/utils/contentList";
 
-type HomeFilter = "movies" | "series" | "sports";
+export type HomeFilter = "movies" | "series" | "sports";
+
+interface HomeScreenProps {
+  activeFilter: HomeFilter | null;
+  setActiveFilter: Dispatch<SetStateAction<HomeFilter | null>>;
+}
 
 const FILTERS: { key: HomeFilter | "live_tv"; label: string }[] = [
   { key: "movies", label: "Movies" },
@@ -32,18 +37,27 @@ function rowMatchesSports(rowName: string, contentType: string) {
   return contentType.toLowerCase().includes("sport") || rowName.toLowerCase().includes("sport");
 }
 
-function getLiveChannelImage(channel: LiveTvChannelOut) {
-  return channel.thumbnails.square || channel.thumbnails.wide || channel.thumbnails.banner || channel.thumbnails.portrait;
+function sanitizeImageUrl(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.toLowerCase() === "null" || trimmed.toLowerCase() === "undefined") return undefined;
+  return trimmed;
 }
 
-export function HomeScreen() {
+function getLiveChannelImage(channel: LiveTvChannelOut) {
+  return sanitizeImageUrl(channel.thumbnails.square)
+    || sanitizeImageUrl(channel.thumbnails.wide)
+    || sanitizeImageUrl(channel.thumbnails.banner)
+    || sanitizeImageUrl(channel.thumbnails.portrait);
+}
+
+export function HomeScreen({ activeFilter, setActiveFilter }: HomeScreenProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const isFocused = useIsFocused();
   const { width, height: screenHeight } = useWindowDimensions();
-  const [activeFilter, setActiveFilter] = useState<HomeFilter | null>(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const [heroVisible, setHeroVisible] = useState(true);
-  const [isScrolling, setIsScrolling] = useState(false);
+  const screenScrollRef = useRef<ScrollView>(null);
   const heroListRef = useRef<FlatList<ContentItem> | null>(null);
   const heroContainerY = useRef(0);
   const heroListLayout = useRef({ y: 0, height: 0 });
@@ -51,48 +65,55 @@ export function HomeScreen() {
   const screenScrollY = useRef(0);
   const lastPlayedContentId = usePlayerStore((state) => state.lastPlayedContentId);
   const lastPositionSecondsByContentId = usePlayerStore((state) => state.lastPositionSecondsByContentId);
-  const { data: homeRows = [], isLoading: homeLoading } = useHomeRows({ contentType: "video" });
-  const { data: movieRows = [], isLoading: moviesLoading } = useHomeRows({
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  useScrollToTop(screenScrollRef);
+  const { data: homeRows = [], isLoading: homeLoading, refetch: refetchHomeRows } = useHomeRows({ contentType: "video" });
+  const { data: movieRows = [], isLoading: moviesLoading, refetch: refetchMovieRows } = useHomeRows({
     contentType: "movie",
     enabled: activeFilter === "movies",
   });
-  const { data: seriesCategoryRows = [], isLoading: seriesRowsLoading } = useQuery({
+  const { data: seriesCategoryRows = [], isLoading: seriesRowsLoading, refetch: refetchSeriesCategoryRows } = useQuery({
     queryKey: ["home-series-category-rows"],
     queryFn: fetchSeriesCategoryRows,
     enabled: activeFilter === "series",
   });
-  const { data: seriesHighlights = [], isLoading: seriesHighlightsLoading } = useQuery({
-    queryKey: ["home-series-highlights"],
-    queryFn: () => fetchSeries("rating"),
+  const { data: seriesCatalog = [], isLoading: seriesCatalogLoading, refetch: refetchSeriesCatalog } = useQuery({
+    queryKey: ["home-series-catalog"],
+    queryFn: () => fetchSeries("latest"),
     enabled: activeFilter === "series",
   });
-  const { data: continueWatchingItem } = useQuery({
+  const { data: seriesSpotlight = [], refetch: refetchSeriesSpotlight } = useQuery({
+    queryKey: ["home-series-spotlight"],
+    queryFn: () => fetchSeries("latest", true),
+    enabled: activeFilter === "series",
+  });
+  const { data: continueWatchingItem, isLoading: continueWatchingLoading, refetch: refetchContinueWatching } = useQuery({
     queryKey: ["continue-watching-content", lastPlayedContentId],
     queryFn: () => fetchContentDetails(lastPlayedContentId as string),
     enabled: Boolean(lastPlayedContentId),
     staleTime: 60_000,
   });
-  const { data: featuredVideos = [], isLoading: featuredLoading } = useQuery({
+  const { data: featuredVideos = [], isLoading: featuredLoading, refetch: refetchFeaturedVideos } = useQuery({
     queryKey: ["home-featured-videos"],
     queryFn: fetchFeaturedVideos,
     staleTime: 5 * 60 * 1000,
   });
-  const { data: liveChannels = [], isLoading: liveChannelsLoading } = useQuery({
+  const { data: liveChannels = [], isLoading: liveChannelsLoading, refetch: refetchLiveChannels } = useQuery({
     queryKey: ["home-live-tv-channels"],
-    queryFn: listLiveTvChannels,
+    queryFn: () => listLiveTvChannels(),
     staleTime: 5 * 60 * 1000,
   });
-  const { data: topTenMovies = [], isLoading: topTenLoading } = useQuery({
+  const { data: topTenMovies = [], isLoading: topTenLoading, refetch: refetchTopTenMovies } = useQuery({
     queryKey: ["home-top-ten-movies"],
     queryFn: () => fetchHomeMovieRail("rating"),
     staleTime: 60_000,
   });
-  const { data: newReleases = [], isLoading: newReleasesLoading } = useQuery({
+  const { data: newReleases = [], isLoading: newReleasesLoading, refetch: refetchNewReleases } = useQuery({
     queryKey: ["home-new-releases"],
     queryFn: () => fetchHomeMovieRail("latest"),
     staleTime: 60_000,
   });
-  const { data: featuredMovies = [], isLoading: featuredMoviesLoading } = useQuery({
+  const { data: featuredMovies = [], isLoading: featuredMoviesLoading, refetch: refetchFeaturedMovies } = useQuery({
     queryKey: ["home-featured-movies"],
     queryFn: fetchFeaturedMovieRail,
     staleTime: 60_000,
@@ -105,19 +126,27 @@ export function HomeScreen() {
     return homeRows;
   }, [activeFilter, homeRows, movieRows, seriesCategoryRows]);
 
-  const isLoading = homeLoading
-    || (activeFilter === null && featuredLoading)
+  const rowsLoading = ((activeFilter === null || activeFilter === "sports") && homeLoading)
     || (activeFilter === "movies" && moviesLoading)
-    || (activeFilter === "series" && (seriesRowsLoading || seriesHighlightsLoading));
+    || (activeFilter === "series" && seriesRowsLoading);
+  const isLoading = rowsLoading
+    || (activeFilter === null && featuredLoading)
+    || (activeFilter === "series" && seriesCatalogLoading);
+
+  const topRatedSeries = useMemo(() => seriesCatalog
+    .filter((item) => item.rating != null)
+    .sort((first, second) => (second.rating ?? 0) - (first.rating ?? 0))
+    .slice(0, 10), [seriesCatalog]);
 
   const featuredItems = useMemo<ContentItem[]>(() => {
     const items = activeFilter === "series"
-      ? seriesHighlights
+      ? seriesSpotlight.length ? seriesSpotlight : seriesCatalog.some((item) => item.is_featured)
+        ? seriesCatalog.filter((item) => item.is_featured) : seriesCatalog
       : activeFilter === null && featuredVideos.length
         ? featuredVideos
         : visibleRows.flatMap((row) => row.items);
     return dedupeContentItems(items).slice(0, 6);
-  }, [activeFilter, featuredVideos, seriesHighlights, visibleRows]);
+  }, [activeFilter, featuredVideos, seriesCatalog, seriesSpotlight, visibleRows]);
 
   useEffect(() => {
     prefetchContentImages(featuredItems, 2);
@@ -139,12 +168,33 @@ export function HomeScreen() {
     screenScrollY.current = scrollY;
     const { y, height } = heroPosition.current;
     const visibleHeight = Math.max(0, Math.min(y + height, scrollY + screenHeight) - Math.max(y, scrollY));
-    const visible = height > 0 && visibleHeight >= Math.min(height * 0.5, 96);
+    const visible = height > 0 && visibleHeight >= height * 0.7;
     setHeroVisible((current) => current === visible ? current : visible);
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.allSettled([
+        refetchHomeRows(),
+        refetchMovieRows(),
+        refetchSeriesCategoryRows(),
+        refetchSeriesCatalog(),
+        refetchSeriesSpotlight(),
+        refetchContinueWatching(),
+        refetchFeaturedVideos(),
+        refetchLiveChannels(),
+        refetchTopTenMovies(),
+        refetchNewReleases(),
+        refetchFeaturedMovies(),
+      ]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
-    <Screen onScrollYChange={updateHeroVisibility} onScrollingChange={setIsScrolling}>
+    <Screen scrollRef={screenScrollRef} onScrollYChange={updateHeroVisibility} refreshing={isRefreshing} onRefresh={handleRefresh}>
       <View style={styles.headerRow}>
         <BrandLogo showTitle={false} size="small" />
         <Pressable style={styles.bellButton} onPress={() => Alert.alert("Notifications", "Notifications will be available soon.")} accessibilityRole="button" accessibilityLabel="Notifications">
@@ -174,17 +224,13 @@ export function HomeScreen() {
       </View>
 
       {isLoading ? (
-        <>
+        <View style={styles.heroContainer}>
           <HeroBannerSkeleton />
-          <ContentRailSkeleton title="Live TV Channels" />
-          <ContentRailSkeleton title="Top 10 Movies of the Month" />
-          <ContentRailSkeleton title="New Releases" />
-          <ContentRailSkeleton title="Featured Movies" />
-        </>
+        </View>
       ) : null}
 
       {!isLoading && featuredItems.length ? (
-        <View onLayout={(event) => {
+        <View style={styles.heroContainer} onLayout={(event) => {
           heroContainerY.current = event.nativeEvent.layout.y;
           const { y, height } = heroListLayout.current;
           heroPosition.current = { y: heroContainerY.current + y, height };
@@ -194,6 +240,7 @@ export function HomeScreen() {
             ref={(ref) => {
               heroListRef.current = ref;
             }}
+            style={styles.heroList}
             data={featuredItems}
             horizontal
             pagingEnabled
@@ -203,10 +250,10 @@ export function HomeScreen() {
             maxToRenderPerBatch={1}
             windowSize={3}
             showsHorizontalScrollIndicator={false}
-            getItemLayout={(_, index) => ({ length: width - 32, offset: (width - 32) * index, index })}
+            getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
             onMomentumScrollEnd={(event) => {
               const offsetX = event.nativeEvent.contentOffset.x;
-              const nextIndex = Math.round(offsetX / (width - 32));
+              const nextIndex = Math.round(offsetX / width);
               setActiveSlide(nextIndex);
             }}
             onLayout={(event) => {
@@ -216,14 +263,17 @@ export function HomeScreen() {
               updateHeroVisibility(screenScrollY.current);
             }}
             renderItem={({ item, index }) => (
-              <View style={{ width: width - 32 }}>
+              <View style={{ width }}>
                 <HeroBanner
                   item={item}
-                  isActive={isFocused && heroVisible && !isScrolling && index === activeSlide}
+                  isActive={isFocused && heroVisible && index === activeSlide}
                   onTrailerEnd={advanceHero}
                   onOpen={() => activeFilter === "series"
                     ? navigation.navigate("SeriesDetails", { seriesId: item.id })
                     : navigation.navigate("ContentDetails", { contentId: item.id })}
+                  onPlay={() => activeFilter === "series"
+                    ? navigation.navigate("SeriesDetails", { seriesId: item.id, autoplay: true })
+                    : navigation.navigate("ContentDetails", { contentId: item.id, autoplay: true })}
                 />
               </View>
             )}
@@ -237,7 +287,7 @@ export function HomeScreen() {
         </View>
       ) : null}
 
-      {activeFilter === null && liveChannelsLoading ? <ContentRailSkeleton title="Live TV Channels" /> : null}
+      {activeFilter === null && liveChannelsLoading ? <ContentRailSkeleton title="Live TV Channels" variant="square" /> : null}
       {activeFilter === null && !liveChannelsLoading && liveChannels.some((channel) => channel.is_active !== false) ? (
         <View style={styles.liveChannelsSection}>
           <View style={styles.liveChannelsHeader}>
@@ -282,6 +332,7 @@ export function HomeScreen() {
           onOpen={(item) => navigation.navigate("ContentDetails", { contentId: item.id })}
         />
       ) : null}
+      {activeFilter === null && lastPlayedContentId && (lastPositionSecondsByContentId[lastPlayedContentId] ?? 0) > 0 && continueWatchingLoading ? <ContentRailSkeleton title="Continue Watching" variant="landscape" /> : null}
       {activeFilter === null && continueWatchingItem && (lastPositionSecondsByContentId[continueWatchingItem.id] ?? 0) > 0 ? (
         <View style={styles.continueSection}>
           <Text style={styles.sectionTitle}>Continue Watching</Text>
@@ -291,11 +342,13 @@ export function HomeScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Continue watching ${continueWatchingItem.title}`}
           >
-            <Image
-              source={{ uri: continueWatchingItem.thumbnails?.video_w_thumbnail || continueWatchingItem.thumbnails?.video_banner || undefined }}
-              style={styles.continueImage}
-              resizeMode="cover"
-            />
+            {sanitizeImageUrl(continueWatchingItem.thumbnails?.video_w_thumbnail) || sanitizeImageUrl(continueWatchingItem.thumbnails?.video_banner) ? (
+              <Image
+                source={{ uri: sanitizeImageUrl(continueWatchingItem.thumbnails?.video_w_thumbnail) || sanitizeImageUrl(continueWatchingItem.thumbnails?.video_banner) }}
+                style={styles.continueImage}
+                resizeMode="cover"
+              />
+            ) : <View style={styles.continueImage} />}
             <View style={styles.continueOverlay}>
               <MaterialCommunityIcons name="play-circle" size={32} color={colors.textPrimary} />
             </View>
@@ -316,7 +369,7 @@ export function HomeScreen() {
         />
       ) : null}
 
-      {(activeFilter === null || activeFilter === "movies") && featuredMoviesLoading ? <ContentRailSkeleton title="Featured Movies" /> : null}
+      {(activeFilter === null || activeFilter === "movies") && featuredMoviesLoading ? <ContentRailSkeleton title="Featured Movies" variant="wider-landscape" /> : null}
       {(activeFilter === null || activeFilter === "movies") && !featuredMoviesLoading && featuredMovies.length > 0 ? (
         <ContentRail
           title="Featured Movies"
@@ -326,23 +379,32 @@ export function HomeScreen() {
         />
       ) : null}
 
-      {activeFilter === "series" && !seriesHighlightsLoading && seriesHighlights.length > 0 ? (
-        <ContentRail title="Top Rated Series" items={seriesHighlights} ranked onOpen={(item) => navigation.navigate("SeriesDetails", { seriesId: item.id })} />
+      {activeFilter === "series" && seriesCatalogLoading ? <ContentRailSkeleton title="Top Rated Series" /> : null}
+      {activeFilter === "series" && !seriesCatalogLoading && topRatedSeries.length > 1 ? (
+        <ContentRail title="Top Rated Series" items={topRatedSeries} ranked onOpen={(item) => navigation.navigate("SeriesDetails", { seriesId: item.id })} />
       ) : null}
-      {activeFilter === "series" && !seriesRowsLoading ? seriesCategoryRows.map((row) => (
-        <ContentRail key={row.category_id} title={row.category_name} items={row.items} onOpen={(item) => navigation.navigate("SeriesDetails", { seriesId: item.id })} />
-      )) : null}
+      {activeFilter === "series" && seriesCatalogLoading ? <ContentRailSkeleton title="Recently Added" variant="landscape" /> : null}
+      {activeFilter === "series" && !seriesCatalogLoading && seriesCatalog.length > 0 ? (
+        <ContentRail title="Recently Added" items={seriesCatalog.slice(0, 10)} variant="landscape" onOpen={(item) => navigation.navigate("SeriesDetails", { seriesId: item.id })} />
+      ) : null}
 
-      {!isLoading && visibleRows.map((row) => (
+      {rowsLoading ? <ContentRailSkeleton title="Categories" /> : null}
+      {!rowsLoading && visibleRows.map((row) => (
         <ContentRail
-          key={row.category_id}
+          key={`${row.content_type}:${row.category_id}`}
           title={row.category_name}
           items={row.items}
+          variant={activeFilter === "series" ? row.thumbnail_view === "portrait" ? "portrait" : row.thumbnail_view === "wider_landscape" ? "wider-landscape" : "landscape" : undefined}
           onOpen={(item) => activeFilter === "series"
             ? navigation.navigate("SeriesDetails", { seriesId: item.id })
             : navigation.navigate("ContentDetails", { contentId: item.id })}
         />
       ))}
+
+      {activeFilter === "series" && seriesCatalogLoading ? <ContentRailSkeleton title="All Series" /> : null}
+      {activeFilter === "series" && !seriesCatalogLoading && seriesCatalog.length > 0 ? (
+        <ContentRail title="All Series" items={seriesCatalog} onOpen={(item) => navigation.navigate("SeriesDetails", { seriesId: item.id })} />
+      ) : null}
 
       {!isLoading && visibleRows.length === 0 && featuredItems.length === 0 ? (
         <View style={styles.emptyWrap}>
@@ -355,6 +417,12 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  heroContainer: {
+    marginHorizontal: -16,
+  },
+  heroList: {
+    marginTop: 14,
+  },
   headerRow: {
     marginTop: 8,
     flexDirection: "row",

@@ -59,6 +59,22 @@ if [[ -f "$CLIENT_DIR/logo.png" ]]; then
     sips -p 1024 1024 --padColor 090b12 "$TEMP_LOGO" --out "$ICON_SET_DIR/AppIcon.png" >/dev/null
     rm -f "$TEMP_LOGO"
     echo "  ✓ Generated iOS app icon"
+
+    ANDROID_FLAVOR="${CLIENT//[-.]}"
+    for ICON_DENSITY in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+      case "$ICON_DENSITY" in
+        mdpi) ICON_SIZE=48 ;;
+        hdpi) ICON_SIZE=72 ;;
+        xhdpi) ICON_SIZE=96 ;;
+        xxhdpi) ICON_SIZE=144 ;;
+        xxxhdpi) ICON_SIZE=192 ;;
+      esac
+      ICON_DIR="$ROOT/android/app/src/$ANDROID_FLAVOR/res/mipmap-$ICON_DENSITY"
+      mkdir -p "$ICON_DIR"
+      sips -z "$ICON_SIZE" "$ICON_SIZE" "$ICON_SET_DIR/AppIcon.png" --out "$ICON_DIR/ic_launcher.png" >/dev/null
+      cp "$ICON_DIR/ic_launcher.png" "$ICON_DIR/ic_launcher_round.png"
+    done
+    echo "  ✓ Generated Android app icons for $CLIENT"
   else
     rm -f "$TEMP_LOGO"
     echo "  ⚠  Could not generate iOS app icon (requires macOS sips)"

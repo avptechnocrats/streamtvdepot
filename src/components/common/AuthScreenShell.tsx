@@ -5,22 +5,18 @@ import { Screen } from "@/components/common/Screen";
 import { colors } from "@/theme/colors";
 
 interface AuthScreenShellProps extends PropsWithChildren {
-  title: string;
+  title?: string;
   subtitle?: string;
+  compact?: boolean;
 }
 
-export function AuthScreenShell({ title, subtitle, children }: AuthScreenShellProps) {
+export function AuthScreenShell({ title, subtitle, compact = false, children }: AuthScreenShellProps) {
   return (
     <Screen scroll={false} contentStyle={styles.screenContent}>
       <View style={styles.backdropTop} />
       <View style={styles.backdropBottom} />
-      <View style={styles.topArea}>
+      <View style={[styles.topArea, compact && styles.topAreaCompact]}>
         <View style={styles.glowPrimary} />
-        <View style={styles.heroAccent}>
-          <View style={styles.heroLine} />
-          <Text style={styles.heroText}>Premium OTT access</Text>
-          <View style={styles.heroLine} />
-        </View>
         <BrandLogo size="auth" />
       </View>
       <View style={styles.contentArea}>
@@ -67,6 +63,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 0,
   },
+  topAreaCompact: {
+    paddingTop: 16,
+  },
   contentArea: {
     flex: 1,
     justifyContent: "flex-start",
@@ -89,24 +88,6 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 999,
     backgroundColor: `${colors.primaryStrong}22`,
-  },
-  heroAccent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
-  heroLine: {
-    width: 28,
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.16)",
-  },
-  heroText: {
-    color: colors.primaryStrong,
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase",
   },
   title: {
     // marginTop: 12,

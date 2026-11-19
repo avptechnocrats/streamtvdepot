@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { ContentItem } from "@/types/models";
 import { SkeletonBlock } from "@/components/common/SkeletonBlock";
 import { TrailerPreview } from "@/components/content/TrailerPreview";
@@ -31,12 +32,18 @@ export function PosterCard({ item, onPress, rank, variant = "portrait", previewO
   const image = (variant === "portrait"
     ? sanitizeImageUrl(item.thumbnails?.video_h_thumbnail) || sanitizeImageUrl(item.thumbnails?.video_w_thumbnail)
     : sanitizeImageUrl(item.thumbnails?.video_w_thumbnail) || sanitizeImageUrl(item.thumbnails?.video_h_thumbnail))
+    || sanitizeImageUrl(item.thumbnails?.video_banner)
     || undefined;
+  const isPortraitBannerFallback = variant === "portrait"
+    && !sanitizeImageUrl(item.thumbnails?.video_h_thumbnail)
+    && Boolean(image);
   const trailer = sanitizeImageUrl(item.trailer_hls_url) || sanitizeImageUrl(item.trailer_display_url);
   const [imageLoaded, setImageLoaded] = useState(!image);
+  const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
     setImageLoaded(!image);
+    setImageFailed(false);
   }, [image]);
 
   useEffect(() => {
@@ -53,15 +60,27 @@ export function PosterCard({ item, onPress, rank, variant = "portrait", previewO
       accessibilityLabel={item.title}
     >
       <View style={[styles.imageFrame, variant === "landscape" && styles.imageFrameLandscape, variant === "wider-landscape" && styles.imageFrameWideLandscape]}>
-        <Image
-          source={image ? { uri: image } : undefined}
-          style={[styles.poster, variant === "landscape" && styles.posterLandscape, variant === "wider-landscape" && styles.posterWideLandscape]}
-          resizeMode="cover"
-          progressiveRenderingEnabled
-          fadeDuration={120}
-          onLoadEnd={() => setImageLoaded(true)}
-          onError={() => setImageLoaded(true)}
-        />
+        {image && !imageFailed && isPortraitBannerFallback ? (
+          <Image source={{ uri: image }} style={styles.fallbackBackdrop} resizeMode="cover" />
+        ) : null}
+        {image && !imageFailed ? (
+          <Image
+            source={{ uri: image }}
+            style={[styles.poster, isPortraitBannerFallback && styles.transparentPoster, variant === "landscape" && styles.posterLandscape, variant === "wider-landscape" && styles.posterWideLandscape]}
+            resizeMode={isPortraitBannerFallback ? "contain" : "cover"}
+            progressiveRenderingEnabled
+            fadeDuration={120}
+            onLoadEnd={() => setImageLoaded(true)}
+            onError={() => {
+              setImageFailed(true);
+              setImageLoaded(true);
+            }}
+          />
+        ) : (
+          <View style={[styles.poster, styles.posterFallback, variant === "landscape" && styles.posterLandscape, variant === "wider-landscape" && styles.posterWideLandscape]}>
+            <MaterialCommunityIcons name="image-off-outline" size={28} color={colors.textSecondary} />
+          </View>
+        )}
         {!imageLoaded ? <SkeletonBlock style={styles.posterSkeleton} /> : null}
         <TrailerPreview
           source={previewOnFocus ? trailer : null}
@@ -104,6 +123,17 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 190,
     backgroundColor: colors.surfaceMuted,
+  },
+  posterFallback: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fallbackBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.25,
+  },
+  transparentPoster: {
+    backgroundColor: "transparent",
   },
   posterLandscape: {
     height: 124,

@@ -16,11 +16,20 @@ export function dedupeContentItems(items: ContentItem[]): ContentItem[] {
   return unique;
 }
 
+function sanitizeImageUrl(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.toLowerCase() === "null" || trimmed.toLowerCase() === "undefined") return undefined;
+  return trimmed;
+}
+
 export function prefetchContentImages(items: ContentItem[], limit = 16): void {
   const unique = dedupeContentItems(items);
 
   unique.slice(0, limit).forEach((item) => {
-    const imageUrl = item.thumbnails?.video_h_thumbnail || item.thumbnails?.video_w_thumbnail || item.thumbnails?.video_banner;
+    const imageUrl = sanitizeImageUrl(item.thumbnails?.video_h_thumbnail)
+      || sanitizeImageUrl(item.thumbnails?.video_w_thumbnail)
+      || sanitizeImageUrl(item.thumbnails?.video_banner);
     if (imageUrl) {
       Image.prefetch(imageUrl).catch(() => undefined);
     }

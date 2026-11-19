@@ -15,6 +15,7 @@ import { TrailerPreview } from "@/components/content/TrailerPreview";
 interface HeroBannerProps {
   item: ContentItem;
   onOpen: () => void;
+  onPlay: () => void;
   isActive?: boolean;
   onTrailerEnd?: () => void;
 }
@@ -28,7 +29,7 @@ function sanitizeImageUrl(value: unknown): string | undefined {
   return trimmed;
 }
 
-export function HeroBanner({ item, onOpen, isActive = true, onTrailerEnd }: HeroBannerProps) {
+export function HeroBanner({ item, onOpen, onPlay, isActive = true, onTrailerEnd }: HeroBannerProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const token = useAuthStore((state) => state.token);
@@ -75,6 +76,11 @@ export function HeroBanner({ item, onOpen, isActive = true, onTrailerEnd }: Hero
     onOpen();
   };
 
+  const play = (event: GestureResponderEvent) => {
+    event.stopPropagation();
+    onPlay();
+  };
+
   return (
       <ImageBackground
         source={image ? { uri: image } : undefined}
@@ -86,6 +92,7 @@ export function HeroBanner({ item, onOpen, isActive = true, onTrailerEnd }: Hero
         <TrailerPreview
           source={trailer}
           active={isActive}
+          videoScale={1.35}
           startDelayMs={1200}
           onEnd={() => {
             if (isActive) onTrailerEnd?.();
@@ -101,7 +108,7 @@ export function HeroBanner({ item, onOpen, isActive = true, onTrailerEnd }: Hero
             {item.description || "Discover this title on KalingoTV."}
           </Text>
           <View style={styles.actionRow}>
-            <Pressable style={styles.playButton} onPress={openDetails} accessibilityRole="button" accessibilityLabel={`Play ${item.title}`}>
+            <Pressable style={styles.playButton} onPress={play} accessibilityRole="button" accessibilityLabel={`Play ${item.title}`}>
               <MaterialCommunityIcons name="play" size={17} color={colors.textPrimary} />
               <Text style={styles.playButtonLabel}>Play</Text>
             </Pressable>
@@ -133,10 +140,8 @@ const styles = StyleSheet.create({
   banner: {
     width: "100%",
     aspectRatio: 16 / 9,
-    borderRadius: 8,
     overflow: "hidden",
     backgroundColor: colors.surface,
-    marginTop: 14,
   },
   image: {
     opacity: 0.8,

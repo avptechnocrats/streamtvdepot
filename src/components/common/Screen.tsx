@@ -1,5 +1,5 @@
-import { createContext, PropsWithChildren, useCallback, useRef } from "react";
-import { NativeScrollEvent, NativeSyntheticEvent, ScrollView, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { createContext, PropsWithChildren, RefObject, useCallback, useRef } from "react";
+import { NativeScrollEvent, NativeSyntheticEvent, RefreshControl, ScrollView, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LinearGradient from "react-native-linear-gradient";
 import { colors } from "@/theme/colors";
@@ -11,12 +11,15 @@ export const ScreenScrollContext = createContext<SubscribeToScreenScroll>(() => 
 
 interface ScreenProps extends PropsWithChildren {
   scroll?: boolean;
+  scrollRef?: RefObject<ScrollView>;
   contentStyle?: StyleProp<ViewStyle>;
   onScrollYChange?: (scrollY: number) => void;
   onScrollingChange?: (isScrolling: boolean) => void;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }
 
-export function Screen({ children, scroll = true, contentStyle, onScrollYChange, onScrollingChange }: ScreenProps) {
+export function Screen({ children, scroll = true, scrollRef, contentStyle, onScrollYChange, onScrollingChange, refreshing, onRefresh }: ScreenProps) {
   const scrollListeners = useRef(new Set<ScreenScrollListener>());
   const subscribeToScroll = useCallback<SubscribeToScreenScroll>((listener) => {
     scrollListeners.current.add(listener);
@@ -30,6 +33,7 @@ export function Screen({ children, scroll = true, contentStyle, onScrollYChange,
 
   const content = scroll ? (
     <ScrollView
+      ref={scrollRef}
       contentContainerStyle={[styles.content, contentStyle]}
       onScroll={handleScroll}
       onScrollBeginDrag={() => onScrollingChange?.(true)}
@@ -39,12 +43,22 @@ export function Screen({ children, scroll = true, contentStyle, onScrollYChange,
       onMomentumScrollBegin={() => onScrollingChange?.(true)}
       onMomentumScrollEnd={() => onScrollingChange?.(false)}
       scrollEventThrottle={32}
+      refreshControl={onRefresh ? (
+        <RefreshControl
+          refreshing={Boolean(refreshing)}
+          onRefresh={onRefresh}
+          tintColor={colors.primary}
+          colors={[colors.primary]}
+          progressBackgroundColor={colors.backgroundElevated}
+        />
+      ) : undefined}
     >
       {children}
     </ScrollView>
   ) : (
     <View style={[styles.content, contentStyle]}>{children}</View>
   );
+
 
   return (
     <ScreenScrollContext.Provider value={subscribeToScroll}>

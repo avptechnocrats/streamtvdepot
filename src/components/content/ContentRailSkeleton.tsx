@@ -4,15 +4,16 @@ import { colors } from "@/theme/colors";
 
 interface ContentRailSkeletonProps {
   title: string;
+  variant?: "portrait" | "landscape" | "wider-landscape" | "square";
 }
 
-export function ContentRailSkeleton({ title }: ContentRailSkeletonProps) {
+export function ContentRailSkeleton({ title, variant = "portrait" }: ContentRailSkeletonProps) {
   return (
     <View style={styles.wrap}>
       <Text style={styles.title}>{title}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {Array.from({ length: 5 }).map((_, index) => (
-          <PosterCardSkeleton key={`${title}-${index}`} showMeta={false} />
+          <PosterCardSkeleton key={`${title}-${index}`} showMeta={false} variant={variant} />
         ))}
       </ScrollView>
     </View>

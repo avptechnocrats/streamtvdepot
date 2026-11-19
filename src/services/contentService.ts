@@ -6,9 +6,13 @@ export interface LiveTvChannelOut {
   title: string;
   description: string | null;
   category: string | null;
+  categories?: string[];
   language: string[];
+  region?: string[] | null;
   source: "rtmp" | "srt" | "external";
   stream_url: string | null;
+  stream_status?: "idle" | "live" | "error";
+  managed_playback?: boolean;
   is_live: boolean;
   access_type: "free" | "subscription" | "pay_per_view";
   is_featured: boolean;
@@ -45,6 +49,22 @@ export async function fetchMovies(): Promise<ContentItem[]> {
     params: { content_type: "movie" },
   });
   return data ?? [];
+}
+
+export async function fetchRelatedTitles(params: {
+  category?: string | null;
+  contentClassification?: string | null;
+  excludeId?: string;
+}): Promise<ContentItem[]> {
+  const { data } = await publicApiClient.get<ContentItem[]>("/videos", {
+    params: {
+      page: 1,
+      page_size: 20,
+      ...(params.category ? { category: params.category } : {}),
+      ...(params.contentClassification ? { content_classification: params.contentClassification } : {}),
+    },
+  });
+  return (data ?? []).filter((item) => item.id !== params.excludeId);
 }
 
 export async function fetchFeaturedVideos(): Promise<ContentItem[]> {
@@ -89,8 +109,10 @@ export async function fetchLiveTvChannels(): Promise<ContentItem[]> {
   }));
 }
 
-export async function listLiveTvChannels(): Promise<LiveTvChannelOut[]> {
-  const { data } = await publicApiClient.get<LiveTvChannelOut[]>("/live-streams");
+export async function listLiveTvChannels(pageSize?: number): Promise<LiveTvChannelOut[]> {
+  const { data } = await publicApiClient.get<LiveTvChannelOut[]>("/live-streams", {
+    params: pageSize ? { page_size: pageSize } : undefined,
+  });
   return data ?? [];
 }
 

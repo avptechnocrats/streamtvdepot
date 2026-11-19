@@ -24,8 +24,8 @@ export function TrailerPreview({ source, active, onEnd, controlPosition = "top-r
   const videoRef = useRef<VideoRef | null>(null);
   const videoSource = useMemo(() => ({ uri: source as string }), [source]);
   const bufferConfig = useMemo(() => ({
-    minBufferMs: 1_000,
-    maxBufferMs: 5_000,
+    minBufferMs: 5_000,
+    maxBufferMs: 15_000,
     bufferForPlaybackMs: 750,
     bufferForPlaybackAfterRebufferMs: 1_500,
     backBufferDurationMs: 0,

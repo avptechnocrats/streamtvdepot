@@ -83,7 +83,7 @@ export function LoginScreen({ navigation }: Props) {
   };
 
   return (
-    <AuthScreenShell title="Sign In" subtitle="Sign in to continue streaming your favorites across every device.">
+    <AuthScreenShell compact>
       <View style={styles.content}>
         <View style={styles.segmentedControl}>
           <Pressable onPress={() => switchMode("email")} style={[styles.segment, mode === "email" && styles.segmentActive]}>

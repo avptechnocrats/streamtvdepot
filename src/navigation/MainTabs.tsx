@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { MainTabParamList } from "@/navigation/types";
-import { HomeScreen } from "@/screens/main/HomeScreen";
+import { HomeScreen, HomeFilter } from "@/screens/main/HomeScreen";
 import { WatchlistScreen } from "@/screens/main/WatchlistScreen";
 import { DownloadsScreen } from "@/screens/main/DownloadsScreen";
 import { SearchScreen } from "@/screens/main/SearchScreen";
@@ -11,6 +12,8 @@ import { colors } from "@/theme/colors";
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export function MainTabs() {
+  const [activeFilter, setActiveFilter] = useState<HomeFilter | null>(null);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -38,7 +41,13 @@ export function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen
+        name="Home"
+        options={{ tabBarActiveTintColor: activeFilter ? colors.textSecondary : colors.primary }}
+        listeners={{ tabPress: () => setActiveFilter(null) }}
+      >
+        {() => <HomeScreen activeFilter={activeFilter} setActiveFilter={setActiveFilter} />}
+      </Tab.Screen>
       <Tab.Screen name="Watchlist" component={WatchlistScreen} />
       <Tab.Screen name="Downloads" component={DownloadsScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />

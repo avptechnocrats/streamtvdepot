@@ -93,6 +93,7 @@ export function ContentRail({ title, items, onOpen, ranked = false, variant = "p
       <Text style={styles.title}>{title}</Text>
       <FlatList
         horizontal
+        style={ranked ? styles.rankedList : undefined}
         data={uniqueItems}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => ranked ? (
@@ -164,6 +165,9 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginBottom: 12,
   },
+  rankedList: {
+    marginHorizontal: -16,
+  },
   rankedItem: {
     position: "relative",
     paddingLeft: 58,
@@ -201,6 +205,6 @@ const styles = StyleSheet.create({
   rankedScrollContent: {
     paddingLeft: 10,
     paddingTop: 8,
-    paddingBottom: 46,
+    paddingBottom: 8,
   },
 });

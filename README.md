@@ -224,6 +224,7 @@ cp -r clients/_template clients/newclient
 
 # 2d. Drop the tenant logo
 #     clients/newclient/logo.png  (copied to assets/logo.png by switch-client.sh)
+#     On macOS, switch-client.sh also generates iOS and Android launcher icons.
 
 # 3. Register the Android Gradle flavor in android/app/build.gradle:
 #

@@ -11,6 +11,9 @@ export interface SeriesOut {
   thumbnail_url: string | null;
   total_seasons: number;
   access_type: "free" | "subscription" | "ppv" | "rental";
+  trailer_url?: string | null;
+  is_featured?: boolean;
+  is_series_slider?: boolean;
   thumbnails?: {
     video_banner?: string | null;
     video_h_thumbnail?: string | null;
@@ -31,7 +34,7 @@ export interface SeriesEpisode {
 }
 
 interface SeriesRowsResponse {
-  rows: HomeRow[];
+  rows: Array<Omit<HomeRow, "items"> & { items: SeriesOut[] }>;
 }
 
 function mapSeries(series: SeriesOut): ContentItem {
@@ -42,6 +45,10 @@ function mapSeries(series: SeriesOut): ContentItem {
     rating: series.rating,
     created_at: series.created_at,
     content_type: "series",
+    access_type: series.access_type === "ppv" ? "pay_per_view" : series.access_type,
+    is_featured: series.is_featured,
+    is_series_slider: series.is_series_slider,
+    trailer_display_url: series.trailer_url && /\.(mp4|webm|m3u8)(?:[?#]|$)/i.test(series.trailer_url) ? series.trailer_url : null,
     thumbnails: {
       video_banner: series.thumbnails?.video_banner ?? null,
       video_h_thumbnail: series.thumbnails?.video_h_thumbnail || series.thumbnail_url,
@@ -50,11 +57,11 @@ function mapSeries(series: SeriesOut): ContentItem {
   };
 }
 
-export async function fetchSeries(sort: "rating" | "latest"): Promise<ContentItem[]> {
+export async function fetchSeries(sort: "rating" | "latest", seriesSlider = false): Promise<ContentItem[]> {
   const { data } = await publicApiClient.get<SeriesOut[]>("/series", {
-    params: { sort, page: 1, page_size: 30 },
+    params: { sort, page: 1, page_size: 30, ...(seriesSlider ? { series_slider: true } : {}) },
   });
-  return (data ?? []).map(mapSeries);
+  return (data ?? []).filter((series) => !seriesSlider || series.is_series_slider).map(mapSeries);
 }
 
 export async function fetchSeriesDetails(id: string): Promise<SeriesOut> {
@@ -81,5 +88,7 @@ export async function fetchSeriesCategoryRows(): Promise<HomeRow[]> {
   const { data } = await publicApiClient.get<SeriesRowsResponse>("/home-contents", {
     params: { content_type: "series", page: 1, page_size: 10, items_per_row: 12 },
   });
-  return (data.rows ?? []).filter((row) => row.content_type === "series");
+  return (data.rows ?? [])
+    .filter((row) => row.content_type === "series")
+    .map((row) => ({ ...row, items: row.items.map(mapSeries) }));
 }

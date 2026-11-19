@@ -39,6 +39,7 @@ import type {
   VideoRef,
 } from "react-native-video";
 import { usePlaybackProgress } from "@/hooks/usePlaybackProgress";
+import { useFullscreenOrientation } from "@/hooks/useFullscreenOrientation";
 import { createPlaybackSession, PlaybackAnalytics } from "@/services/analyticsService";
 import { fetchDrmConfig, PlaybackSource } from "@/services/playbackService";
 import { usePlayerStore } from "@/store/playerStore";
@@ -51,6 +52,7 @@ interface OttVideoPlayerProps {
   source: PlaybackSource;
   /** Resume offset in seconds. Server progress takes precedence if higher. */
   startPositionSeconds?: number;
+  onPlaybackEnd?: () => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -62,7 +64,8 @@ const LOCAL_KEY = (id: string) => `sv:progress:${id}`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function OttVideoPlayer({ contentId, source, startPositionSeconds = 0 }: OttVideoPlayerProps) {
+export function OttVideoPlayer({ contentId, source, startPositionSeconds = 0, onPlaybackEnd }: OttVideoPlayerProps) {
+  const fullscreenOrientation = useFullscreenOrientation();
   const videoRef = useRef<VideoRef | null>(null);
   const analyticsRef = useRef<PlaybackAnalytics | null>(null);
   const hasSoughtRef = useRef(false);
@@ -148,8 +151,9 @@ export function OttVideoPlayer({ contentId, source, startPositionSeconds = 0 }: 
   function onLoad(data: OnLoadData): void {
     analyticsRef.current?.onLoad(data.duration * 1000);
     setIsBuffering(false);
+    const resumeIsNearEnd = data.duration > 0 && resumeSeconds >= data.duration - 10;
     // Seek to resume position once after load (ExoPlayer/AVPlayer need a short defer)
-    if (!hasSoughtRef.current && resumeSeconds > RESUME_THRESHOLD_SECONDS) {
+    if (!hasSoughtRef.current && resumeSeconds > RESUME_THRESHOLD_SECONDS && !resumeIsNearEnd) {
       hasSoughtRef.current = true;
       setTimeout(() => {
         videoRef.current?.seek(resumeSeconds);
@@ -207,6 +211,7 @@ export function OttVideoPlayer({ contentId, source, startPositionSeconds = 0 }: 
         durationSeconds: Math.floor(lastDurSec.current),
       })
       .catch(() => undefined);
+    onPlaybackEnd?.();
   }
 
   function onError(err: OnVideoErrorData): void {
@@ -303,6 +308,9 @@ export function OttVideoPlayer({ contentId, source, startPositionSeconds = 0 }: 
         style={styles.video}
         resizeMode="contain"
         controls
+        fullscreenOrientation="landscape"
+        fullscreenAutorotate={false}
+        {...fullscreenOrientation}
         progressUpdateInterval={2000}
         onLoad={onLoad}
         onProgress={onProgress}

@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { BackTitleHeader } from "@/components/common/BackTitleHeader";
+import { EmptyState } from "@/components/common/EmptyState";
 import { PosterCard } from "@/components/content/PosterCard";
 import { PosterCardSkeleton } from "@/components/content/PosterCardSkeleton";
 import { Screen } from "@/components/common/Screen";
@@ -13,17 +14,17 @@ import { colors } from "@/theme/colors";
 import { dedupeContentItems } from "@/utils/contentList";
 
 type Props = NativeStackScreenProps<RootStackParamList, "CategoryDetails">;
-type ContentTab = "movies" | "tv";
+type ContentTab = "movies" | "series";
 
 export function CategoryDetailsScreen({ route, navigation }: Props) {
   const { categoryId, categoryName, categorySlug } = route.params;
   const [activeTab, setActiveTab] = useState<ContentTab>("movies");
 
-  const contentType = activeTab === "movies" ? "movie" : "video";
+  const contentType = activeTab === "movies" ? "video" : "series";
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["category-details", categoryId, categorySlug, categoryName, contentType],
-    queryFn: () => fetchHomeRows({ contentType, page: 1, pageSize: 24, itemsPerRow: 24 }),
+    queryFn: () => fetchHomeRows({ contentType, page: 1, pageSize: 20, itemsPerRow: 24 }),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -34,45 +35,50 @@ export function CategoryDetailsScreen({ route, navigation }: Props) {
     return rows.filter((row) => {
       const rowName = row.category_name.trim().toLowerCase();
       const rowSlug = row.category_slug.trim().toLowerCase();
-      const idMatch = categoryId ? row.category_id === categoryId : false;
-      const nameMatch = rowName.includes(nameNeedle) || nameNeedle.includes(rowName);
-      const slugMatch = slugNeedle ? rowSlug === slugNeedle || rowSlug.includes(slugNeedle) : false;
-      return idMatch || nameMatch || slugMatch;
+      if (categoryId) return row.category_id === categoryId;
+      if (slugNeedle) return rowSlug === slugNeedle;
+      return rowName === nameNeedle;
     });
   }, [rows, categoryId, categoryName, categorySlug]);
 
-  const visibleRows = filteredRows.length ? filteredRows : rows;
-
   return (
-    <Screen>
+    <Screen scroll={false} contentStyle={styles.screen}>
       <BackTitleHeader title={categoryName} onBack={() => navigation.goBack()} />
 
       <View style={styles.tabsRow}>
         <Pressable
           style={[styles.tabBtn, activeTab === "movies" && styles.tabBtnActive]}
           onPress={() => setActiveTab("movies")}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === "movies" }}
         >
+          <MaterialCommunityIcons name="movie-outline" size={18} color={activeTab === "movies" ? colors.primaryStrong : colors.textSecondary} />
           <Text style={[styles.tabText, activeTab === "movies" && styles.tabTextActive]}>Movies</Text>
         </Pressable>
         <Pressable
-          style={[styles.tabBtn, activeTab === "tv" && styles.tabBtnActive]}
-          onPress={() => setActiveTab("tv")}
+          style={[styles.tabBtn, activeTab === "series" && styles.tabBtnActive]}
+          onPress={() => setActiveTab("series")}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === "series" }}
         >
-          <Text style={[styles.tabText, activeTab === "tv" && styles.tabTextActive]}>TV shows</Text>
+          <MaterialCommunityIcons name="television-play" size={18} color={activeTab === "series" ? colors.primaryStrong : colors.textSecondary} />
+          <Text style={[styles.tabText, activeTab === "series" && styles.tabTextActive]}>TV shows</Text>
         </Pressable>
       </View>
 
       {isLoading ? (
         <View style={styles.loadingRow}>
           {Array.from({ length: 3 }).map((_, index) => (
-            <View key={`cat-row-skeleton-${index}`} style={styles.loadingCard}>
+            <View key={`cat-row-skeleton-${index}`}>
               <PosterCardSkeleton />
             </View>
           ))}
         </View>
+      ) : isError ? (
+        <EmptyState icon="alert-circle-outline" title="Unable to load this collection" message="Check your connection and try again." actionLabel="Try Again" actionIcon="refresh" onAction={() => { void refetch(); }} />
       ) : (
-        <ScrollView contentContainerStyle={styles.contentWrap}>
-          {visibleRows.map((row) => {
+        <ScrollView contentContainerStyle={styles.contentWrap} showsVerticalScrollIndicator={false}>
+          {filteredRows.map((row) => {
             const items = dedupeContentItems(row.items);
             if (!items.length) return null;
 
@@ -80,7 +86,7 @@ export function CategoryDetailsScreen({ route, navigation }: Props) {
               <View key={row.category_id} style={styles.sectionWrap}>
                 <View style={styles.sectionHead}>
                   <Text style={styles.sectionTitle}>{row.category_name}</Text>
-                  <MaterialCommunityIcons name="chevron-right" size={18} color={colors.textSecondary} />
+                  <Text style={styles.itemCount}>{items.length} {items.length === 1 ? "title" : "titles"}</Text>
                 </View>
 
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rowContent}>
@@ -88,7 +94,9 @@ export function CategoryDetailsScreen({ route, navigation }: Props) {
                     <PosterCard
                       key={`${row.category_id}-${item.id}`}
                       item={item}
-                      onPress={() => navigation.navigate("ContentDetails", { contentId: item.id })}
+                      onPress={() => row.content_type === "series"
+                        ? navigation.navigate("SeriesDetails", { seriesId: item.id })
+                        : navigation.navigate("ContentDetails", { contentId: item.id })}
                     />
                   ))}
                 </ScrollView>
@@ -96,7 +104,13 @@ export function CategoryDetailsScreen({ route, navigation }: Props) {
             );
           })}
 
-          {!visibleRows.length ? <Text style={styles.emptyText}>No content available.</Text> : null}
+          {!filteredRows.length ? (
+            <EmptyState
+              icon={activeTab === "movies" ? "movie-open-outline" : "television-play"}
+              title={`No ${activeTab === "movies" ? "movies" : "TV shows"} in this collection`}
+              message="Try the other tab to explore more titles."
+            />
+          ) : null}
         </ScrollView>
       )}
     </Screen>
@@ -104,59 +118,67 @@ export function CategoryDetailsScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   tabsRow: {
-    marginTop: 12,
+    marginTop: 14,
+    marginBottom: 8,
+    padding: 4,
     flexDirection: "row",
-    gap: 12,
-  },
-  tabBtn: {
-    minHeight: 42,
-    borderRadius: 14,
+    gap: 4,
+    borderRadius: 6,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 18,
+  },
+  tabBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 4,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 7,
   },
   tabBtnActive: {
-    borderColor: "rgba(255,255,255,0.35)",
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   tabText: {
     color: colors.textSecondary,
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 13,
+    fontWeight: "600",
   },
   tabTextActive: {
     color: colors.textPrimary,
   },
   loadingRow: {
-    marginTop: 18,
+    flex: 1,
+    paddingTop: 12,
     flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  loadingCard: {
-    width: "31%",
   },
   contentWrap: {
-    paddingTop: 14,
-    paddingBottom: 20,
-    gap: 14,
+    paddingTop: 12,
+    paddingBottom: 28,
+    gap: 20,
   },
   sectionWrap: {
-    gap: 8,
+    gap: 10,
   },
   sectionHead: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   sectionTitle: {
     color: colors.textPrimary,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
   },
+  itemCount: { color: colors.textSecondary, fontSize: 12, fontWeight: "600" },
   rowContent: {
     paddingRight: 8,
   },

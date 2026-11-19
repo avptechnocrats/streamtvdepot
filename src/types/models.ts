@@ -12,6 +12,9 @@ export interface ContentItem {
   long_description?: string | null;
   rating?: number | null;
   duration?: number | null;
+  category?: string | null;
+  categories?: string[];
+  content_classification?: string | null;
   content_type?: string;
   access_type?: "free" | "subscription" | "pay_per_view" | "rental";
   publish_at?: string | null;
@@ -22,6 +25,8 @@ export interface ContentItem {
   hls_display_url?: string | null;
   trailer_display_url?: string | null;
   trailer_hls_url?: string | null;
+  is_featured?: boolean;
+  is_series_slider?: boolean;
   drm_enabled?: boolean;
   thumbnails?: MediaThumbs;
 }
@@ -31,6 +36,7 @@ export interface HomeRow {
   category_name: string;
   category_slug: string;
   content_type: string;
+  thumbnail_view?: "portrait" | "landscape" | "wider_landscape";
   items: ContentItem[];
 }
 
@@ -38,6 +44,7 @@ export interface Category {
   id: string;
   name: string;
   slug: string;
+  content_types?: string[];
 }
 
 export interface SubscriptionPlan {

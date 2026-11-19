@@ -16,11 +16,11 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
-  SeriesDetails: { seriesId: string };
+  SeriesDetails: { seriesId: string; autoplay?: boolean };
   LiveTv: undefined;
   LiveTvChannel: { channelId: string };
   CategoryDetails: { categoryName: string; categoryId?: string; categorySlug?: string };
-  ContentDetails: { contentId: string };
+  ContentDetails: { contentId: string; autoplay?: boolean };
   Pricing: { purchaseType?: "subscription" | "rent" | "ppv"; contentId?: string } | undefined;
   Checkout: { planId: string; contentId?: string; purchaseType?: "rent" | "ppv" };
   Watchlist: undefined;

@@ -17,6 +17,7 @@ const WINDOW_HOURS = 3;
 const CHANNEL_COL = 140;
 const ROW_HEIGHT = 58;
 const HALF_HOUR_MS = 30 * 60 * 1000;
+const REGIONS = ["All Channels", "Caribbean", "South America", "North America", "Europe", "Asia", "Africa", "Middle East", "Australia"] as const;
 
 function sanitizeImageUrl(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -154,26 +155,70 @@ function TvChannelsRow({
   channels: LiveTvChannelOut[];
   onOpenChannel: (channelId: string) => void;
 }) {
+  const [activeRegion, setActiveRegion] = useState<(typeof REGIONS)[number]>("All Channels");
+  const regionChannels = activeRegion === "All Channels"
+    ? channels
+    : channels.filter((channel) => channel.region?.includes(activeRegion));
+
   if (!channels.length) return null;
 
   return (
     <View style={styles.channelsSection}>
-      <Text style={styles.sectionTitle}>TV Channels</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.channelsScrollContent}>
-        {channels.map((channel) => {
-          const poster = choosePoster(channel);
-          return (
-            <Pressable key={channel.id} style={styles.channelCard} onPress={() => onOpenChannel(channel.id)}>
-              {poster ? <Image source={{ uri: poster }} style={styles.channelImage} resizeMode="cover" /> : null}
-              {channel.is_live ? <Text style={styles.liveBadge}>LIVE</Text> : null}
-              <View style={styles.channelMetaWrap}>
-                <Text style={styles.channelName} numberOfLines={1}>{channel.title}</Text>
-              </View>
-            </Pressable>
-          );
-        })}
+      <View style={styles.channelsHeading}>
+        <MaterialCommunityIcons name="radio" size={18} color={colors.primary} />
+        <Text style={styles.channelsTitle}>Watch Live TV by Region</Text>
+      </View>
+      <Text style={styles.channelsSubtitle}>Explore channels from around the world.</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.regionScroll}
+        contentContainerStyle={styles.regionRow}
+        accessibilityRole="radiogroup"
+        accessibilityLabel="TV regions"
+      >
+        {REGIONS.map((region) => (
+          <Pressable
+            key={region}
+            onPress={() => setActiveRegion(region)}
+            style={[styles.regionButton, activeRegion === region && styles.regionButtonActive]}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: activeRegion === region }}
+          >
+            <Text numberOfLines={1} style={[styles.regionLabel, activeRegion === region && styles.regionLabelActive]}>{region}</Text>
+          </Pressable>
+        ))}
       </ScrollView>
+      {regionChannels.length ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.channelsScrollContent}>
+          {regionChannels.map((channel) => (
+            <ChannelTile key={channel.id} channel={channel} onPress={() => onOpenChannel(channel.id)} />
+          ))}
+        </ScrollView>
+      ) : <Text style={styles.emptyRegion}>No channels available in this region yet.</Text>}
     </View>
+  );
+}
+
+function ChannelTile({ channel, onPress }: { channel: LiveTvChannelOut; onPress: () => void }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const square = sanitizeImageUrl(channel.thumbnails.square);
+  const image = square || sanitizeImageUrl(channel.thumbnails.wide)
+    || sanitizeImageUrl(channel.thumbnails.banner) || sanitizeImageUrl(channel.thumbnails.portrait);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [image]);
+
+  return (
+    <Pressable style={styles.channelCard} onPress={onPress} accessibilityRole="button" accessibilityLabel={`Watch ${channel.title}`}>
+      {image && !imageFailed ? (
+        <Image source={{ uri: image }} style={styles.channelImage} resizeMode={square ? "cover" : "contain"} onError={() => setImageFailed(true)} />
+      ) : (
+        <Text style={styles.channelFallback}>{channel.title.trim().split(/\s+/).map((word) => word[0]).slice(0, 3).join("")}</Text>
+      )}
+      {channel.is_live ? <Text style={styles.liveBadge}>LIVE</Text> : null}
+    </Pressable>
   );
 }
 
@@ -186,7 +231,7 @@ export function LiveTvScreen() {
 
   const { data: channels = [], isLoading } = useQuery({
     queryKey: ["live-tv"],
-    queryFn: listLiveTvChannels,
+    queryFn: () => listLiveTvChannels(100),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -247,7 +292,7 @@ export function LiveTvScreen() {
 
   return (
     <Screen>
-      <BackTitleHeader title="Live TV" subtitle="Channels and TV Guide" onBack={onBackPress} />
+      <BackTitleHeader title="Watch TV" subtitle="Channels and TV Guide" onBack={onBackPress} />
       {isLoading ? (
         <View style={styles.grid}>
           {Array.from({ length: 4 }).map((_, index) => (
@@ -395,7 +440,7 @@ const styles = StyleSheet.create({
   },
   bannerCard: {
     height: 220,
-    borderRadius: 14,
+    borderRadius: 2,
     overflow: "hidden",
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -454,6 +499,56 @@ const styles = StyleSheet.create({
   channelsSection: {
     marginTop: 18,
   },
+  channelsHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  channelsTitle: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  channelsSubtitle: {
+    marginTop: 4,
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  regionScroll: {
+    marginTop: 14,
+  },
+  regionRow: {
+    gap: 8,
+  },
+  regionButton: {
+    minWidth: 64,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  regionButtonActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  regionLabel: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  regionLabelActive: {
+    color: colors.textPrimary,
+  },
+  emptyRegion: {
+    paddingVertical: 20,
+    color: colors.textSecondary,
+    fontSize: 13,
+  },
   sectionTitle: {
     color: colors.textPrimary,
     fontSize: 20,
@@ -461,29 +556,30 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   channelsScrollContent: {
+    paddingTop: 12,
     paddingRight: 8,
   },
   channelCard: {
-    width: 132,
-    borderRadius: 12,
+    width: 104,
+    aspectRatio: 1,
+    borderRadius: 6,
     overflow: "hidden",
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    marginRight: 10,
+    marginRight: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
   channelImage: {
     width: "100%",
-    height: 142,
+    height: "100%",
     backgroundColor: colors.surfaceMuted,
   },
-  channelMetaWrap: {
-    padding: 8,
-  },
-  channelName: {
-    color: colors.textPrimary,
-    fontSize: 13,
-    fontWeight: "700",
+  channelFallback: {
+    color: colors.textSecondary,
+    fontSize: 20,
+    fontWeight: "600",
   },
   liveBadge: {
     position: "absolute",

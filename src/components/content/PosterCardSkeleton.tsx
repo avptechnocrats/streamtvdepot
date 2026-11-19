@@ -4,12 +4,13 @@ import { colors } from "@/theme/colors";
 
 interface PosterCardSkeletonProps {
   showMeta?: boolean;
+  variant?: "portrait" | "landscape" | "wider-landscape" | "square";
 }
 
-export function PosterCardSkeleton({ showMeta = true }: PosterCardSkeletonProps) {
+export function PosterCardSkeleton({ showMeta = true, variant = "portrait" }: PosterCardSkeletonProps) {
   return (
-    <View style={styles.card}>
-      <SkeletonBlock style={styles.poster} />
+    <View style={[styles.card, variant === "landscape" && styles.cardLandscape, variant === "wider-landscape" && styles.cardWideLandscape, variant === "square" && styles.cardSquare]}>
+      <SkeletonBlock style={[styles.poster, variant === "landscape" && styles.posterLandscape, variant === "wider-landscape" && styles.posterWideLandscape, variant === "square" && styles.posterSquare]} />
       {showMeta ? (
         <View style={styles.meta}>
           <SkeletonBlock style={styles.title} />
@@ -34,6 +35,12 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 190,
   },
+  cardLandscape: { width: 220 },
+  cardWideLandscape: { width: 270 },
+  cardSquare: { width: 94, borderRadius: 6 },
+  posterLandscape: { height: 124 },
+  posterWideLandscape: { height: 152 },
+  posterSquare: { height: 94 },
   meta: {
     padding: 10,
     gap: 6,
