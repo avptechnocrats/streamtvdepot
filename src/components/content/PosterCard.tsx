@@ -4,6 +4,7 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import { ContentItem } from "@/types/models";
 import { SkeletonBlock } from "@/components/common/SkeletonBlock";
 import { TrailerPreview } from "@/components/content/TrailerPreview";
+import { usePosterRadius } from "@/hooks/usePosterRadius";
 import { colors } from "@/theme/colors";
 
 type CardVariant = "portrait" | "landscape" | "wider-landscape";
@@ -29,6 +30,7 @@ function sanitizeImageUrl(value: unknown): string | undefined {
 
 export function PosterCard({ item, onPress, rank, variant = "portrait", previewOnFocus = false, previewActive = true, showTitle = true }: PosterCardProps) {
   const [focused, setFocused] = useState(false);
+  const posterRadius = usePosterRadius();
   const image = (variant === "portrait"
     ? sanitizeImageUrl(item.thumbnails?.video_h_thumbnail) || sanitizeImageUrl(item.thumbnails?.video_w_thumbnail)
     : sanitizeImageUrl(item.thumbnails?.video_w_thumbnail) || sanitizeImageUrl(item.thumbnails?.video_h_thumbnail))
@@ -55,7 +57,7 @@ export function PosterCard({ item, onPress, rank, variant = "portrait", previewO
       onPress={onPress}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
-      style={[styles.card, variant === "landscape" && styles.cardLandscape, variant === "wider-landscape" && styles.cardWideLandscape]}
+      style={[styles.card, variant === "landscape" && styles.cardLandscape, variant === "wider-landscape" && styles.cardWideLandscape, { borderRadius: posterRadius }]}
       accessibilityRole="button"
       accessibilityLabel={item.title}
     >
@@ -103,12 +105,11 @@ export function PosterCard({ item, onPress, rank, variant = "portrait", previewO
 const styles = StyleSheet.create({
   card: {
     width: 154,
-    borderRadius: 14,
     overflow: "hidden",
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    marginRight: 12,
+    marginRight: 8,
   },
   cardLandscape: {
     width: 220,

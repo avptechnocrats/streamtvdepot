@@ -6,6 +6,7 @@ import { BackTitleHeader } from "@/components/common/BackTitleHeader";
 import { Screen } from "@/components/common/Screen";
 import { fetchMySubscriptions } from "@/services/historyService";
 import { RootStackParamList } from "@/navigation/types";
+import { useAuthStore } from "@/store/authStore";
 import { colors } from "@/theme/colors";
 
 function formatDate(value: string | null) {
@@ -16,8 +17,10 @@ function formatDate(value: string | null) {
 
 export function RentalsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const userId = useAuthStore((state) => state.user?.id);
   const { data = [], isLoading, isError } = useQuery({
-    queryKey: ["purchases-history"],
+    queryKey: ["purchases-history", userId],
+    enabled: Boolean(userId),
     queryFn: async () => {
       const [rentals, ppv] = await Promise.all([
         fetchMySubscriptions("rent"),
@@ -28,7 +31,7 @@ export function RentalsScreen() {
   });
 
   return (
-    <Screen>
+    <Screen scroll={false} contentStyle={styles.container}>
       <BackTitleHeader title="Rentals & PPV" subtitle="Your one-time access purchases" onBack={() => navigation.goBack()} />
       {isLoading ? <Text style={styles.status}>Loading purchases...</Text> : null}
       {isError ? <Text style={styles.error}>Could not load your purchases. Pull to refresh and try again.</Text> : null}
@@ -61,6 +64,7 @@ export function RentalsScreen() {
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1 },
   list: { paddingTop: 16, paddingBottom: 28, gap: 10 },
   card: { borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: 16, padding: 14, gap: 12 },
   cardTop: { flexDirection: "row", alignItems: "center", gap: 10 },

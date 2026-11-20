@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   rankedItem: {
     position: "relative",
     paddingLeft: 58,
-    marginRight: 12,
+    marginRight: 8,
   },
   rankedPoster: {
     zIndex: 1,

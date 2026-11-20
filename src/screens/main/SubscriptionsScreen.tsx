@@ -6,14 +6,16 @@ import { BackTitleHeader } from "@/components/common/BackTitleHeader";
 import { Screen } from "@/components/common/Screen";
 import { fetchMySubscriptions } from "@/services/historyService";
 import { RootStackParamList } from "@/navigation/types";
+import { useAuthStore } from "@/store/authStore";
 import { colors } from "@/theme/colors";
 
 export function SubscriptionsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { data = [] } = useQuery({ queryKey: ["subscriptions-history"], queryFn: () => fetchMySubscriptions("subscription") });
+  const userId = useAuthStore((state) => state.user?.id);
+  const { data = [] } = useQuery({ queryKey: ["subscriptions-history", userId], queryFn: () => fetchMySubscriptions("subscription"), enabled: Boolean(userId) });
 
   return (
-    <Screen>
+    <Screen scroll={false} contentStyle={styles.container}>
       <BackTitleHeader
         title="Subscriptions"
         onBack={() => {
@@ -43,6 +45,7 @@ export function SubscriptionsScreen() {
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1 },
   list: { gap: 10, paddingTop: 14, paddingBottom: 28 },
   card: {
     borderWidth: 1,

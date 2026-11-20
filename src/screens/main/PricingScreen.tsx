@@ -37,19 +37,21 @@ export function PricingScreen({ navigation, route }: Props) {
   const purchaseType = route.params?.purchaseType ?? "subscription";
   const contentId = route.params?.contentId;
   const userCountry = useAuthStore((s) => s.user?.country);
+  const userId = useAuthStore((s) => s.user?.id);
   const { data: plans = [] } = useQuery({
     queryKey: ["plans", purchaseType],
     queryFn: () => fetchSubscriptionPlans(purchaseType),
   });
   const { data: subscriptions = [] } = useQuery({
-    queryKey: ["subscriptions-history", "subscription"],
+    queryKey: ["subscriptions-history", "subscription", userId],
     queryFn: () => fetchMySubscriptions("subscription"),
+    enabled: Boolean(userId),
   });
 
   const currentSubscription = useMemo(() => {
     const now = new Date();
     const active = subscriptions.filter((sub) => {
-      if (sub.status !== "active") return false;
+      if (sub.status !== "active" && sub.status !== "trial") return false;
       const startsAt = new Date(sub.started_at);
       if (Number.isNaN(startsAt.getTime())) return false;
       if (startsAt > now) return false;

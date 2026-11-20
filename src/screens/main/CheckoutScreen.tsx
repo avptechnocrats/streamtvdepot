@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { BackTitleHeader } from "@/components/common/BackTitleHeader";
 import { Screen } from "@/components/common/Screen";
 import { PrimaryButton } from "@/components/common/PrimaryButton";
 import { beginCheckout, fetchSubscriptionPlans, CheckoutGateway } from "@/services/subscriptionService";
@@ -11,7 +12,7 @@ import { colors } from "@/theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Checkout">;
 
-export function CheckoutScreen({ route }: Props) {
+export function CheckoutScreen({ route, navigation }: Props) {
   const { planId: requestedPlanId, contentId, purchaseType } = route.params;
   const country = useAuthStore((state) => state.user?.country);
   const [gateway, setGateway] = useState<CheckoutGateway>("stripe");
@@ -22,8 +23,11 @@ export function CheckoutScreen({ route }: Props) {
     queryFn: () => fetchSubscriptionPlans(planType),
   });
   const selectedPlan = useMemo(
-    () => plans.find((plan) => plan.id === requestedPlanId) ?? plans[0],
+    () => plans.find((plan) => plan.id === requestedPlanId),
     [plans, requestedPlanId],
+  );
+  const localizedPrice = selectedPlan?.country_pricing?.find(
+    (pricing) => pricing.country?.toUpperCase() === country?.toUpperCase(),
   );
 
   const onCheckout = async () => {
@@ -60,15 +64,17 @@ export function CheckoutScreen({ route }: Props) {
 
   return (
     <Screen>
+      <BackTitleHeader title="Checkout" onBack={() => navigation.goBack()} />
       <View style={styles.container}>
         <Text style={styles.eyebrow}>{planType === "subscription" ? "MEMBERSHIP" : planType === "ppv" ? "ONE-TIME EVENT" : "RENTAL"}</Text>
         <Text style={styles.title}>Secure checkout</Text>
         <Text style={styles.sub}>Review your access and continue with a secure payment provider.</Text>
         {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
+        {!isLoading && !selectedPlan ? <Text style={styles.sub}>This plan is unavailable. Go back to choose another plan.</Text> : null}
         {selectedPlan ? (
           <View style={styles.summary}>
             <Text style={styles.planName}>{selectedPlan.name}</Text>
-            <Text style={styles.price}>{selectedPlan.price === 0 ? "Free" : `${selectedPlan.currency} ${selectedPlan.price.toFixed(2)}`}</Text>
+            <Text style={styles.price}>{Number(localizedPrice?.price ?? selectedPlan.price) === 0 ? "Free" : `${localizedPrice?.currency ?? selectedPlan.currency} ${Number(localizedPrice?.price ?? selectedPlan.price).toFixed(2)}`}</Text>
             <Text style={styles.planDescription}>{selectedPlan.description || "Instant access with secure payment."}</Text>
           </View>
         ) : null}

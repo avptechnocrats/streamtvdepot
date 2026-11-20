@@ -4,18 +4,19 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { BackTitleHeader } from "@/components/common/BackTitleHeader";
 import { Screen } from "@/components/common/Screen";
+import { usePosterRadius } from "@/hooks/usePosterRadius";
 import { RootStackParamList } from "@/navigation/types";
 import { fetchPpvEvents, PpvEvent } from "@/services/ppvService";
 import { colors } from "@/theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PpvEvents">;
 
-function PpvCard({ event, onPress }: { event: PpvEvent; onPress: () => void }) {
+function PpvCard({ event, posterRadius, onPress }: { event: PpvEvent; posterRadius: number; onPress: () => void }) {
   const image = event.thumbnails.portrait || event.thumbnails.wide || event.thumbnails.banner;
 
   return (
     <Pressable style={styles.card} onPress={onPress}>
-      <View style={styles.posterWrap}>
+      <View style={[styles.posterWrap, { borderRadius: posterRadius }]}>
         {image ? <Image source={{ uri: image }} style={styles.poster} resizeMode="cover" /> : <View style={styles.posterFallback} />}
         <View style={[styles.badge, event.is_live ? styles.liveBadge : styles.ppvBadge]}>
           <MaterialCommunityIcons name={event.is_live ? "radio" : "ticket-outline"} size={12} color={event.is_live ? "#fff" : "#17120a"} />
@@ -29,6 +30,7 @@ function PpvCard({ event, onPress }: { event: PpvEvent; onPress: () => void }) {
 }
 
 export function PpvEventsScreen({ navigation }: Props) {
+  const posterRadius = usePosterRadius();
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["ppv-events"],
     queryFn: fetchPpvEvents,
@@ -36,7 +38,7 @@ export function PpvEventsScreen({ navigation }: Props) {
   });
 
   return (
-    <Screen>
+    <Screen scroll={false} contentStyle={styles.container}>
       <BackTitleHeader title="PPV Events" subtitle="Exclusive live events with one-time access" onBack={() => navigation.goBack()} />
       {isLoading ? <Text style={styles.status}>Loading events...</Text> : null}
       {!isLoading && !events.length ? (
@@ -52,7 +54,7 @@ export function PpvEventsScreen({ navigation }: Props) {
           keyExtractor={(event) => event.id}
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => <PpvCard event={item} onPress={() => navigation.navigate("PpvEventDetails", { eventId: item.id })} />}
+          renderItem={({ item }) => <PpvCard event={item} posterRadius={posterRadius} onPress={() => navigation.navigate("PpvEventDetails", { eventId: item.id })} />}
         />
       )}
     </Screen>
@@ -60,10 +62,11 @@ export function PpvEventsScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1 },
   list: { paddingTop: 16, paddingBottom: 24 },
   row: { gap: 12, marginBottom: 18 },
   card: { flex: 1, minWidth: 0 },
-  posterWrap: { aspectRatio: 2 / 3, borderRadius: 12, overflow: "hidden", backgroundColor: colors.surfaceMuted },
+  posterWrap: { aspectRatio: 2 / 3, overflow: "hidden", backgroundColor: colors.surfaceMuted },
   poster: { width: "100%", height: "100%" },
   posterFallback: { flex: 1, backgroundColor: colors.surfaceMuted },
   badge: { position: "absolute", top: 8, left: 8, borderRadius: 5, paddingHorizontal: 7, paddingVertical: 4, flexDirection: "row", alignItems: "center", gap: 4 },

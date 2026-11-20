@@ -9,6 +9,7 @@ import { InputField } from "@/components/common/InputField";
 import { PrimaryButton } from "@/components/common/PrimaryButton";
 import { RootStackParamList } from "@/navigation/types";
 import { createTicket, fetchMyTickets } from "@/services/supportService";
+import { useAuthStore } from "@/store/authStore";
 import { colors } from "@/theme/colors";
 
 export function HelpScreen() {
@@ -16,8 +17,9 @@ export function HelpScreen() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
 
-  const { data } = useQuery({ queryKey: ["tickets"], queryFn: () => fetchMyTickets(1) });
+  const { data } = useQuery({ queryKey: ["tickets", userId], queryFn: () => fetchMyTickets(1), enabled: Boolean(userId) });
 
   const createMutation = useMutation({
     mutationFn: () => createTicket({ title, description, priority: "medium" }),
@@ -33,7 +35,7 @@ export function HelpScreen() {
   });
 
   return (
-    <Screen>
+    <Screen scroll={false} contentStyle={styles.container}>
       <BackTitleHeader
         title="Help and Support"
         onBack={() => {
@@ -44,21 +46,25 @@ export function HelpScreen() {
           navigation.navigate("Main", { screen: "Account" } as never);
         }}
       />
-      <View style={styles.form}>
-        <InputField label="Issue title" value={title} onChangeText={setTitle} />
-        <InputField label="Describe your issue" value={description} onChangeText={setDescription} multiline numberOfLines={4} />
-        <PrimaryButton
-          label={createMutation.isPending ? "Submitting..." : "Raise Ticket"}
-          onPress={() => createMutation.mutate()}
-          disabled={createMutation.isPending || !title || !description}
-        />
-      </View>
-
-      <Text style={styles.subHeading}>My Tickets</Text>
       <FlatList
         data={data?.items || []}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={(
+          <>
+            <View style={styles.form}>
+              <InputField label="Issue title" value={title} onChangeText={setTitle} />
+              <InputField label="Describe your issue" value={description} onChangeText={setDescription} multiline numberOfLines={4} />
+              <PrimaryButton
+                label={createMutation.isPending ? "Submitting..." : "Raise Ticket"}
+                onPress={() => createMutation.mutate()}
+                disabled={createMutation.isPending || !title || !description}
+              />
+            </View>
+            <Text style={styles.subHeading}>My Tickets</Text>
+          </>
+        )}
         renderItem={({ item }) => (
           <View style={styles.ticket}>
             <Text style={styles.ticketTitle}>{item.title}</Text>
@@ -71,6 +77,7 @@ export function HelpScreen() {
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1 },
   form: { gap: 10, marginTop: 14 },
   subHeading: { color: colors.textPrimary, fontSize: 18, fontWeight: "700", marginTop: 24 },
   list: { gap: 10, paddingTop: 10, paddingBottom: 30 },

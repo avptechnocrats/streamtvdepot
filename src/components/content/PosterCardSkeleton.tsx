@@ -1,5 +1,6 @@
 import { StyleSheet, View } from "react-native";
 import { SkeletonBlock } from "@/components/common/SkeletonBlock";
+import { usePosterRadius } from "@/hooks/usePosterRadius";
 import { colors } from "@/theme/colors";
 
 interface PosterCardSkeletonProps {
@@ -8,8 +9,9 @@ interface PosterCardSkeletonProps {
 }
 
 export function PosterCardSkeleton({ showMeta = true, variant = "portrait" }: PosterCardSkeletonProps) {
+  const posterRadius = usePosterRadius();
   return (
-    <View style={[styles.card, variant === "landscape" && styles.cardLandscape, variant === "wider-landscape" && styles.cardWideLandscape, variant === "square" && styles.cardSquare]}>
+    <View style={[styles.card, variant === "landscape" && styles.cardLandscape, variant === "wider-landscape" && styles.cardWideLandscape, variant === "square" && styles.cardSquare, { borderRadius: posterRadius }]}>
       <SkeletonBlock style={[styles.poster, variant === "landscape" && styles.posterLandscape, variant === "wider-landscape" && styles.posterWideLandscape, variant === "square" && styles.posterSquare]} />
       {showMeta ? (
         <View style={styles.meta}>
@@ -24,12 +26,11 @@ export function PosterCardSkeleton({ showMeta = true, variant = "portrait" }: Po
 const styles = StyleSheet.create({
   card: {
     width: 154,
-    borderRadius: 14,
     overflow: "hidden",
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    marginRight: 12,
+    marginRight: 8,
   },
   poster: {
     width: "100%",
@@ -37,7 +38,7 @@ const styles = StyleSheet.create({
   },
   cardLandscape: { width: 220 },
   cardWideLandscape: { width: 270 },
-  cardSquare: { width: 94, borderRadius: 6 },
+  cardSquare: { width: 94 },
   posterLandscape: { height: 124 },
   posterWideLandscape: { height: 152 },
   posterSquare: { height: 94 },

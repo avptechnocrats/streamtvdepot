@@ -1,5 +1,7 @@
 import { PropsWithChildren } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { BrandLogo } from "@/components/common/BrandLogo";
 import { Screen } from "@/components/common/Screen";
 import { colors } from "@/theme/colors";
@@ -8,14 +10,28 @@ interface AuthScreenShellProps extends PropsWithChildren {
   title?: string;
   subtitle?: string;
   compact?: boolean;
+  onHomePress?: () => void;
 }
 
-export function AuthScreenShell({ title, subtitle, compact = false, children }: AuthScreenShellProps) {
+export function AuthScreenShell({ title, subtitle, compact = false, onHomePress, children }: AuthScreenShellProps) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <Screen scroll={false} contentStyle={styles.screenContent}>
+    <Screen scroll={false} contentStyle={[styles.screenContent, { paddingBottom: 12 + insets.bottom }]}>
       <View style={styles.backdropTop} />
       <View style={styles.backdropBottom} />
       <View style={[styles.topArea, compact && styles.topAreaCompact]}>
+        {onHomePress ? (
+          <Pressable
+            accessibilityLabel="Return to home"
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={onHomePress}
+            style={styles.homeButton}
+          >
+            <MaterialCommunityIcons name="home-outline" size={24} color={colors.textPrimary} />
+          </Pressable>
+        ) : null}
         <View style={styles.glowPrimary} />
         <BrandLogo size="auth" />
       </View>
@@ -65,6 +81,20 @@ const styles = StyleSheet.create({
   },
   topAreaCompact: {
     paddingTop: 16,
+  },
+  homeButton: {
+    position: "absolute",
+    top: 2,
+    left: 4,
+    zIndex: 1,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.05)",
   },
   contentArea: {
     flex: 1,

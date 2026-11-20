@@ -6,14 +6,16 @@ import { BackTitleHeader } from "@/components/common/BackTitleHeader";
 import { Screen } from "@/components/common/Screen";
 import { fetchMyTransactions } from "@/services/historyService";
 import { RootStackParamList } from "@/navigation/types";
+import { useAuthStore } from "@/store/authStore";
 import { colors } from "@/theme/colors";
 
 export function TransactionsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { data = [] } = useQuery({ queryKey: ["transactions"], queryFn: () => fetchMyTransactions({ page: 1, page_size: 30 }) });
+  const userId = useAuthStore((state) => state.user?.id);
+  const { data = [] } = useQuery({ queryKey: ["transactions", userId], queryFn: () => fetchMyTransactions({ page: 1, page_size: 30 }), enabled: Boolean(userId) });
 
   return (
-    <Screen>
+    <Screen scroll={false} contentStyle={styles.container}>
       <BackTitleHeader
         title="Transactions"
         onBack={() => {
@@ -42,6 +44,7 @@ export function TransactionsScreen() {
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1 },
   list: { gap: 10, paddingTop: 14, paddingBottom: 28 },
   item: {
     borderWidth: 1,

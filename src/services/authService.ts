@@ -8,6 +8,13 @@ interface AuthResponse {
   user?: UserProfile;
 }
 
+export interface SignupResponse {
+  verification_required: boolean;
+  verification_email_sent: boolean;
+  email: string | null;
+  message: string;
+}
+
 export interface LoginPayload {
   identifier: string;
   password: string;
@@ -27,11 +34,36 @@ export async function login({ identifier, password, mode }: LoginPayload): Promi
   return data;
 }
 
-export async function signup(fullName: string, email: string, password: string): Promise<AuthResponse> {
-  const { data } = await apiClient.post<AuthResponse>("/auth/user/signup", {
+export async function signup(fullName: string, email: string, password: string): Promise<SignupResponse> {
+  const { data } = await apiClient.post<SignupResponse>("/auth/user/signup", {
     full_name: fullName,
     email,
     password,
+    client_slug: clientConfig.slug,
+  });
+  return data;
+}
+
+export interface VerifyEmailResponse {
+  verified: boolean;
+  message: string;
+  access_token?: string;
+  refresh_token?: string;
+  user?: UserProfile;
+}
+
+export async function verifyEmail(email: string, otp: string): Promise<VerifyEmailResponse> {
+  const { data } = await apiClient.post<VerifyEmailResponse>("/auth/user/verify-email", {
+    email,
+    otp,
+    client_slug: clientConfig.slug,
+  });
+  return data;
+}
+
+export async function resendVerification(email: string): Promise<{ message: string }> {
+  const { data } = await apiClient.post<{ message: string }>("/auth/user/resend-verification", {
+    email,
     client_slug: clientConfig.slug,
   });
   return data;

@@ -38,7 +38,10 @@ publicApiClient.interceptors.request.use((config) => {
 export const apiClient = axios.create({
   baseURL: env.apiBaseUrl,
   timeout: 15000,
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    "X-Client-Platform": "mobile",
+  },
 });
 
 apiClient.interceptors.request.use((config) => {

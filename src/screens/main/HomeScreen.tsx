@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    marginRight: 8,
     overflow: "hidden",
     backgroundColor: colors.surface,
     borderRadius: 6,

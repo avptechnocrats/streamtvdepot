@@ -83,7 +83,7 @@ export function LoginScreen({ navigation }: Props) {
   };
 
   return (
-    <AuthScreenShell compact>
+    <AuthScreenShell compact onHomePress={() => navigation.getParent()?.navigate("Main", { screen: "Home" } as never)}>
       <View style={styles.content}>
         <View style={styles.segmentedControl}>
           <Pressable onPress={() => switchMode("email")} style={[styles.segment, mode === "email" && styles.segmentActive]}>

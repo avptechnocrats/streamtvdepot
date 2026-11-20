@@ -9,13 +9,14 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { PageTitleHeader } from "@/components/common/PageTitleHeader";
 import { Screen } from "@/components/common/Screen";
 import { SkeletonBlock } from "@/components/common/SkeletonBlock";
+import { usePosterRadius } from "@/hooks/usePosterRadius";
 import { RootStackParamList } from "@/navigation/types";
 import { getWatchlist, removeFromWatchlist } from "@/services/watchlistService";
 import { useAuthStore } from "@/store/authStore";
 import { colors } from "@/theme/colors";
 import { WatchlistItem } from "@/types/models";
 
-function WatchlistCard({ item, width, onOpen, onRemove, removing }: { item: WatchlistItem; width: number; onOpen: () => void; onRemove: () => void; removing: boolean }) {
+function WatchlistCard({ item, width, posterRadius, onOpen, onRemove, removing }: { item: WatchlistItem; width: number; posterRadius: number; onOpen: () => void; onRemove: () => void; removing: boolean }) {
   const image = typeof item.thumbnail_url === "string" && item.thumbnail_url.trim() && !/^(null|undefined)$/i.test(item.thumbnail_url.trim())
     ? item.thumbnail_url.trim() : undefined;
   const [imageLoaded, setImageLoaded] = useState(!image);
@@ -31,7 +32,7 @@ function WatchlistCard({ item, width, onOpen, onRemove, removing }: { item: Watc
   return (
     <View style={[styles.cardWrap, { width }]}>
       <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Open ${item.title || "title"}`}>
-        <View style={styles.poster}>
+        <View style={[styles.poster, { borderRadius: posterRadius }]}>
           {image && !imageFailed ? (
             <Image source={{ uri: image }} style={styles.posterImage} resizeMode="cover" onLoadEnd={() => setImageLoaded(true)} onError={() => { setImageFailed(true); setImageLoaded(true); }} />
           ) : <MaterialCommunityIcons name="movie-open-outline" size={32} color={colors.textSecondary} />}
@@ -58,6 +59,7 @@ function WatchlistCard({ item, width, onOpen, onRemove, removing }: { item: Watc
 export function WatchlistScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { width } = useWindowDimensions();
+  const posterRadius = usePosterRadius();
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.user?.id);
   const cardWidth = Math.max(0, (width - 44) / 2);
@@ -106,7 +108,7 @@ export function WatchlistScreen() {
         <View style={styles.grid}>
           {Array.from({ length: 6 }).map((_, index) => (
             <View key={`watchlist-skeleton-${index}`} style={{ width: cardWidth }}>
-              <SkeletonBlock style={styles.skeletonPoster} />
+              <SkeletonBlock style={[styles.skeletonPoster, { borderRadius: posterRadius }]} />
               <SkeletonBlock style={styles.skeletonTitle} />
               <SkeletonBlock style={styles.skeletonType} />
             </View>
@@ -133,6 +135,7 @@ export function WatchlistScreen() {
             <WatchlistCard
               item={item}
               width={cardWidth}
+              posterRadius={posterRadius}
               onOpen={() => {
                 if (item.content_type === "series") navigation.navigate("SeriesDetails", { seriesId: item.video_id });
                 else if (item.content_type === "live_stream") navigation.navigate("LiveTvChannel", { channelId: item.video_id });
@@ -157,8 +160,8 @@ const styles = StyleSheet.create({
   list: { paddingTop: 14, paddingBottom: 26 },
   row: { gap: 12, marginBottom: 20 },
   cardWrap: { minWidth: 0 },
-  poster: { width: "100%", aspectRatio: 2 / 3, borderRadius: 6, overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceMuted },
-  skeletonPoster: { width: "100%", aspectRatio: 2 / 3, borderRadius: 6 },
+  poster: { width: "100%", aspectRatio: 2 / 3, overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceMuted },
+  skeletonPoster: { width: "100%", aspectRatio: 2 / 3 },
   skeletonTitle: { width: "75%", height: 14, marginTop: 8, borderRadius: 3 },
   skeletonType: { width: "38%", height: 12, marginTop: 6, borderRadius: 3 },
   posterImage: { width: "100%", height: "100%" },

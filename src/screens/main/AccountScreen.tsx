@@ -82,7 +82,7 @@ export function AccountScreen() {
 
   const preferenceRows: AccountRow[] = [
     { label: "Display Language", icon: "translate", rightText: "English" },
-    { label: "Downloads", icon: "download-outline", onPress: () => navigation.navigate("Downloads") },
+    { label: "Downloads", icon: "download-outline", onPress: () => navigation.getParent<NativeStackNavigationProp<RootStackParamList>>()?.navigate("Downloads") },
     { label: "Video playback settings", icon: "play-circle-outline", rightText: "Coming soon" },
   ];
 
@@ -130,8 +130,8 @@ export function AccountScreen() {
               </View>
             </View>
             <SectionCard title="Explore" rows={[
-              { label: "Watchlist", icon: "heart-outline", onPress: () => navigation.navigate("Watchlist") },
-              { label: "Downloads", icon: "download-outline", onPress: () => navigation.navigate("Downloads") },
+              { label: "Watchlist", icon: "heart-outline", onPress: () => navigation.getParent<NativeStackNavigationProp<RootStackParamList>>()?.navigate("Watchlist") },
+              { label: "Downloads", icon: "download-outline", onPress: () => navigation.getParent<NativeStackNavigationProp<RootStackParamList>>()?.navigate("Downloads") },
               { label: "PPV Events", icon: "ticket-outline", onPress: () => navigation.navigate("PpvEvents") },
             ]} />
           </>

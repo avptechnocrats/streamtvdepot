@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { MainTabParamList } from "@/navigation/types";
 import { HomeScreen, HomeFilter } from "@/screens/main/HomeScreen";
@@ -13,6 +14,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export function MainTabs() {
   const [activeFilter, setActiveFilter] = useState<HomeFilter | null>(null);
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -35,8 +37,8 @@ export function MainTabs() {
         tabBarStyle: {
           backgroundColor: colors.backgroundElevated,
           borderTopColor: colors.border,
-          height: 58,
-          paddingBottom: 15,
+          height: 58 + insets.bottom,
+          paddingBottom: 8 + insets.bottom,
           paddingTop: 6,
         },
       })}
