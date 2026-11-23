@@ -1,6 +1,6 @@
 import publicApiClient from "./public-client";
 
-export type BannerPage = "/" | "/movies" | "/series" | "/tv-shows" | "/ppv-events";
+export type BannerPage = "/" | "/movies" | "/series" | "/tv-shows" | "/ppv-events" | "/on-demand";
 export type BannerPosition = "top" | "middle_1" | "middle_2" | "bottom";
 export type BannerSize = "custom" | "desktop" | "tablet" | "mobile";
 
