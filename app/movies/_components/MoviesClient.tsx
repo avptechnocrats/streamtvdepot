@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { Film } from "lucide-react";
 
 import { useTheme } from "@/hooks/use-theme";
-import { fetchHomeVideoRows, type HomeCategoryRow, type HomeVideoItem } from "@/lib/services";
+import { fetchHomeVideoRows, matchesAccessType, type HomeCategoryRow, type HomeVideoItem } from "@/lib/services";
 import ContentRowSkeleton from "@/components/ContentRowSkeleton";
 import ManagedBannerSlot from "@/components/ManagedBannerSlot";
+import type { BannerPage } from "@/lib/services/banners";
 import TopTenRow from "@/components/TopTenRow";
 import NewReleasesRow from "@/components/NewReleasesRow";
 import FeaturedRow from "@/components/FeaturedRow";
@@ -62,9 +63,21 @@ function mapRowToMovies(row: HomeCategoryRow): Movie[] {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function MoviesClient({ contentClassification = "Movie", pageTitle = "Movies" }: { contentClassification?: string; pageTitle?: string }) {
+export default function MoviesClient({
+    contentClassification,
+    pageTitle = "Movies",
+    accessType,
+}: {
+    contentClassification?: string;
+    pageTitle?: string;
+    accessType?: string;
+}) {
     const { activeTheme } = useTheme();
     const { Banner, ContentRow } = activeTheme.components;
+
+    const effectiveClassification = contentClassification !== undefined
+        ? contentClassification
+        : (accessType ? undefined : "Movie");
 
     const [rows, setRows] = useState<HomeCategoryRow[]>([]);
     const [page, setPage] = useState(1);
@@ -75,18 +88,32 @@ export default function MoviesClient({ contentClassification = "Movie", pageTitl
         async function loadPage() {
             setLoading(true);
             try {
-                const data = await fetchHomeVideoRows({ page, contentType: "video", contentClassification });
+                const data = await fetchHomeVideoRows({
+                    page,
+                    pageSize: accessType ? 15 : 3,
+                    contentType: "video",
+                    contentClassification: effectiveClassification,
+                });
                 if (!cancelled) {
-                    const movieRows = data.rows.filter(row => row.content_type === "video").map(row => {
-                        const items = row.items.filter(item => item.content_classification === contentClassification);
-                        for (let index = items.length - 1; index > 0; index--) {
-                            const randomIndex = Math.floor(Math.random() * (index + 1));
-                            [items[index], items[randomIndex]] = [items[randomIndex], items[index]];
-                        }
-                        return { ...row, items };
-                    }).filter(row => row.items.length > 0);
+                    const movieRows = data.rows
+                        .filter(row => row.content_type === "video")
+                        .map(row => {
+                            const items = row.items.filter(item => {
+                                const matchesClassification = !effectiveClassification || item.content_classification === effectiveClassification;
+                                return matchesClassification && matchesAccessType(item.access_type, accessType);
+                            });
+                            for (let index = items.length - 1; index > 0; index--) {
+                                const randomIndex = Math.floor(Math.random() * (index + 1));
+                                [items[index], items[randomIndex]] = [items[randomIndex], items[index]];
+                            }
+                            return { ...row, items };
+                        })
+                        .filter(row => row.items.length > 0);
                     setRows((prev) => (page === 1 ? movieRows : [...prev, ...movieRows]));
                     setHasMore(data.has_more);
+                    if (movieRows.length === 0 && data.has_more) {
+                        setPage((p) => p + 1);
+                    }
                 }
             } finally {
                 if (!cancelled) setLoading(false);
@@ -94,7 +121,7 @@ export default function MoviesClient({ contentClassification = "Movie", pageTitl
         }
         loadPage();
         return () => { cancelled = true; };
-    }, [page, contentClassification]);
+    }, [page, effectiveClassification, accessType]);
 
     // Infinite scroll sentinel
     const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -111,15 +138,21 @@ export default function MoviesClient({ contentClassification = "Movie", pageTitl
     }, [hasMore, loading]);
 
     const isInitialLoad = rows.length === 0 && loading;
+    const bannerPage: BannerPage = pageTitle === "On Demand" ? "/on-demand" : "/movies";
+    const showBanners = pageTitle === "Movies" || pageTitle === "On Demand";
 
     return (
         <>
             {/* Hero Banner */}
             <Banner />
-            <TopTenRow contentClassification={contentClassification} title={pageTitle === "Sports" ? "Top Rated Sports" : "Top 10 Movies of the Month"} />
-            <NewReleasesRow contentClassification={contentClassification} />
-            <FeaturedRow contentClassification={contentClassification} />
-            {pageTitle === "Movies" && <ManagedBannerSlot page="/movies" position="top" />}
+            <TopTenRow
+                contentClassification={effectiveClassification}
+                accessType={accessType}
+                title={pageTitle === "Sports" ? "Top Rated Sports" : pageTitle === "On Demand" ? "Top 10 on Demand" : "Top 10 Movies of the Month"}
+            />
+            <NewReleasesRow contentClassification={effectiveClassification} accessType={accessType} />
+            <FeaturedRow contentClassification={effectiveClassification} accessType={accessType} />
+            {showBanners && <ManagedBannerSlot page={bannerPage} position="top" />}
 
             {/* Content rows */}
             <div className={`space-y-10 py-10 ${activeTheme.id === "ember" ? "" : "lg:px-8"}`}>
@@ -136,8 +169,8 @@ export default function MoviesClient({ contentClassification = "Movie", pageTitl
                         <p className="text-lg font-medium">No {pageTitle.toLowerCase()} available yet</p>
                         <p className="text-sm opacity-70">Check back soon for new content.</p>
                     </div>
-                    {pageTitle === "Movies" && <ManagedBannerSlot page="/movies" position="middle_1" />}
-                    {pageTitle === "Movies" && <ManagedBannerSlot page="/movies" position="middle_2" />}
+                    {showBanners && <ManagedBannerSlot page={bannerPage} position="middle_1" />}
+                    {showBanners && <ManagedBannerSlot page={bannerPage} position="middle_2" />}
                     </>
                 ) : (
                     <>
@@ -149,9 +182,9 @@ export default function MoviesClient({ contentClassification = "Movie", pageTitl
                                 variant={getRowVariant(row.thumbnail_view)}
                             />
                         ))}
-                        {pageTitle === "Movies" && <ManagedBannerSlot page="/movies" position="middle_1" />}
+                        {showBanners && <ManagedBannerSlot page={bannerPage} position="middle_1" />}
                         {rows.slice(1, 3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant={getRowVariant(row.thumbnail_view)} />)}
-                        {pageTitle === "Movies" && <ManagedBannerSlot page="/movies" position="middle_2" />}
+                        {showBanners && <ManagedBannerSlot page={bannerPage} position="middle_2" />}
                         {rows.slice(3).map((row) => <ContentRow key={row.category_id} title={row.category_name} movies={mapRowToMovies(row)} variant={getRowVariant(row.thumbnail_view)} />)}
                         {loading && (
                             <>
@@ -163,7 +196,7 @@ export default function MoviesClient({ contentClassification = "Movie", pageTitl
                 )}
             </div>
             {hasMore && !isInitialLoad && <div ref={sentinelRef} style={{ height: 1 }} />}
-            {pageTitle === "Movies" && <ManagedBannerSlot page="/movies" position="bottom" />}
+            {showBanners && <ManagedBannerSlot page={bannerPage} position="bottom" />}
         </>
     );
 }

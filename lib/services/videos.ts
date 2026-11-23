@@ -38,6 +38,20 @@ export type CrewRole = (typeof CREW_ROLES)[number];
 export const ACCESS_TYPES = ["free", "subscription", "pay_per_view", "rental"] as const;
 export type AccessType = (typeof ACCESS_TYPES)[number];
 
+export function matchesAccessType(itemAccess?: string | null, targetAccess?: string | null): boolean {
+    if (!targetAccess) return true;
+    if (!itemAccess) return false;
+    const item = itemAccess.toLowerCase();
+    const target = targetAccess.toLowerCase();
+    if (target === "rental" || target === "rent") {
+        return item === "rental" || item === "rent";
+    }
+    if (target === "pay_per_view" || target === "ppv") {
+        return item === "pay_per_view" || item === "ppv";
+    }
+    return item === target;
+}
+
 export const TRAILER_TYPES = ["upload", "url"] as const;
 export type TrailerType = (typeof TRAILER_TYPES)[number];
 
