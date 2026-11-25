@@ -18,7 +18,10 @@ export interface HomeVideoItem {
     age_rating?: string | null;
     duration?: number | null;
     content_classification?: string | null;
+    short_description?: string | null;
+    description?: string | null;
     access_type?: string | null;
+    subscription_plan_ids?: string[];
     video_display_url?: string | null;
     hls_url?: string | null;
     hls_display_url?: string | null;

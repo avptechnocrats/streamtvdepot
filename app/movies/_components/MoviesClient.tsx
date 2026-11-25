@@ -47,11 +47,14 @@ function mapMovie(item: HomeVideoItem, landscape = false, categories = item.cate
         ageRating: item.age_rating,
         duration: item.duration,
         classification: item.content_classification,
+        description: item.short_description || item.description,
         previewImage: item.thumbnails.video_banner || item.thumbnails.video_w_thumbnail || getItemImage(item),
         videoUrl: item.video_display_url,
         hlsUrl: item.hls_display_url || item.hls_url,
         trailerUrl: item.trailer_display_url,
         trailerHlsUrl: item.trailer_hls_url,
+        accessType: item.access_type,
+        subscriptionPlanIds: item.subscription_plan_ids,
     };
 }
 

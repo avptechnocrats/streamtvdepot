@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type PointerEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { BannerTrailer, useBannerAutoplay } from "@/components/BannerTrailer";
 import BannerTitle from "@/components/BannerTitle";
 import { useBannerVideos } from "@/hooks/use-banner-videos";
@@ -20,7 +21,9 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { useUserPrefs } from "@/hooks/use-user-prefs";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
+import { matchesAccessType } from "@/lib/services/videos";
 import { addToWatchlist, getWatchlist, removeFromWatchlist } from "@/lib/services/watchlist";
+import { useVideoRentalPrice } from "@/hooks/use-rental-pricing";
 
 const HERO_HEIGHT = "h-[480px] sm:h-[540px] lg:h-[clamp(600px,65svh,720px)]";
 
@@ -40,6 +43,19 @@ function EmptyBanner() {
                 </div>
             </div>
         </section>
+    );
+}
+
+function RentalBannerCTA({ slide }: { slide: import("@/hooks/use-banner-videos").BannerSlide }) {
+    const rentalPrice = useVideoRentalPrice(slide.raw?.subscription_plan_ids, slide.raw?.ppv_price);
+    return (
+        <Link
+            href={`/movies/${slide.id}?play=true`}
+            className="inline-flex flex-col justify-center h-12 px-5 rounded-md text-white bg-[image:var(--ember-gradient)] hover:brightness-110 transition shadow-lg leading-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+        >
+            <span className="text-xs font-medium text-white/90">Rent</span>
+            <span className="text-sm sm:text-base font-bold text-white tracking-wide">{rentalPrice.formatted}</span>
+        </Link>
     );
 }
 
@@ -98,6 +114,7 @@ export default function Banner() {
     const inList = watchlist.some(item => item.video_id === slide.id);
     const meta = [slide.year, slide.duration].filter(Boolean);
     const shadow = { textShadow: "0 2px 12px rgba(0,0,0,0.8)" };
+    const isRental = matchesAccessType(slide.raw?.access_type, "rental");
 
     return (
         <section className="bg-background">
@@ -155,38 +172,83 @@ export default function Banner() {
                             </p>
                         )}
                         <div className="flex flex-wrap items-center gap-3 pt-2">
-                            <Link
-                                href={`/movies/${slide.id}?play=true`}
-                                className="inline-flex items-center justify-center gap-2.5 h-12 px-5 sm:px-7 rounded-md text-base font-semibold text-white bg-[image:var(--ember-gradient)] hover:brightness-110 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
-                            >
-                                <Play size={20} fill="currentColor" aria-hidden="true" /> Play Now
-                            </Link>
-                            <button
-                                type="button"
-                                aria-label={inList ? "Remove from My List" : "Add to My List"}
-                                aria-pressed={inList}
-                                title={inList ? "Remove from My List" : "Add to My List"}
-                                disabled={toggleList.isPending}
-                                onClick={() => {
-                                    if (!user) {
-                                        router.push("/login");
-                                        return;
-                                    }
-                                    toggleList.mutate({ videoId: slide.id, remove: inList });
-                                }}
-                                className="group/action inline-flex shrink-0 items-center gap-2.5 h-12 w-12 sm:hover:w-[136px] sm:focus-visible:w-[136px] overflow-hidden px-[13px] rounded-md text-base font-semibold text-white bg-white/15 border border-white/20 backdrop-blur-sm hover:bg-white/25 transition-[width,background-color] duration-300 ease-out motion-reduce:transition-none disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
-                            >
-                                {inList ? <Check size={20} className="shrink-0" aria-hidden="true" /> : <Plus size={20} className="shrink-0" aria-hidden="true" />}
-                                <span className="whitespace-nowrap opacity-0 sm:group-hover/action:opacity-100 sm:group-focus-visible/action:opacity-100 transition-opacity duration-200 motion-reduce:transition-none">My List</span>
-                            </button>
-                            <Link
-                                href={`/movies/${slide.id}`}
-                                aria-label="More Info"
-                                title="More Info"
-                                className="group/action inline-flex shrink-0 items-center gap-2.5 h-12 w-12 sm:hover:w-[152px] sm:focus-visible:w-[152px] overflow-hidden px-[13px] rounded-md text-base font-semibold text-white bg-white/15 border border-white/20 backdrop-blur-sm hover:bg-white/25 transition-[width,background-color] duration-300 ease-out motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
-                            >
-                                <Info size={20} className="shrink-0" aria-hidden="true" /> <span className="whitespace-nowrap opacity-0 sm:group-hover/action:opacity-100 sm:group-focus-visible/action:opacity-100 transition-opacity duration-200 motion-reduce:transition-none">More Info</span>
-                            </Link>
+                            {isRental ? (
+                                <>
+                                    <RentalBannerCTA slide={slide} />
+                                    <Tooltip delayDuration={150}>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                type="button"
+                                                aria-label={inList ? "Remove from My List" : "Add to My List"}
+                                                aria-pressed={inList}
+                                                disabled={toggleList.isPending}
+                                                onClick={() => {
+                                                    if (!user) {
+                                                        router.push("/login");
+                                                        return;
+                                                    }
+                                                    toggleList.mutate({ videoId: slide.id, remove: inList });
+                                                }}
+                                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15 border border-white/20 backdrop-blur-sm hover:bg-white/25 text-white shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+                                            >
+                                                {inList ? <Check size={20} aria-hidden="true" /> : <Plus size={20} aria-hidden="true" />}
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" sideOffset={8} className="border-white/15 bg-zinc-900/95 px-2.5 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-md">
+                                            {inList ? "Remove from My List" : "Add to My List"}
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip delayDuration={150}>
+                                        <TooltipTrigger asChild>
+                                            <Link
+                                                href={`/movies/${slide.id}`}
+                                                aria-label="More Info"
+                                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15 border border-white/20 backdrop-blur-sm hover:bg-white/25 text-white shadow-lg transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+                                            >
+                                                <Info size={20} aria-hidden="true" />
+                                            </Link>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" sideOffset={8} className="border-white/15 bg-zinc-900/95 px-2.5 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-md">
+                                            More Info
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </>
+                            ) : (
+                                <>
+                                    <Link
+                                        href={`/movies/${slide.id}?play=true`}
+                                        className="inline-flex items-center justify-center gap-2.5 h-12 px-5 sm:px-7 rounded-md text-base font-semibold text-white bg-[image:var(--ember-gradient)] hover:brightness-110 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+                                    >
+                                        <Play size={20} fill="currentColor" aria-hidden="true" /> Play Now
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        aria-label={inList ? "Remove from My List" : "Add to My List"}
+                                        aria-pressed={inList}
+                                        title={inList ? "Remove from My List" : "Add to My List"}
+                                        disabled={toggleList.isPending}
+                                        onClick={() => {
+                                            if (!user) {
+                                                router.push("/login");
+                                                return;
+                                            }
+                                            toggleList.mutate({ videoId: slide.id, remove: inList });
+                                        }}
+                                        className="group/action inline-flex shrink-0 items-center gap-2.5 h-12 w-12 sm:hover:w-[136px] sm:focus-visible:w-[136px] overflow-hidden px-[13px] rounded-md text-base font-semibold text-white bg-white/15 border border-white/20 backdrop-blur-sm hover:bg-white/25 transition-[width,background-color] duration-300 ease-out motion-reduce:transition-none disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+                                    >
+                                        {inList ? <Check size={20} className="shrink-0" aria-hidden="true" /> : <Plus size={20} className="shrink-0" aria-hidden="true" />}
+                                        <span className="whitespace-nowrap opacity-0 sm:group-hover/action:opacity-100 sm:group-focus-visible/action:opacity-100 transition-opacity duration-200 motion-reduce:transition-none">My List</span>
+                                    </button>
+                                    <Link
+                                        href={`/movies/${slide.id}`}
+                                        aria-label="More Info"
+                                        title="More Info"
+                                        className="group/action inline-flex shrink-0 items-center gap-2.5 h-12 w-12 sm:hover:w-[152px] sm:focus-visible:w-[152px] overflow-hidden px-[13px] rounded-md text-base font-semibold text-white bg-white/15 border border-white/20 backdrop-blur-sm hover:bg-white/25 transition-[width,background-color] duration-300 ease-out motion-reduce:transition-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+                                    >
+                                        <Info size={20} className="shrink-0" aria-hidden="true" /> <span className="whitespace-nowrap opacity-0 sm:group-hover/action:opacity-100 sm:group-focus-visible/action:opacity-100 transition-opacity duration-200 motion-reduce:transition-none">More Info</span>
+                                    </Link>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>

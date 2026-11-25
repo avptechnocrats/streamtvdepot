@@ -8,6 +8,9 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useUserPrefs } from "@/hooks/use-user-prefs";
 import type { ContentRowProps, Movie } from "@/types/content";
 import { VideoHoverPreview, WIDER_LANDSCAPE_CARD_WIDTH } from "@/components/VideoHoverPreview";
+import RentBadge from "@/components/RentBadge";
+import TrailerIcon from "@/components/TrailerIcon";
+import { matchesAccessType } from "@/lib/services/videos";
 
 const GENRES = ["Action", "Drama", "Thriller", "Sci-Fi", "Mystery", "Adventure"];
 const DESCS = [
@@ -19,10 +22,11 @@ const DESCS = [
 
 
 function DefaultCard({ movie, i, widerLandscape }: { movie: Movie; i: number; widerLandscape: boolean }) {
+  const isRental = matchesAccessType(movie.accessType, "rental");
   return (
     <Link
       key={movie.id || `${movie.title}-${i}`}
-      href={movie.id ? `/movies/${movie.id}` : "#"}
+      href={movie.id ? (isRental ? `/movies/${movie.id}?trailer=true` : `/movies/${movie.id}`) : "#"}
       className={`content-card flex-shrink-0 group/card cursor-pointer ${widerLandscape ? WIDER_LANDSCAPE_CARD_WIDTH : ""}`}
       tabIndex={0}
     >
@@ -35,9 +39,14 @@ function DefaultCard({ movie, i, widerLandscape }: { movie: Movie; i: number; wi
           sizes={widerLandscape ? "(min-width: 1024px) 640px, (min-width: 640px) 600px, 560px" : "(max-width: 640px) 50vw, 170px"}
         />
         {widerLandscape && <VideoHoverPreview src={movie.videoUrl} hlsSrc={movie.hlsUrl} />}
+        {isRental && <RentBadge variant="icon" />}
         <div className="absolute inset-0 bg-background/0 group-hover/card:bg-background/40 transition-colors flex items-center justify-center">
-          <div className="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-all scale-75 group-hover/card:scale-100">
-            <Play size={20} className="text-primary-foreground ml-0.5" fill="currentColor" />
+          <div className={`w-12 h-12 rounded-full ${isRental ? "bg-black/70 border border-white/20 text-white" : "bg-primary/90 text-primary-foreground"} flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-all scale-75 group-hover/card:scale-100`}>
+            {isRental ? (
+              <TrailerIcon className="w-5 h-5 text-white" />
+            ) : (
+              <Play size={20} className="text-primary-foreground ml-0.5" fill="currentColor" />
+            )}
           </div>
         </div>
       </div>
@@ -54,11 +63,12 @@ function DefaultCard({ movie, i, widerLandscape }: { movie: Movie; i: number; wi
 
 function DetailedCard({ movie, i, widerLandscape }: { movie: Movie; i: number; widerLandscape: boolean }) {
   const genre = GENRES[i % GENRES.length];
-  const desc = DESCS[i % DESCS.length];
+  const desc = movie.description || DESCS[i % DESCS.length];
+  const isRental = matchesAccessType(movie.accessType, "rental");
   return (
     <Link
       key={movie.id || `${movie.title}-${i}`}
-      href={movie.id ? `/movies/${movie.id}` : "#"}
+      href={movie.id ? (isRental ? `/movies/${movie.id}?trailer=true` : `/movies/${movie.id}`) : "#"}
       className={`content-card flex-shrink-0 group/card cursor-pointer ${widerLandscape ? WIDER_LANDSCAPE_CARD_WIDTH : ""}`}
       tabIndex={0}
     >
@@ -71,6 +81,7 @@ function DetailedCard({ movie, i, widerLandscape }: { movie: Movie; i: number; w
           sizes={widerLandscape ? "(min-width: 1024px) 640px, (min-width: 640px) 600px, 560px" : "(max-width: 640px) 50vw, 170px"}
         />
         {widerLandscape && <VideoHoverPreview src={movie.videoUrl} hlsSrc={movie.hlsUrl} />}
+        {isRental && <RentBadge variant="icon" />}
 
         {/* Detailed overlay — slides up on hover */}
         <div className="absolute inset-0 flex flex-col justify-end translate-y-full group-hover/card:translate-y-0 transition-transform duration-300 ease-out">
@@ -78,10 +89,13 @@ function DetailedCard({ movie, i, widerLandscape }: { movie: Movie; i: number; w
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-transparent" />
 
           <div className="relative p-3 space-y-2">
-            {/* Genre tag */}
-            <span className="inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 rounded-full">
-              {genre}
-            </span>
+            {/* Genre tag / Rent badge */}
+            <div className="flex items-center gap-2">
+              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 rounded-full">
+                {genre}
+              </span>
+              {isRental && <RentBadge variant="inline" />}
+            </div>
 
             {/* Title */}
             <p className="text-sm font-semibold text-foreground leading-snug line-clamp-2">{movie.title}</p>
@@ -99,10 +113,16 @@ function DetailedCard({ movie, i, widerLandscape }: { movie: Movie; i: number; w
 
             {/* Action buttons */}
             <div className="flex gap-2 pt-1">
-              <button className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
-                <Play size={11} fill="currentColor" /> Watch
-              </button>
-              <button className="p-1.5 rounded-md border border-border/60 text-muted-foreground hover:text-foreground hover:bg-surface-hover transition-colors">
+              {isRental ? (
+                <button className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-white/20 text-white text-xs font-semibold backdrop-blur-sm hover:bg-white/30 transition-colors">
+                  <TrailerIcon className="w-3.5 h-3.5" /> Trailer
+                </button>
+              ) : (
+                <button className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
+                  <Play size={11} fill="currentColor" /> Watch
+                </button>
+              )}
+              <button className={`p-1.5 rounded-md transition-colors ${isRental ? "bg-white/20 text-white backdrop-blur-sm hover:bg-white/30" : "border border-border/60 text-muted-foreground hover:text-foreground hover:bg-surface-hover"}`}>
                 <Plus size={14} />
               </button>
             </div>
