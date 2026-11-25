@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useUserPrefs } from "@/hooks/use-user-prefs";
 import { useBannerVideos, type BannerSlide } from "@/hooks/use-banner-videos";
+import { matchesAccessType } from "@/lib/services/videos";
 import { BannerSkeleton } from "@/components/BannerSkeleton";
 import { BannerTrailer, useBannerHover } from "@/components/BannerTrailer";
 import { useEffect, useState, useCallback } from "react";
@@ -13,12 +14,14 @@ import { useSiteSettings } from "@/hooks/use-site-settings";
 import { useAuth } from "@/hooks/use-auth";
 import { addToWatchlist, removeFromWatchlist, getWatchlist, type WatchlistItem } from "@/lib/services/watchlist";
 import { toast } from "@/hooks/use-toast";
+import { useVideoRentalPrice } from "@/hooks/use-rental-pricing";
 
 type SlideData = {
   id: string; image: string; badge: string; titleA: string; titleB: string;
   desc: string; match: string; year: string; formats: string[]; duration: string;
   trailerUrl: string | null;
   trailerHlsUrl: string | null;
+  raw?: import("@/lib/services").VideoOut;
 };
 
 /**
@@ -70,6 +73,7 @@ function mapToSlide(s: BannerSlide): SlideData {
     duration: s.duration,
     trailerUrl: s.trailerUrl,
     trailerHlsUrl: s.trailerHlsUrl,
+    raw: s.raw,
   };
 }
 
@@ -170,6 +174,19 @@ function SliderBanner({ slides, withTrailers = false }: { slides: SlideData[]; w
   );
 }
 
+function RentalBannerCTA({ slide }: { slide: SlideData }) {
+  const rentalPrice = useVideoRentalPrice(slide.raw?.subscription_plan_ids, slide.raw?.ppv_price);
+  return (
+    <Link
+      href={`/movies/${slide.id}?play=true`}
+      className="inline-flex flex-col justify-center h-12 px-5 rounded-md text-white bg-[image:var(--ember-gradient,linear-gradient(90deg,hsl(var(--primary)),hsl(var(--primary)/0.8)))] hover:brightness-110 transition shadow-lg leading-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+    >
+      <span className="text-xs font-medium text-white/90">Rent</span>
+      <span className="text-sm sm:text-base font-bold text-white tracking-wide">{rentalPrice.formatted}</span>
+    </Link>
+  );
+}
+
 function BannerContent({ slide }: { slide: SlideData }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -180,6 +197,7 @@ function BannerContent({ slide }: { slide: SlideData }) {
     staleTime: 60_000,
   });
   const isInWatchlist = watchlist.some((i) => i.video_id === slide.id);
+  const isRental = matchesAccessType(slide.raw?.access_type, "rental");
   const watchlistMutation = useMutation<void | WatchlistItem>({
     mutationFn: () => isInWatchlist ? removeFromWatchlist(slide.id) : addToWatchlist(slide.id),
     onSuccess: () => {
@@ -201,18 +219,46 @@ function BannerContent({ slide }: { slide: SlideData }) {
         {slide.desc}
       </p>
       <div className="flex items-center gap-3 animate-fade-in" style={{ animationDelay: "0.3s" }}>
-        <Link href={`/movies/${slide.id}?play=true`}>
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-6 py-3 h-auto text-base gap-2">
-            <Play size={18} fill="currentColor" /> Watch Now
-          </Button>
-        </Link>
-        <Button variant="outline" onClick={() => watchlistMutation.mutate()} disabled={watchlistMutation.isPending} className="bg-black/30 backdrop-blur-sm border-white/50 text-white hover:bg-white/15 font-medium px-5 py-3 h-auto text-base gap-2">
-          {watchlistMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : isInWatchlist ? <Check size={18} /> : <Plus size={18} />}
-          {isInWatchlist ? "In My List" : "My List"}
-        </Button>
-        <Button variant="ghost" className="text-white hover:text-white hover:bg-white/15 p-3 h-auto backdrop-blur-sm">
-          <Info size={18} />
-        </Button>
+        {isRental ? (
+          <>
+            <RentalBannerCTA slide={slide} />
+            <Button
+              variant="outline"
+              onClick={() => watchlistMutation.mutate()}
+              disabled={watchlistMutation.isPending}
+              aria-label={isInWatchlist ? "Remove from My List" : "Add to My List"}
+              className="h-12 w-12 rounded-full p-0 bg-zinc-800/90 hover:bg-zinc-700/90 text-white border-white/10 shadow-lg"
+            >
+              {watchlistMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : isInWatchlist ? <Check size={20} /> : <Plus size={20} />}
+            </Button>
+            <Link href={`/movies/${slide.id}`}>
+              <Button
+                variant="ghost"
+                aria-label="More Info"
+                className="h-12 w-12 rounded-full p-0 bg-zinc-800/90 hover:bg-zinc-700/90 text-white border border-white/10 shadow-lg"
+              >
+                <Info size={20} />
+              </Button>
+            </Link>
+          </>
+        ) : (
+          <>
+            <Link href={`/movies/${slide.id}?play=true`}>
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-6 py-3 h-auto text-base gap-2">
+                <Play size={18} fill="currentColor" /> Watch Now
+              </Button>
+            </Link>
+            <Button variant="outline" onClick={() => watchlistMutation.mutate()} disabled={watchlistMutation.isPending} className="bg-black/30 backdrop-blur-sm border-white/50 text-white hover:bg-white/15 font-medium px-5 py-3 h-auto text-base gap-2">
+              {watchlistMutation.isPending ? <Loader2 size={18} className="animate-spin" /> : isInWatchlist ? <Check size={18} /> : <Plus size={18} />}
+              {isInWatchlist ? "In My List" : "My List"}
+            </Button>
+            <Link href={`/movies/${slide.id}`}>
+              <Button variant="ghost" className="text-white hover:text-white hover:bg-white/15 p-3 h-auto backdrop-blur-sm">
+                <Info size={18} />
+              </Button>
+            </Link>
+          </>
+        )}
       </div>
       <div className="flex items-center gap-4 text-xs text-white animate-fade-in" style={{ animationDelay: "0.4s", textShadow }}>
         <span className="text-primary font-semibold drop-shadow-md">{slide.match} Match</span>

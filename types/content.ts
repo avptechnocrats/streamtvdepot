@@ -19,6 +19,10 @@ export interface Movie {
     trailerUrl?: string | null;
     trailerHlsUrl?: string | null;
     id?: string; // Add id for linking
+    description?: string | null;
+    accessType?: string | null;
+    subscriptionPlanIds?: string[];
+    rentalPrice?: number | null;
 }
 
 export interface ContentRowProps {

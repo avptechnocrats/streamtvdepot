@@ -23,6 +23,10 @@ import { BannerTrailer, useBannerAutoplay } from "@/components/BannerTrailer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import RentBadge from "@/components/RentBadge";
+import TrailerIcon from "@/components/TrailerIcon";
+import { matchesAccessType } from "@/lib/services/videos";
+import { useVideoRentalPrice } from "@/hooks/use-rental-pricing";
 
 // VideoPlayer uses video.js which requires browser APIs — disable SSR
 const ManagedVideoPlayer = dynamic(() => import("@/components/ManagedVideoPlayer"), { ssr: false });
@@ -110,8 +114,9 @@ function relatedImage(v: VideoOut): string {
 }
 
 function RelatedDefaultCard({ video }: { video: VideoOut }) {
+    const isRental = matchesAccessType(video.access_type, "rental");
     return (
-        <Link href={`/movies/${video.id}`} className="content-card flex-shrink-0 group/card cursor-pointer">
+        <Link href={isRental ? `/movies/${video.id}?trailer=true` : `/movies/${video.id}`} className="content-card flex-shrink-0 group/card cursor-pointer">
             <div className="relative rounded-lg overflow-hidden card-shine aspect-[2/3] bg-secondary">
                 <img
                     src={relatedImage(video)}
@@ -121,9 +126,14 @@ function RelatedDefaultCard({ video }: { video: VideoOut }) {
                     width={640}
                     height={960}
                 />
+                {isRental && <RentBadge variant="icon" />}
                 <div className="absolute inset-0 bg-background/0 group-hover/card:bg-background/40 transition-colors flex items-center justify-center">
-                    <div className="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-all scale-75 group-hover/card:scale-100">
-                        <Play size={20} className="text-primary-foreground ml-0.5" fill="currentColor" />
+                    <div className={`w-12 h-12 rounded-full ${isRental ? "bg-black/70 border border-white/20 text-white" : "bg-primary/90 text-primary-foreground"} flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-all scale-75 group-hover/card:scale-100`}>
+                        {isRental ? (
+                            <TrailerIcon className="w-5 h-5 text-white" />
+                        ) : (
+                            <Play size={20} className="text-primary-foreground ml-0.5" fill="currentColor" />
+                        )}
                     </div>
                 </div>
             </div>
@@ -141,8 +151,9 @@ function RelatedDefaultCard({ video }: { video: VideoOut }) {
 }
 
 function RelatedDetailedCard({ video }: { video: VideoOut }) {
+    const isRental = matchesAccessType(video.access_type, "rental");
     return (
-        <Link href={`/movies/${video.id}`} className="content-card flex-shrink-0 group/card cursor-pointer">
+        <Link href={isRental ? `/movies/${video.id}?trailer=true` : `/movies/${video.id}`} className="content-card flex-shrink-0 group/card cursor-pointer">
             <div className="relative rounded-lg overflow-hidden card-shine aspect-[2/3] bg-secondary">
                 <img
                     src={relatedImage(video)}
@@ -152,14 +163,18 @@ function RelatedDetailedCard({ video }: { video: VideoOut }) {
                     width={640}
                     height={960}
                 />
+                {isRental && <RentBadge variant="icon" />}
                 <div className="absolute inset-0 flex flex-col justify-end translate-y-full group-hover/card:translate-y-0 transition-transform duration-300 ease-out">
                     <div className="absolute inset-0 bg-gradient-to-t from-background via-background/90 to-transparent" />
                     <div className="relative p-3 space-y-2">
-                        {video.category && (
-                            <span className="inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 rounded-full">
-                                {video.category}
-                            </span>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {video.category && (
+                                <span className="inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 rounded-full">
+                                    {video.category}
+                                </span>
+                            )}
+                            {isRental && <RentBadge variant="inline" />}
+                        </div>
                         <p className="text-sm font-semibold text-foreground leading-snug line-clamp-2">{video.title}</p>
                         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                             <span>{relatedYear(video)}</span>
@@ -170,9 +185,15 @@ function RelatedDetailedCard({ video }: { video: VideoOut }) {
                             )}
                         </div>
                         <div className="flex gap-2 pt-1">
-                            <button className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
-                                <Play size={11} fill="currentColor" /> Watch
-                            </button>
+                            {isRental ? (
+                                <button className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-white/20 text-white border border-white/20 text-xs font-semibold hover:bg-white/30 transition-colors">
+                                    <TrailerIcon className="w-3.5 h-3.5" /> Trailer
+                                </button>
+                            ) : (
+                                <button className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors">
+                                    <Play size={11} fill="currentColor" /> Watch
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -360,6 +381,8 @@ export default function MovieDetailsPage() {
         enabled: !!id,
     });
 
+    const rentalPrice = useVideoRentalPrice(video?.subscription_plan_ids, video?.ppv_price);
+
     const { data: watchlist = [] } = useQuery({
         queryKey: ["watchlist"],
         queryFn: getWatchlist,
@@ -409,6 +432,12 @@ export default function MovieDetailsPage() {
         autoPlayFiredRef.current = true;
         handlePlay();
     }, [video, searchParams, accessLoading, handlePlay, showPlayer]);
+
+    useEffect(() => {
+        if (searchParams.get("trailer") === "true" && id) {
+            setTrailerVideoId(id);
+        }
+    }, [searchParams, id]);
 
     useEffect(() => {
         if (!showPlayer) return;
@@ -618,6 +647,8 @@ export default function MovieDetailsPage() {
                                         <p className="text-sm font-semibold leading-tight capitalize">
                                             {video.access_type === "pay_per_view"
                                                 ? `PPV${video.ppv_price ? ` · $${video.ppv_price}` : ""}`
+                                                : matchesAccessType(video.access_type, "rental")
+                                                ? `Rent · ${rentalPrice.formatted}`
                                                 : video.access_type}
                                         </p>
                                         <p className="mt-0.5 text-xs text-white/65">Access</p>
@@ -635,7 +666,7 @@ export default function MovieDetailsPage() {
                                 <Button
                                     onClick={handlePlay}
                                     disabled={accessLoading}
-                                    className="h-12 max-w-full gap-2 rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary/90 sm:px-8 sm:text-base"
+                                    className={`h-12 max-w-full rounded-md ${matchesAccessType(video?.access_type, "rental") && !hasAccess ? "bg-[image:var(--ember-gradient,linear-gradient(90deg,hsl(var(--primary)),hsl(var(--primary)/0.8)))] hover:brightness-110 text-white shadow-lg px-5" : "bg-primary text-primary-foreground hover:bg-primary/90 px-6 sm:px-8"} text-sm font-semibold sm:text-base`}
                                 >
                                     {accessLoading ? (
                                         <><Loader2 size={18} className="animate-spin" /> Checking…</>
@@ -643,8 +674,11 @@ export default function MovieDetailsPage() {
                                         <><Play size={18} fill="currentColor" /> Play Now</>
                                     ) : video?.access_type === "subscription" ? (
                                         <><Lock size={18} /> Subscribe to Watch</>
-                                    ) : video?.access_type === "rental" ? (
-                                        <><Play size={18} fill="currentColor" /> Rent to Watch</>
+                                    ) : matchesAccessType(video?.access_type, "rental") ? (
+                                        <div className="flex flex-col items-start leading-tight">
+                                            <span className="text-xs font-medium text-white/80">Rent</span>
+                                            <span className="text-sm font-bold text-white tracking-wide">{rentalPrice.formatted}</span>
+                                        </div>
                                     ) : video?.access_type === "pay_per_view" ? (
                                         <><Play size={18} fill="currentColor" /> Buy to Watch</>
                                     ) : (
@@ -660,11 +694,11 @@ export default function MovieDetailsPage() {
                                 </Button>
                             )}
                             <Button
-                                variant="outline"
+                                variant="ghost"
                                 onClick={() => watchlistMutation.mutate()}
                                 disabled={watchlistMutation.isPending || authLoading}
                                 aria-pressed={isInWatchlist}
-                                className="h-12 gap-2 rounded-md border-white/40 bg-black/25 px-5 text-sm font-medium text-white hover:bg-white/10 hover:text-white sm:text-base"
+                                className="h-12 gap-2 rounded-md bg-white/20 px-5 text-sm font-bold text-white backdrop-blur-sm hover:bg-white/30 hover:text-white sm:text-base"
                             >
                                 {watchlistMutation.isPending ? (
                                     <Loader2 size={18} className="animate-spin" />
@@ -675,7 +709,7 @@ export default function MovieDetailsPage() {
                                 )}
                                 {isInWatchlist ? "In My List" : "My List"}
                             </Button>
-                            <Button variant="outline" onClick={handleShare} className="h-12 gap-2 rounded-md border-white/40 bg-black/25 px-5 text-sm font-medium text-white hover:bg-white/10 hover:text-white sm:text-base">
+                            <Button variant="ghost" onClick={handleShare} className="h-12 gap-2 rounded-md bg-white/20 px-5 text-sm font-bold text-white backdrop-blur-sm hover:bg-white/30 hover:text-white sm:text-base">
                                 <Share2 size={18} aria-hidden="true" /> Share
                             </Button>
                         </div>

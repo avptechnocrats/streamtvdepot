@@ -21,11 +21,34 @@ import { useRowScroll } from "@/hooks/use-row-scroll";
 import { fetchCategories } from "@/lib/services/categories";
 import { BannerTrailer, useBannerAutoplay } from "@/components/BannerTrailer";
 import { VideoHoverPreview, WIDER_LANDSCAPE_CARD_WIDTH } from "@/components/VideoHoverPreview";
+import RentBadge from "@/components/RentBadge";
+import TrailerIcon from "@/components/TrailerIcon";
+import { matchesAccessType } from "@/lib/services/videos";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+
+function ActionTooltip({ label, children }: { label: string; children: React.ReactElement }) {
+    return (
+        <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>{children}</TooltipTrigger>
+            <TooltipPrimitive.Portal>
+                <TooltipContent
+                    side="top"
+                    sideOffset={6}
+                    className="z-50 border-white/15 bg-zinc-900/95 px-2.5 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-md"
+                >
+                    {label}
+                </TooltipContent>
+            </TooltipPrimitive.Portal>
+        </Tooltip>
+    );
+}
 
 export function PosterCard({ movie, rank, variant = "portrait", contentType = "video" }: { movie: Movie; rank?: number; variant?: ContentRowProps["variant"]; contentType?: "video" | "series" }) {
     const widerLandscape = variant === "wider-landscape" && !rank;
     const landscape = (variant === "landscape" || widerLandscape) && !rank;
     const featured = variant === "featured" && !rank;
+    const isRental = matchesAccessType(movie.accessType, "rental");
     const durationMinutes = movie.duration && movie.duration > 0 ? Math.max(1, Math.floor(movie.duration / 60)) : 0;
     const runtime = durationMinutes >= 60
         ? `${Math.floor(durationMinutes / 60)}h${durationMinutes % 60 ? ` ${durationMinutes % 60}m` : ""}`
@@ -154,6 +177,7 @@ export function PosterCard({ movie, rank, variant = "portrait", contentType = "v
                     positionClassName="object-center"
                 />
             </div>
+            {isRental && !expanded && <RentBadge variant="icon" />}
             <Link href={href} aria-label={movie.title} className="absolute inset-0 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" />
             <div style={{ transitionDuration: reducedMotion ? "0ms" : "450ms" }} className={`pointer-events-none absolute inset-0 bg-[linear-gradient(0deg,rgba(0,0,0,0.95)_0%,rgba(0,0,0,0.6)_38%,transparent_80%)] transition-opacity ${expanded ? "opacity-100" : "opacity-0"}`} />
             <div style={{ transitionDuration: reducedMotion ? "0ms" : "350ms" }} className={`pointer-events-none absolute inset-x-0 bottom-0 space-y-2 p-4 text-white transition-opacity motion-reduce:transition-none ${expanded ? "visible opacity-100 delay-200" : "invisible opacity-0"}`}>
@@ -161,50 +185,99 @@ export function PosterCard({ movie, rank, variant = "portrait", contentType = "v
                     <p className="min-w-0 truncate text-lg font-extrabold" title={movie.title}>{movie.title}</p>
                     {movie.rating && <span className="shrink-0 text-xs font-bold text-primary">{movie.rating}</span>}
                 </div>
+                {isRental && <RentBadge variant="inline" />}
                 <div className="flex items-center gap-2">
-                    <Link href={`${href}?play=true`} aria-label={`Play ${movie.title}`} title={`Play ${movie.title}`} className="pointer-events-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-black hover:bg-white/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
-                        <Play size={17} fill="currentColor" aria-hidden="true" />
-                    </Link>
-                    <Link href={href} className="pointer-events-auto inline-flex h-9 items-center rounded-md bg-white/20 px-3 text-xs font-bold backdrop-blur-sm hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">More Info</Link>
-                    <button type="button" onClick={handleToggle} disabled={toggleList.isPending} aria-label={inList ? "Remove from My List" : "Add to My List"} title={inList ? "Remove from My List" : "Add to My List"} aria-pressed={inList} className="pointer-events-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/60 bg-black/20 hover:bg-white/20 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
-                        {inList ? <Check size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
-                    </button>
+                    {isRental ? (
+                        <ActionTooltip label="Watch Trailer">
+                            <Link href={`${href}?trailer=true`} aria-label={`Watch ${movie.title} trailer`} className="pointer-events-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+                                <TrailerIcon className="w-5 h-5 text-white" />
+                            </Link>
+                        </ActionTooltip>
+                    ) : (
+                        <Link href={`${href}?play=true`} aria-label={`Play ${movie.title}`} title={`Play ${movie.title}`} className="pointer-events-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+                            <Play size={17} fill="currentColor" className="ml-0.5" aria-hidden="true" />
+                        </Link>
+                    )}
+                    <ActionTooltip label="More Info">
+                        <Link href={href} className="pointer-events-auto inline-flex h-9 items-center rounded-md bg-white/20 px-3 text-xs font-bold backdrop-blur-sm hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">More Info</Link>
+                    </ActionTooltip>
+                    <ActionTooltip label={inList ? "Remove from My List" : "Add to My List"}>
+                        <button type="button" onClick={handleToggle} disabled={toggleList.isPending} aria-label={inList ? "Remove from My List" : "Add to My List"} aria-pressed={inList} className="pointer-events-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/20 backdrop-blur-sm hover:bg-white/30 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+                            {inList ? <Check size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
+                        </button>
+                    </ActionTooltip>
                 </div>
                 {(movie.classification || movie.ageRating || runtime) && <p data-content-metadata className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-white">
                     {movie.classification && <span>{movie.classification}</span>}
                     {movie.ageRating && <span className="rounded-sm border border-white/50 px-1.5 py-0.5 leading-none">{movie.ageRating}</span>}
                     {runtime && <span className="whitespace-nowrap">{runtime}</span>}
                 </p>}
-                {categoryText && <p data-content-categories className="truncate text-xs font-bold text-white" title={categoryText}>{categoryText}</p>}
+                {movie.description && <p className="line-clamp-2 text-xs leading-relaxed text-white/85" title={movie.description}>{movie.description}</p>}
+                {categoryText && !movie.description && <p data-content-categories className="truncate text-xs font-bold text-white" title={categoryText}>{categoryText}</p>}
             </div>
         </div>
     );
 
-    const previewActions = <div className="flex items-center gap-2">
-        <span
-            role="link"
-            tabIndex={-1}
-            aria-label={`Play ${movie.title}`}
-            onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (movie.id) router.push(`${href}?play=true`);
-            }}
-            className="w-7 h-7 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer hover:brightness-110"
-        >
-            <Play size={12} fill="currentColor" className="ml-0.5" />
-        </span>
-        <button
-            onClick={handleToggle}
-            disabled={toggleList.isPending}
-            aria-label={inList ? "Remove from My List" : "Add to My List"}
-            className="w-7 h-7 shrink-0 rounded-full border border-foreground/40 text-foreground flex items-center justify-center hover:border-foreground transition-colors"
-        >
-            {inList ? <Check size={12} /> : <Plus size={12} />}
-        </button>
-        <span className="ml-auto w-7 h-7 shrink-0 rounded-full border border-foreground/40 text-foreground flex items-center justify-center">
-            <ChevronDown size={12} />
-        </span>
+    const isScaled120 = !widerLandscape;
+    const actionBtnSize = isScaled120 ? "h-[30px] w-[30px]" : "h-9 w-9";
+    const actionIconPx = isScaled120 ? 14 : 17;
+
+    const previewActions = <div className={`flex items-center ${isScaled120 ? "gap-1.5" : "gap-2"}`}>
+        {isRental ? (
+            <ActionTooltip label="Watch Trailer">
+                <span
+                    role="link"
+                    tabIndex={-1}
+                    aria-label={`Watch ${movie.title} trailer`}
+                    onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (movie.id) router.push(`${href}?trailer=true`);
+                    }}
+                    className={`${actionBtnSize} shrink-0 rounded-md bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 flex items-center justify-center cursor-pointer transition-colors`}
+                >
+                    <TrailerIcon className={`${isScaled120 ? "w-4 h-4" : "w-5 h-5"} text-white`} />
+                </span>
+            </ActionTooltip>
+        ) : (
+            <span
+                role="link"
+                tabIndex={-1}
+                aria-label={`Play ${movie.title}`}
+                onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (movie.id) router.push(`${href}?play=true`);
+                }}
+                className={`${actionBtnSize} shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer hover:brightness-110`}
+            >
+                <Play size={actionIconPx} fill="currentColor" className="ml-0.5" />
+            </span>
+        )}
+        {!rank && (
+            <ActionTooltip label="More Info">
+                <span className={`inline-flex items-center rounded-md bg-white/20 font-bold text-white backdrop-blur-sm hover:bg-white/30 transition-colors ${isScaled120 ? "h-[30px] px-2.5 text-[10px]" : "h-9 px-3 text-xs"}`}>
+                    More Info
+                </span>
+            </ActionTooltip>
+        )}
+        <ActionTooltip label={inList ? "Remove from My List" : "Add to My List"}>
+            <button
+                onClick={handleToggle}
+                disabled={toggleList.isPending}
+                aria-label={inList ? "Remove from My List" : "Add to My List"}
+                className={`${actionBtnSize} shrink-0 rounded-md bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 flex items-center justify-center transition-colors disabled:opacity-50`}
+            >
+                {inList ? <Check size={actionIconPx} /> : <Plus size={actionIconPx} />}
+            </button>
+        </ActionTooltip>
+        {rank && (
+            <ActionTooltip label="More Info">
+                <span className={`ml-auto ${actionBtnSize} shrink-0 rounded-md bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 flex items-center justify-center transition-colors`}>
+                    <ChevronDown size={actionIconPx} />
+                </span>
+            </ActionTooltip>
+        )}
     </div>;
 
     return (
@@ -244,6 +317,7 @@ export function PosterCard({ movie, rank, variant = "portrait", contentType = "v
                             sizes={rank ? "(min-width: 1024px) 192px, (min-width: 640px) 183px, 173px" : landscape ? "(min-width: 1024px) 308px, (min-width: 640px) 288px, 269px" : "(min-width: 1024px) 250px, (min-width: 640px) 231px, 212px"}
                         />
                         {widerLandscape && <VideoHoverPreview src={movie.videoUrl} hlsSrc={movie.hlsUrl} />}
+                        {isRental && !expanded && <RentBadge variant="icon" />}
                         {rank && <div
                             data-top-ten-actions
                             className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent px-3 pb-2 pt-8"
@@ -252,18 +326,21 @@ export function PosterCard({ movie, rank, variant = "portrait", contentType = "v
                     </div>
                     <div className="grid" style={{ gridTemplateRows: expanded ? "1fr" : "0fr", opacity: expanded ? 1 : 0, transition: reducedMotion ? "none" : "grid-template-rows 500ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease" }}>
                     <div className="min-h-0 overflow-hidden">
-                    <div className="px-3 py-2 space-y-1.5">
-                        {!rank && previewActions}
+                    <div className={isScaled120 ? "px-3 py-2.5 space-y-1.5" : "px-4 py-3 space-y-2"}>
                         <div className="flex min-w-0 items-center gap-2">
-                            <p className={`min-w-0 truncate text-sm ${rank ? "font-bold" : "font-semibold"} text-foreground`} title={movie.title}>{movie.title}</p>
-                            {movie.rating && <span className="shrink-0 text-xs font-medium text-primary" style={{ fontSize: rank ? "11px" : undefined }}>{movie.rating}</span>}
+                            <p className={`min-w-0 truncate font-extrabold text-white ${isScaled120 ? "text-[15px]" : "text-lg"}`} title={movie.title}>{movie.title}</p>
+                            {movie.rating && <span className={`shrink-0 font-bold text-primary ${isScaled120 ? "text-[10px]" : "text-xs"}`}>{movie.rating}</span>}
                         </div>
-                        {(movie.classification || movie.ageRating || runtime) && <p data-content-metadata className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground" style={{ fontSize: rank ? "11px" : undefined }}>
+                        {isRental && <RentBadge variant="inline" compact={isScaled120} />}
+                        {!rank && previewActions}
+                        {(movie.classification || movie.ageRating || runtime || movie.year) && <p data-content-metadata className={`flex flex-wrap items-center gap-x-2 gap-y-1 font-bold text-white ${isScaled120 ? "text-[10px]" : "text-xs"}`}>
                             {movie.classification && <span>{movie.classification}</span>}
-                            {movie.ageRating && <span className="rounded-sm border border-foreground/40 px-1.5 py-0.5 leading-none text-foreground/80">{movie.ageRating}</span>}
+                            {movie.ageRating && <span className="rounded-sm border border-white/50 px-1.5 py-0.5 leading-none">{movie.ageRating}</span>}
+                            {movie.year && <span>{movie.year}</span>}
                             {runtime && <span className="whitespace-nowrap">{runtime}</span>}
                         </p>}
-                        {categoryText && <p data-content-categories className="truncate text-xs leading-5 text-foreground/90" style={{ fontSize: rank ? "11px" : undefined, lineHeight: rank ? "16px" : undefined }} title={categoryText}>{categoryText}</p>}
+                        {movie.description && <p className={`line-clamp-2 leading-relaxed text-white/85 ${isScaled120 ? "text-[10px]" : "text-xs"}`} title={movie.description}>{movie.description}</p>}
+                        {categoryText && !movie.description && <p data-content-categories className={`truncate font-bold text-white ${isScaled120 ? "text-[10px]" : "text-xs"}`} title={categoryText}>{categoryText}</p>}
                     </div>
                     </div>
                     </div>

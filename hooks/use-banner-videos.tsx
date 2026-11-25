@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
-import { listSliderVideos, listVideos, type VideoOut } from "@/lib/services";
+import { listSliderVideos, listVideos, matchesAccessType, type VideoOut } from "@/lib/services";
 
 /**
  * Fetches videos that are active and marked as slider (is_slider=true).
@@ -82,37 +82,70 @@ function toSlide(v: VideoOut): BannerSlide {
     };
 }
 
-export function useBannerVideos() {
+export function useBannerVideos(options?: { accessType?: string }) {
     const pathname = usePathname();
     const isMoviesPage = pathname === "/movies";
     const isSportsPage = pathname === "/sports";
+    const isOnDemandPage = pathname === "/on-demand" || matchesAccessType(options?.accessType, "rental");
     const pageClassification = isSportsPage ? "Sports" : "Movie";
     const isClassificationLanding = isMoviesPage || isSportsPage;
     const { data, isLoading, isError } = useQuery({
-        queryKey: isClassificationLanding ? ["classification-banner-videos", pathname, "selected-or-random", pageClassification] : ["banner-videos"],
-        queryFn: isClassificationLanding ? async () => {
-            const assignedRequest = isMoviesPage
-                ? listVideos({ is_movie_slider: true, page_size: 100, content_classification: pageClassification })
-                : listVideos({ is_featured: true, page_size: 100, content_classification: pageClassification });
-            const videos = await assignedRequest;
-            const assigned = Array.from(new Map(videos
-                .filter(video => video.content_classification === pageClassification && video.is_active && (isMoviesPage ? video.is_movie_slider : video.is_featured) && (video.thumbnails.video_banner || video.thumbnails.video_h_thumbnail || video.thumbnails.video_w_thumbnail))
-                .map(video => [video.id, video])).values());
-            if (assigned.length > 0) return assigned;
+        queryKey: isOnDemandPage
+            ? ["on-demand-banner-videos", pathname]
+            : isClassificationLanding
+            ? ["classification-banner-videos", pathname, "selected-or-random", pageClassification]
+            : ["banner-videos"],
+        queryFn: isOnDemandPage
+            ? async () => {
+                const videos = await listVideos({ is_active: true, page_size: 100 });
+                const rentalVideos = videos.filter(
+                    video =>
+                        video.is_active &&
+                        matchesAccessType(video.access_type, "rental") &&
+                        Boolean(video.thumbnails.video_banner || video.thumbnails.video_h_thumbnail || video.thumbnails.video_w_thumbnail)
+                );
 
-            const fallback = await listVideos({ is_active: true, page_size: 100, content_classification: pageClassification });
-            const candidates = Array.from(new Map(fallback
-                .filter(video => video.content_classification === pageClassification && video.is_active && (video.thumbnails.video_banner || video.thumbnails.video_h_thumbnail || video.thumbnails.video_w_thumbnail))
-                .map(video => [video.id, video])).values());
-            for (let index = candidates.length - 1; index > 0; index--) {
-                const randomIndex = Math.floor(Math.random() * (index + 1));
-                [candidates[index], candidates[randomIndex]] = [candidates[randomIndex], candidates[index]];
+                const assigned = Array.from(
+                    new Map(
+                        rentalVideos
+                            .filter(video => video.is_slider || video.is_movie_slider || video.is_featured)
+                            .map(video => [video.id, video])
+                    ).values()
+                );
+                if (assigned.length > 0) return assigned;
+
+                const candidates = Array.from(new Map(rentalVideos.map(video => [video.id, video])).values());
+                for (let index = candidates.length - 1; index > 0; index--) {
+                    const randomIndex = Math.floor(Math.random() * (index + 1));
+                    [candidates[index], candidates[randomIndex]] = [candidates[randomIndex], candidates[index]];
+                }
+                return candidates.slice(0, 5);
             }
-            return candidates.slice(0, 5);
-        } : listSliderVideos,
-        staleTime: isClassificationLanding ? 0 : 5 * 60 * 1000,
-        refetchOnWindowFocus: isClassificationLanding ? false : undefined,
-        refetchOnReconnect: isClassificationLanding ? false : undefined,
+            : isClassificationLanding
+            ? async () => {
+                const assignedRequest = isMoviesPage
+                    ? listVideos({ is_movie_slider: true, page_size: 100, content_classification: pageClassification })
+                    : listVideos({ is_featured: true, page_size: 100, content_classification: pageClassification });
+                const videos = await assignedRequest;
+                const assigned = Array.from(new Map(videos
+                    .filter(video => video.content_classification === pageClassification && video.is_active && (isMoviesPage ? video.is_movie_slider : video.is_featured) && (video.thumbnails.video_banner || video.thumbnails.video_h_thumbnail || video.thumbnails.video_w_thumbnail))
+                    .map(video => [video.id, video])).values());
+                if (assigned.length > 0) return assigned;
+
+                const fallback = await listVideos({ is_active: true, page_size: 100, content_classification: pageClassification });
+                const candidates = Array.from(new Map(fallback
+                    .filter(video => video.content_classification === pageClassification && video.is_active && (video.thumbnails.video_banner || video.thumbnails.video_h_thumbnail || video.thumbnails.video_w_thumbnail))
+                    .map(video => [video.id, video])).values());
+                for (let index = candidates.length - 1; index > 0; index--) {
+                    const randomIndex = Math.floor(Math.random() * (index + 1));
+                    [candidates[index], candidates[randomIndex]] = [candidates[randomIndex], candidates[index]];
+                }
+                return candidates.slice(0, 5);
+            }
+            : listSliderVideos,
+        staleTime: isOnDemandPage || isClassificationLanding ? 0 : 5 * 60 * 1000,
+        refetchOnWindowFocus: isOnDemandPage || isClassificationLanding ? false : undefined,
+        refetchOnReconnect: isOnDemandPage || isClassificationLanding ? false : undefined,
         retry: 1,
     });
 

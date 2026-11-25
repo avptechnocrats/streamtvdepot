@@ -26,9 +26,13 @@ export function videoToMovie(video: VideoOut, landscape = false): Movie {
         ageRating: video.age_rating,
         duration: video.duration,
         classification: video.content_classification,
+        description: video.short_description || video.long_description,
         previewImage: video.thumbnails.video_banner || wide,
         trailerUrl: video.trailer_display_url,
         trailerHlsUrl: video.trailer_hls_url,
+        accessType: video.access_type,
+        subscriptionPlanIds: video.subscription_plan_ids,
+        rentalPrice: video.ppv_price,
     };
 }
 
