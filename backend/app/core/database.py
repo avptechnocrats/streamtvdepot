@@ -1,4 +1,5 @@
 from typing import AsyncGenerator
+from fastapi import Request
 
 from sqlalchemy.pool import NullPool
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
@@ -35,8 +36,14 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
+    from app.core import content_rights
+    from app.core.playback_security import trusted_country
+
     async with AsyncSessionLocal() as session:
+        path = request.url.path.removeprefix(settings.API_V1_PREFIX)
+        session.info["enforce_partner_rights"] = not path.startswith(("/admin/", "/superadmin/"))
+        session.info["partner_country"] = trusted_country(request)
         try:
             yield session
             await session.commit()
@@ -83,6 +90,7 @@ def load_models() -> None:
     import app.models.client.contact_submission  # noqa
     import app.models.client.client_contact_submission  # noqa
     import app.models.client.content  # noqa
+    import app.models.client.partner_delivery
     import app.models.client.subscription  # noqa
     import app.models.client.payment  # noqa
     import app.models.client.advertisement  # noqa

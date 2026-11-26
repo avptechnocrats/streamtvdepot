@@ -11,10 +11,12 @@ work directly as <img src> without any extra request headers.
 """
 import asyncio
 import hashlib
+import json
 import logging
 import re
 import uuid
-from pathlib import Path
+from datetime import datetime
+from pathlib import Path, PurePosixPath
 from typing import Optional
 from urllib.parse import quote
 
@@ -43,6 +45,170 @@ def get_s3_client():
         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
         config=_S3_CONFIG,
     )
+
+
+def partner_aws_client(service: str, region: str):
+    session = boto3.Session(
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID or None,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY or None,
+        region_name=region,
+    )
+    if settings.PARTNER_DELIVERY_ROLE_ARN:
+        credentials = session.client("sts").assume_role(
+            RoleArn=settings.PARTNER_DELIVERY_ROLE_ARN, RoleSessionName="partner-delivery",
+        )["Credentials"]
+        return boto3.client(service, region_name=region, config=_S3_CONFIG,
+            aws_access_key_id=credentials["AccessKeyId"], aws_secret_access_key=credentials["SecretAccessKey"],
+            aws_session_token=credentials["SessionToken"])
+    return session.client(service, config=_S3_CONFIG)
+
+
+def provision_partner_storage(delivery, client_slug: str) -> dict:
+    s3 = partner_aws_client("s3", delivery.region)
+    sqs = partner_aws_client("sqs", delivery.region)
+    account = partner_aws_client("sts", delivery.region).get_caller_identity()["Account"]
+    try:
+        tags = s3.get_bucket_tagging(Bucket=delivery.bucket, ExpectedBucketOwner=account)["TagSet"]
+        if {item["Key"]: item["Value"] for item in tags}.get("PartnerDeliveryId") != str(delivery.id):
+            raise ValueError("Delivery bucket ownership tags do not match")
+    except ClientError as error:
+        if error.response["Error"]["Code"] not in {"NoSuchBucket", "404", "NoSuchTagSet"}:
+            raise
+        if error.response["Error"]["Code"] == "NoSuchTagSet":
+            if not delivery.bucket.endswith("-" + delivery.partner_id.hex[:16]):
+                raise ValueError("Refusing to adopt an unrelated untagged bucket") from error
+            s3.head_bucket(Bucket=delivery.bucket, ExpectedBucketOwner=account)
+        else:
+            arguments = {"Bucket": delivery.bucket, "ObjectOwnership": "BucketOwnerEnforced"}
+            if delivery.region != "us-east-1":
+                arguments["CreateBucketConfiguration"] = {"LocationConstraint": delivery.region}
+            s3.create_bucket(**arguments)
+        s3.put_bucket_tagging(Bucket=delivery.bucket, Tagging={"TagSet": [
+            {"Key": "PartnerDeliveryId", "Value": str(delivery.id)},
+            {"Key": "TenantId", "Value": str(delivery.client_id)},
+            {"Key": "TenantSlug", "Value": client_slug},
+        ]})
+    s3.put_public_access_block(Bucket=delivery.bucket, PublicAccessBlockConfiguration={
+        "BlockPublicAcls": True, "IgnorePublicAcls": True, "BlockPublicPolicy": True, "RestrictPublicBuckets": True,
+    })
+    s3.put_bucket_ownership_controls(Bucket=delivery.bucket, OwnershipControls={"Rules": [{"ObjectOwnership": "BucketOwnerEnforced"}]})
+    s3.put_bucket_encryption(Bucket=delivery.bucket, ServerSideEncryptionConfiguration={
+        "Rules": [{"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}],
+    })
+    s3.put_bucket_versioning(Bucket=delivery.bucket, VersioningConfiguration={"Status": "Enabled"})
+    s3.put_bucket_lifecycle_configuration(Bucket=delivery.bucket, LifecycleConfiguration={"Rules": [{
+        "ID": "AbortIncompleteUploads", "Status": "Enabled", "Filter": {"Prefix": delivery.prefix},
+        "AbortIncompleteMultipartUpload": {"DaysAfterInitiation": 7},
+    }]})
+    bucket_arn = f"arn:aws:s3:::{delivery.bucket}"
+    deny_tls = {"Sid": "RequireTLS", "Effect": "Deny", "Principal": "*", "Action": "s3:*",
+        "Resource": [bucket_arn, f"{bucket_arn}/*"], "Condition": {"Bool": {"aws:SecureTransport": "false"}}}
+    if not delivery.enabled:
+        s3.put_bucket_policy(Bucket=delivery.bucket, Policy=json.dumps({"Version": "2012-10-17", "Statement": [deny_tls]}))
+        return {"queue_url": getattr(delivery, "queue_url", None), "queue_arn": getattr(delivery, "queue_arn", None)}
+    dlq = sqs.create_queue(QueueName=f"{delivery.bucket}-dlq", Attributes={"MessageRetentionPeriod": "1209600", "SqsManagedSseEnabled": "true"})["QueueUrl"]
+    dlq_arn = sqs.get_queue_attributes(QueueUrl=dlq, AttributeNames=["QueueArn"])["Attributes"]["QueueArn"]
+    queue_url = sqs.create_queue(QueueName=delivery.bucket, Attributes={
+        "VisibilityTimeout": "900", "MessageRetentionPeriod": "1209600", "SqsManagedSseEnabled": "true",
+        "RedrivePolicy": json.dumps({"deadLetterTargetArn": dlq_arn, "maxReceiveCount": "8"}),
+    })["QueueUrl"]
+    queue_arn = sqs.get_queue_attributes(QueueUrl=queue_url, AttributeNames=["QueueArn"])["Attributes"]["QueueArn"]
+    sqs.set_queue_attributes(QueueUrl=queue_url, Attributes={"Policy": json.dumps({"Version": "2012-10-17", "Statement": [{
+        "Sid": "AllowDeliveryEvents", "Effect": "Allow", "Principal": {"Service": "s3.amazonaws.com"},
+        "Action": "sqs:SendMessage", "Resource": queue_arn,
+        "Condition": {"ArnEquals": {"aws:SourceArn": bucket_arn}, "StringEquals": {"aws:SourceAccount": account}},
+    }]})})
+    principal = {"AWS": delivery.principal_arn}
+    statements = [deny_tls]
+    if delivery.enabled:
+        actions = ["s3:PutObject", "s3:PutObjectAcl", "s3:GetObject", "s3:AbortMultipartUpload", "s3:ListMultipartUploadParts"]
+        if delivery.options.get("method") == "replication":
+            actions += ["s3:ReplicateObject", "s3:ReplicateTags"]
+        statements += [
+            {"Sid": "PartnerBucketLocation", "Effect": "Allow", "Principal": principal,
+             "Action": ["s3:GetBucketLocation", "s3:GetBucketVersioning"], "Resource": bucket_arn},
+            {"Sid": "PartnerListPrefix", "Effect": "Allow", "Principal": principal, "Action": "s3:ListBucket",
+             "Resource": bucket_arn, "Condition": {"StringLike": {"s3:prefix": [delivery.prefix.rstrip("/"), delivery.prefix + "*"]}}},
+            {"Sid": "PartnerDelivery", "Effect": "Allow", "Principal": principal,
+             "Action": actions, "Resource": f"{bucket_arn}/{delivery.prefix}*"},
+        ]
+    s3.put_bucket_policy(Bucket=delivery.bucket, Policy=json.dumps({"Version": "2012-10-17", "Statement": statements}))
+    notifications = {}
+    if delivery.options.get("metadata_format", "filmhub_csv_3") == "filmhub_csv_3":
+        notifications = {"QueueConfigurations": [{
+            "Id": "PartnerMetadata", "QueueArn": queue_arn, "Events": ["s3:ObjectCreated:*"],
+            "Filter": {"Key": {"FilterRules": [{"Name": "prefix", "Value": delivery.prefix}, {"Name": "suffix", "Value": ".csv"}]}},
+        }]}
+    s3.put_bucket_notification_configuration(Bucket=delivery.bucket, NotificationConfiguration=notifications)
+    return {"queue_url": queue_url, "queue_arn": queue_arn}
+
+
+def read_partner_metadata(delivery, key: str, version_id: str) -> bytes:
+    s3 = partner_aws_client("s3", delivery.region)
+    result = s3.get_object(Bucket=delivery.bucket, Key=key, VersionId=version_id)
+    body = result["Body"]
+    try:
+        raw = body.read(settings.PARTNER_INGEST_MAX_CSV_BYTES + 1)
+        if len(raw) > settings.PARTNER_INGEST_MAX_CSV_BYTES:
+            raise ValueError("Metadata CSV exceeds size limit")
+        return raw
+    finally:
+        body.close()
+
+
+def copy_partner_asset(delivery, key: str, destination: str, metadata_date: datetime) -> dict:
+    source = partner_aws_client("s3", delivery.region)
+    head = source.head_object(Bucket=delivery.bucket, Key=key)
+    if not head.get("VersionId") or head["VersionId"] == "null":
+        raise ValueError("Delivery object is not versioned")
+    if head["LastModified"] > metadata_date:
+        raise ValueError("Asset changed after metadata; request a fresh metadata delivery")
+    if head["ContentLength"] <= 0:
+        raise ValueError(f"Empty delivery asset: {key}")
+    generation = hashlib.sha256(f"{key}:{head['VersionId']}".encode()).hexdigest()[:24]
+    destination = f"{destination}/{generation}/{PurePosixPath(key).name}"
+    target = partner_aws_client("s3", settings.AWS_REGION)
+    existing = target.list_objects_v2(Bucket=settings.AWS_S3_BUCKET, Prefix=destination, MaxKeys=1).get("Contents", [])
+    if existing and existing[0]["Key"] == destination:
+        if existing[0]["Size"] != head["ContentLength"]:
+            raise ValueError("Immutable destination asset has unexpected size")
+    else:
+        target.copy({"Bucket": delivery.bucket, "Key": key, "VersionId": head["VersionId"]},
+            settings.AWS_S3_BUCKET, destination, SourceClient=source,
+            ExtraArgs={"ServerSideEncryption": "AES256", "StorageClass": settings.AWS_S3_STORAGE_CLASS})
+    return {"s3_key": destination, "size": head["ContentLength"], "content_type": head.get("ContentType")}
+
+
+def prepare_partner_caption(key: str) -> str:
+    import pysubs2
+
+    if PurePosixPath(key).suffix.lower() not in {".srt", ".vtt"}:
+        raise ValueError("Only SRT and WebVTT captions are supported; request conversion for SCC or other formats")
+    s3 = partner_aws_client("s3", settings.AWS_REGION)
+    result = s3.get_object(Bucket=settings.AWS_S3_BUCKET, Key=key)
+    body = result["Body"]
+    try:
+        raw = body.read(settings.PARTNER_INGEST_MAX_CSV_BYTES + 1)
+    finally:
+        body.close()
+    if len(raw) > settings.PARTNER_INGEST_MAX_CSV_BYTES:
+        raise ValueError("Caption exceeds size limit")
+    subtitles = pysubs2.SSAFile.from_string(raw.decode("utf-8-sig"), format_="vtt" if key.lower().endswith(".vtt") else "srt")
+    if not subtitles or any(cue.start < 0 or cue.end <= cue.start for cue in subtitles):
+        raise ValueError("Caption has no usable cues or contains invalid timestamps")
+    destination = key + ".web.vtt"
+    s3.put_object(Bucket=settings.AWS_S3_BUCKET, Key=destination, Body=subtitles.to_string("vtt").encode(),
+        ContentType="text/vtt; charset=utf-8", ServerSideEncryption="AES256")
+    return destination
+
+
+def read_partner_caption(key: str) -> str:
+    result = get_s3_client().get_object(Bucket=settings.AWS_S3_BUCKET, Key=key)
+    body = result["Body"]
+    try:
+        return body.read(settings.PARTNER_INGEST_MAX_CSV_BYTES + 1).decode("utf-8")
+    finally:
+        body.close()
 
 
 def build_tenant_s3_key(client_slug: str, filename: str, folder: str = "support-tickets") -> str:

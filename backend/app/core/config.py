@@ -70,6 +70,14 @@ class Settings(BaseSettings):
     LOCAL_BRANDING_DIR: str = "uploads/branding"
     AWS_S3_BUCKET: str = ""
     AWS_S3_STORAGE_CLASS: str = "STANDARD"
+    PARTNER_DELIVERY_ENABLED: bool = False
+    PARTNER_DELIVERY_PRIVATE_SOURCES_CONFIRMED: bool = False
+    PARTNER_DELIVERY_BUCKET_PREFIX: str = "stv-delivery"
+    PARTNER_DELIVERY_REGION: str = "us-east-1"
+    PARTNER_DELIVERY_ROLE_ARN: str = ""
+    PARTNER_INGEST_MAX_CSV_BYTES: int = 10_485_760
+    PARTNER_INGEST_MAX_ROWS: int = 10000
+    PARTNER_INGEST_MAX_ATTEMPTS: int = 8
 
     # AWS MediaConvert (ABR transcoding)
     # MEDIACONVERT_ENDPOINT is optional – if left empty it is auto-discovered

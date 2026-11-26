@@ -162,7 +162,7 @@ async def process_episode_transcodes() -> None:
         rows = (await db.execute(select(TranscodeJob, MediaAssetRendition).join(
             MediaAssetRendition, TranscodeJob.media_asset_rendition_id == MediaAssetRendition.id,
         ).where(
-            TranscodeJob.video_id.is_(None), MediaAssetRendition.profile.in_(EPISODE_PLAYBACK_PROFILES),
+            TranscodeJob.video_id.is_(None), or_(MediaAssetRendition.profile.in_(EPISODE_PLAYBACK_PROFILES), MediaAssetRendition.profile.like("preview_hls_%")),
             or_(TranscodeJob.status == "pending", (TranscodeJob.status == "submitting") & (TranscodeJob.updated_at < stale)),
         ).order_by(TranscodeJob.created_at).limit(10).with_for_update(skip_locked=True, of=TranscodeJob))).all()
         submissions = []
