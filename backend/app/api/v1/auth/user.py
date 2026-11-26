@@ -119,6 +119,15 @@ def _otp_hash(user: EndUser, otp: str) -> str:
     return hashlib.sha256(f"{user.id}:{otp}:{settings.SECRET_KEY}".encode()).hexdigest()
 
 
+def _otp_is_current(user: EndUser) -> bool:
+    expires_at = user.email_verification_otp_expires_at
+    if not user.email_verification_otp_hash or not expires_at:
+        return False
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    return expires_at > datetime.now(timezone.utc)
+
+
 def _subscription_is_current(subscription: UserSubscription) -> bool:
     now = datetime.now(timezone.utc)
     if subscription.status == SubscriptionStatus.PAST_DUE:
@@ -247,17 +256,21 @@ async def end_user_signup(
     if not client or not client.is_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Platform not found")
 
-    try:
-        await verify_signup_challenge(
-            payload.altcha,
-            str(client.id),
-            settings.ALTCHA_HMAC_KEY or settings.SECRET_KEY,
-            settings.REDIS_URL,
-        )
-    except SignupVerificationError:
-        raise HTTPException(status_code=400, detail="Verification expired or is invalid. Please verify again.")
-    except SignupProtectionUnavailable:
-        raise HTTPException(status_code=503, detail="Signup verification is temporarily unavailable. Please try again.")
+    is_native_mobile = request.headers.get("x-client-platform", "").lower() == "mobile"
+    if not is_native_mobile:
+        if not payload.altcha:
+            raise HTTPException(status_code=400, detail="Please complete verification before signing up.")
+        try:
+            await verify_signup_challenge(
+                payload.altcha,
+                str(client.id),
+                settings.ALTCHA_HMAC_KEY or settings.SECRET_KEY,
+                settings.REDIS_URL,
+            )
+        except SignupVerificationError:
+            raise HTTPException(status_code=400, detail="Verification expired or is invalid. Please verify again.")
+        except SignupProtectionUnavailable:
+            raise HTTPException(status_code=503, detail="Signup verification is temporarily unavailable. Please try again.")
 
     existing = await db.execute(
         select(EndUser).where(EndUser.client_id == client.id, EndUser.email == payload.email)
@@ -300,6 +313,7 @@ async def end_user_signup(
 )
 async def end_user_verify_email(
     payload: VerifyEmailRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     client_result = await db.execute(select(Client).where(Client.slug == payload.client_slug))
@@ -308,7 +322,9 @@ async def end_user_verify_email(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid OTP. Please try again.")
 
     result = await db.execute(
-        select(EndUser).where(EndUser.client_id == client.id, EndUser.email == payload.email)
+        select(EndUser)
+        .where(EndUser.client_id == client.id, EndUser.email == payload.email)
+        .with_for_update()
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -317,17 +333,21 @@ async def end_user_verify_email(
     if user.is_email_verified:
         return VerifyEmailResponse(verified=True, message="Email already verified. You can sign in.")
 
-    expires_at = user.email_verification_otp_expires_at
-    if (
-        not user.email_verification_otp_hash
-        or not expires_at
-        or expires_at <= datetime.now(timezone.utc)
-        or user.email_verification_otp_attempts >= _MAX_OTP_ATTEMPTS
-        or not secrets.compare_digest(user.email_verification_otp_hash, _otp_hash(user, payload.otp))
-    ):
+    if not _otp_is_current(user):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Verification code expired. Request a new code.")
+
+    if user.email_verification_otp_attempts >= _MAX_OTP_ATTEMPTS:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many attempts. Request a new code.")
+
+    if not secrets.compare_digest(user.email_verification_otp_hash, _otp_hash(user, payload.otp)):
         user.email_verification_otp_attempts += 1
-        await db.flush()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid OTP. Please try again.")
+        await db.commit()
+        detail = (
+            "Too many attempts. Request a new code."
+            if user.email_verification_otp_attempts >= _MAX_OTP_ATTEMPTS
+            else "Invalid verification code. Please try again."
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
     user.is_email_verified = True
     user.is_active = True
@@ -335,6 +355,32 @@ async def end_user_verify_email(
     user.email_verification_otp_expires_at = None
     user.email_verification_otp_attempts = 0
     await db.flush()
+
+    is_native_mobile = request.headers.get("x-client-platform", "").lower() == "mobile"
+    if is_native_mobile:
+        await db.refresh(user)
+        token_data = {
+            "role": "end_user",
+            "client_id": str(client.id),
+            "country": user.country,
+            "email": user.email,
+            "full_name": user.full_name or "",
+        }
+        return VerifyEmailResponse(
+            verified=True,
+            message="Email verified successfully.",
+            access_token=create_access_token(str(user.id), token_data),
+            refresh_token=create_refresh_token(
+                str(user.id),
+                token_data,
+                expires_in_days=settings.END_USER_REFRESH_TOKEN_EXPIRE_DAYS,
+            ),
+            role="end_user",
+            email=user.email,
+            full_name=user.full_name,
+            user=serialize_end_user(user),
+        )
+
     return VerifyEmailResponse(verified=True, message="Email verified successfully. You can now sign in.")
 
 
@@ -357,13 +403,24 @@ async def end_user_resend_verification(
         return generic
 
     result = await db.execute(
-        select(EndUser).where(EndUser.client_id == client.id, EndUser.email == payload.email)
+        select(EndUser)
+        .where(EndUser.client_id == client.id, EndUser.email == payload.email)
+        .with_for_update()
     )
     user = result.scalar_one_or_none()
     if not user or user.is_email_verified:
         return generic
 
-    await _send_end_user_verification_email(db, user, client)
+    previous_hash = user.email_verification_otp_hash
+    previous_expiry = user.email_verification_otp_expires_at
+    previous_attempts = user.email_verification_otp_attempts
+    sent = await _send_end_user_verification_email(db, user, client)
+    if not sent:
+        user.email_verification_otp_hash = previous_hash
+        user.email_verification_otp_expires_at = previous_expiry
+        user.email_verification_otp_attempts = previous_attempts
+        await db.commit()
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Could not send the verification email. Please try again.")
     return generic
 
 
@@ -394,11 +451,12 @@ async def end_user_login(payload: UserLoginRequest, db: AsyncSession = Depends(g
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if not user.is_email_verified:
-        await _send_end_user_verification_email(db, user, client)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Email not verified. We sent a new OTP to your email.",
+        detail = (
+            "Email not verified. Enter the verification code sent to your email."
+            if _otp_is_current(user)
+            else "Email not verified. Request a new verification code."
         )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account disabled")
 

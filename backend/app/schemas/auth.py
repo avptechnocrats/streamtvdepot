@@ -1,5 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
+from app.schemas.client.user import EndUserOut
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -67,6 +69,7 @@ class VerifyEmailResponse(BaseModel):
     role: str | None = None
     email: EmailStr | None = None
     full_name: str | None = None
+    user: EndUserOut | None = None
 
 
 class VerifyEmailRequest(BaseModel):
@@ -125,7 +128,7 @@ class UserSignupRequest(BaseModel):
     full_name: str
     phone: str | None = None
     country: str | None = None
-    altcha: str = Field(min_length=1, max_length=16384)
+    altcha: str | None = Field(default=None, max_length=16384)
     website: str = Field(default="", max_length=2048)
 
     @field_validator("password")
