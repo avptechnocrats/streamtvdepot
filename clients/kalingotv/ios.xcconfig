@@ -5,7 +5,7 @@
 
 TENANT_BUNDLE_IDENTIFIER = com.kalingotv.mobile
 PRODUCT_BUNDLE_IDENTIFIER = $(TENANT_BUNDLE_IDENTIFIER)
-APP_DISPLAY_NAME = KalingoTV
+APP_DISPLAY_NAME = Kalingo TV
 
 // react-native-config will read clients/kalingotv/.env at build time
 // via ENVFILE env var set in scripts/build.sh

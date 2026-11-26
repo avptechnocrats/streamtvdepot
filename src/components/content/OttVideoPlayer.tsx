@@ -295,7 +295,6 @@ export function OttVideoPlayer({ contentId, source, startPositionSeconds = 0, on
       {isBuffering ? (
         <View style={styles.bufferOverlay} pointerEvents="none">
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.bufferText}>{source.protocol.toUpperCase()} • Buffering...</Text>
         </View>
       ) : null}
 
@@ -344,13 +343,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.65)",
-    gap: 8,
     zIndex: 10,
-  },
-  bufferText: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    letterSpacing: 0.4,
   },
   stateWrap: {
     alignItems: "center",

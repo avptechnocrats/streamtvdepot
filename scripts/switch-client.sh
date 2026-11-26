@@ -47,7 +47,34 @@ else
   echo "  ✗ Warning: clients/$CLIENT/.env not found — .env unchanged"
 fi
 
-# 2. Copy bundled logo (used as offline/pre-load fallback in BrandLogo.tsx)
+# 2. Update iOS project settings (APP_DISPLAY_NAME, Bundle ID) for Xcode builds
+TENANT_NAME=""
+if [[ -f "$CLIENT_DIR/ios.xcconfig" ]]; then
+  TENANT_NAME=$(grep -E '^[[:space:]]*APP_DISPLAY_NAME[[:space:]]*=' "$CLIENT_DIR/ios.xcconfig" | head -n1 | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+fi
+if [[ -z "$TENANT_NAME" && -f "$CLIENT_DIR/.env" ]]; then
+  TENANT_NAME=$(grep -E '^[[:space:]]*APP_NAME[[:space:]]*=' "$CLIENT_DIR/.env" | head -n1 | cut -d'=' -f2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+fi
+TENANT_BUNDLE_ID=""
+if [[ -f "$CLIENT_DIR/config.json" ]]; then
+  TENANT_BUNDLE_ID=$(node -e "process.stdout.write(require('$CLIENT_DIR/config.json').bundleId || '')")
+fi
+
+PBXPROJ="$ROOT/ios/StreamTVDepot.xcodeproj/project.pbxproj"
+if [[ -f "$PBXPROJ" ]]; then
+  if [[ -n "$TENANT_NAME" ]]; then
+    sed -i '' "s/APP_DISPLAY_NAME = .*;/APP_DISPLAY_NAME = \"$TENANT_NAME\";/g" "$PBXPROJ"
+    sed -i '' "s/INFOPLIST_KEY_CFBundleDisplayName = .*;/INFOPLIST_KEY_CFBundleDisplayName = \"$TENANT_NAME\";/g" "$PBXPROJ"
+    echo "  ✓ Set iOS App Display Name to '$TENANT_NAME'"
+  fi
+  if [[ -n "$TENANT_BUNDLE_ID" ]]; then
+    sed -i '' "s/TENANT_BUNDLE_IDENTIFIER = .*;/TENANT_BUNDLE_IDENTIFIER = $TENANT_BUNDLE_ID;/g" "$PBXPROJ"
+    sed -i '' "s/\"PRODUCT_BUNDLE_IDENTIFIER\[sdk=iphoneos\*\]\" = .*;/\"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]\" = $TENANT_BUNDLE_ID;/g" "$PBXPROJ"
+    echo "  ✓ Set iOS Bundle ID to '$TENANT_BUNDLE_ID'"
+  fi
+fi
+
+# 3. Copy bundled logo (used as offline/pre-load fallback in BrandLogo.tsx)
 if [[ -f "$CLIENT_DIR/logo.png" ]]; then
   cp "$CLIENT_DIR/logo.png" "$ROOT/assets/logo.png"
   echo "  ✓ Copied logo.png"

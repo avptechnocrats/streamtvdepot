@@ -26,7 +26,8 @@ interface HomeScreenProps {
   setActiveFilter: Dispatch<SetStateAction<HomeFilter | null>>;
 }
 
-const FILTERS: { key: HomeFilter | "live_tv"; label: string }[] = [
+const FILTERS: { key: HomeFilter | "home" | "live_tv"; label: string }[] = [
+  { key: "home", label: "Home" },
   { key: "movies", label: "Movies" },
   { key: "series", label: "Series" },
   { key: "live_tv", label: "Watch TV" },
@@ -203,24 +204,37 @@ export function HomeScreen({ activeFilter, setActiveFilter }: HomeScreenProps) {
       </View>
 
       <View style={styles.filterRow}>
-        {FILTERS.map((filter) => (
-          <Pressable
-            key={filter.key}
-            style={[styles.filterButton, activeFilter === filter.key && styles.filterButtonActive]}
-            onPress={() => {
-              if (filter.key === "live_tv") {
-                navigation.navigate("LiveTv");
-                return;
-              }
-              const nextFilter = filter.key as HomeFilter;
-              setActiveFilter((previous) => previous === nextFilter ? null : nextFilter);
-            }}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeFilter === filter.key }}
-          >
-            <Text numberOfLines={1} style={[styles.filterLabel, activeFilter === filter.key && styles.filterLabelActive]}>{filter.label}</Text>
-          </Pressable>
-        ))}
+        {FILTERS.map((filter) => {
+          const isSelected = filter.key === "home" ? activeFilter === null : activeFilter === filter.key;
+          return (
+            <Pressable
+              key={filter.key}
+              style={[styles.filterButton, isSelected && styles.filterButtonActive]}
+              onPress={() => {
+                if (filter.key === "home") {
+                  setActiveFilter(null);
+                  return;
+                }
+                if (filter.key === "live_tv") {
+                  navigation.navigate("LiveTv");
+                  return;
+                }
+                setActiveFilter(filter.key as HomeFilter);
+              }}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isSelected }}
+            >
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+                style={[styles.filterLabel, isSelected && styles.filterLabelActive]}
+              >
+                {filter.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       {isLoading ? (
@@ -442,7 +456,7 @@ const styles = StyleSheet.create({
   filterRow: {
     marginTop: 14,
     flexDirection: "row",
-    gap: 6,
+    gap: 5,
   },
   filterButton: {
     flex: 1,
@@ -454,7 +468,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 5,
+    paddingHorizontal: 3,
   },
   filterButtonActive: {
     borderColor: colors.primary,
